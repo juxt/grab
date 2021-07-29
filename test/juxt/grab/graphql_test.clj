@@ -3,8 +3,7 @@
 (ns juxt.grab.graphql-test
   (:require
    [clojure.test :refer [deftest is are testing]]
-   [juxt.grab.alpha.graphql :as grab]
-))
+   [juxt.grab.alpha.graphql :as grab]))
 
 (set! *print-level* 20)
 
