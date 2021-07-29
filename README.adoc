@@ -1,0 +1,7 @@
+= Grab
+
+A GraphQL implementation in Clojure.
+
+== Status
+
+ALPHA: work in progress
