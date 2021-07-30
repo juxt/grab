@@ -10,15 +10,39 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
   name: String
   picture(size: Int): Url}")
 
-(grab/parse-graphql example-56)
+(deftest parse-example-56-test
+  (is (= [{:type "ObjectTypeDefinition",
+           :name "Person",
+           :directives
+           {"crux"
+            {"query"
+             "{:find [e] :where [[?e :name][?e :picture ?p][?p :size $size]]}"}},
+           :fields
+           [{:name "name", :type "String"}
+            {:name "picture", :args [{:name "size", :type "Int"}], :type "Url"}]}]
+         (grab/parse-graphql example-56))))
+
 
 (grab/parse-graphql
- (str
-  example-56
-  "
+  (str
+   example-56
+   "
 schema { query: Person }
 
-query { person }
-
-
+query { name }
 "))
+
+(grab/validate-graphql-document
+ (grab/parse-graphql
+  (str
+   example-56
+   "
+schema { query: Person }
+
+query { name }
+")))
+
+(grab/parse-graphql
+ "
+schema { query: Person }
+")
