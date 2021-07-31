@@ -51,7 +51,9 @@
        (if (= (count ops) 1)
          (first ops)
          (throw (ex-info "Operation name required" {}))))
-     (when-let [op (some #(when (= (:name %) op-name) %) doc)] op))))
+     (if-let [op (some #(when (= (:name %) op-name) %) doc)]
+       op
+       (throw (ex-info "Operation name not found" {:operation-name op-name}))))))
 
 (defprotocol Schema
   (resolve-type [_ object-type field-name]))

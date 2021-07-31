@@ -24,7 +24,10 @@
       "bar" "bar")
     (is (thrown? clojure.lang.ExceptionInfo
                  (grab/get-operation doc nil))
-        "Otherwise produce a query error requiring operationName.")))
+        "Otherwise produce a query error requiring operationName.")
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (grab/get-operation doc "zip"))
+        "If operation was not found, produce a query error.")))
 
 ;;
 (deftest badly-formed-trailing-text
