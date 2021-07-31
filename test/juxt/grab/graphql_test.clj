@@ -14,7 +14,25 @@
              grab/parse-graphql
              grab/validate-graphql-document))))
 
-;; Let's make the root
+(deftest get-operation-test
+  (let [doc (-> "query foo { user } query bar { user }"
+                grab/parse-graphql
+                grab/validate-graphql-document)]
+    (are [arg expected]
+        (= expected (:name (grab/get-operation doc arg)))
+      "foo" "foo"
+      "bar" "bar")
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (grab/get-operation doc nil))
+        "Otherwise produce a query error requiring operationName.")))
+
+;;
+(deftest badly-formed-trailing-text
+  (is
+   (thrown?
+    clojure.lang.ExceptionInfo
+    (grab/parse-graphql "query foo { user } query bar { }"))
+   "The final query clause is invalid and this should cause an error"))
 
 (deftest query-test
   (is (= {"users"

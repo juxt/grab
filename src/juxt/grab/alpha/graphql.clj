@@ -39,21 +39,19 @@
       (throw (ex-info "Invalid GraphQL document" {:doc doc})))
   doc)
 
+(def operation-types #{"query" "mutation" "subscription"})
+
 (defn
   ^{:graphql/name "GetOperation"}
   get-operation
-  ([doc]
-   (when-let [op
-              (let [ops (filter #(= (:operation-type %) "query") (operations doc))]
-                (if (= (count ops) 1)
-                  (first ops)
-                  (get-operation doc nil)))]
-     op))
   ([doc op-name]
-   (if (some? op-name)
-     (when-let [op (some #(when (= (:name %) op-name) %) doc)]
-       op)
-     (get-operation doc))))
+   (if (nil? op-name)
+     (let [ops (filter #(operation-types (:operation-type %))
+                       (operations doc))]
+       (if (= (count ops) 1)
+         (first ops)
+         (throw (ex-info "Operation name required" {}))))
+     (when-let [op (some #(when (= (:name %) op-name) %) doc)] op))))
 
 (defprotocol Schema
   (resolve-type [_ object-type field-name]))
