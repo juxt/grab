@@ -55,7 +55,7 @@
        op
        (throw (ex-info "Operation name not found" {:operation-name op-name}))))))
 
-(defprotocol Schema
+#_(defprotocol Schema
   (resolve-type [_ object-type field-name]))
 
 (defn
@@ -453,7 +453,7 @@
        ;; This value is unaffected if an alias is used.
        (let [field-name (:name (first fields))
              ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-             field-type (resolve-type schema object-type field-name)]
+             field-type (throw (ex-info "TODO" {}))#_(resolve-type schema object-type field-name)]
 
          ;; c. If fieldType is defined:
          (if field-type
@@ -486,11 +486,11 @@
   (assert document)
 
   ;; 1. Let queryType be the root Query type in schema.
-  (let [query-type-name (get schema "queryType")
-        query-type (resolve-type
-                    schema
-                    :root
-                    query-type-name)]
+  (let [query-type-name (get-in schema "queryType")
+        query-type (throw (ex-info "TODO: resolve type" {}))#_(resolve-type
+                        schema
+                        :root
+                        query-type-name)]
 
     ;; 2. Assert: queryType is an Object type.
     (when-not (= (get query-type "kind") "OBJECT")

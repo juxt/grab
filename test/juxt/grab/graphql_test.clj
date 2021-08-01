@@ -37,7 +37,7 @@
     (grab/parse-graphql "query foo { user } query bar { }"))
    "The final query clause is invalid and this should cause an error"))
 
-(deftest query-test
+#_(deftest query-test
   (is (= {"users"
           [{"username" "mal", "email" "mal@juxt.pro"}
            {"username" "jdt", "email" "jdt@juxt.pro"}
