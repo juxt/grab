@@ -2,7 +2,8 @@
 
 (ns juxt.grab.alpha.schema
   (:require
-   [juxt.reap.alpha.graphql :as reap]))
+   [juxt.reap.alpha.graphql :as reap]
+   [juxt.grab.alpha.schema :as schema]))
 
 (defn some-match [coll k v]
   (some #(when (= (get % k) v) %) coll))
@@ -35,8 +36,8 @@
 
 ;; Convenience accessors
 
-(defn get-type [doc type-name]
-  (get-in doc [::types-by-name type-name]))
+(defn get-type [schema type-name]
+  (get-in schema [::types-by-name type-name]))
 
-(defn get-root-query-type [doc]
-  (get-type doc (get-in doc [::root-operation-type-names :query])))
+(defn get-root-query-type [schema]
+  (get-type schema (get-in schema [::root-operation-type-names :query])))

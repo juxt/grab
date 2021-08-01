@@ -1,5 +1,4 @@
 ;; Copyright © 2021, JUXT LTD.
-
 (ns juxt.grab.schema-test
   (:require
    [clojure.test :refer [deftest is]]
@@ -26,13 +25,13 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
          (parser/parse-graphql example-56))))
 
 (deftest schema-test
-  (let [schema (-> (slurp (io/resource "juxt/grab/test.graphql"))
+  (let [schema (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                    parser/parse-graphql
                    schema/parse-tree->schema)]
     (is (= "Person" (get-in schema [::schema/root-operation-type-names :query])))))
 
 (deftest get-root-query-type-test
-  (let [type (-> (slurp (io/resource "juxt/grab/test.graphql"))
+  (let [type (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                  parser/parse-graphql
                  schema/parse-tree->schema
                  schema/get-root-query-type)]

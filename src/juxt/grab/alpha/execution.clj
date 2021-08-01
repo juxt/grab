@@ -430,21 +430,20 @@
   (assert document)
 
   ;; 1. Let queryType be the root Query type in schema.
-  (let [query-type-name (get-in schema "queryType")
-        query-type (schema/get-root-query-type schema)]
+  (let [query-type (schema/get-root-query-type schema)]
 
     ;; 2. Assert: queryType is an Object type.
-    (when-not (= (get query-type :kind) :object)
+    (when-not (= (get query-type ::schema/kind) :object)
       (throw (ex-info
               "Query type must be an OBJECT"
               (into
                {:query-type query-type
-                :query-type-name query-type-name
+                :schema schema
                 :crux.graphql.spec-ref/step 2}
                (meta #'execute-query)))))
 
     ;; 3. Let selectionSet be the top level Selection Set in query.
-    (let [selection-set (:selection-set query)]
+    (if-let [selection-set (:selection-set query)]
       ;; 4. Let data be the result of running ExecuteSelectionSet
       ;; normally (allowing parallelization).
       ;; 5. Let errors be any field errors produced while executing the selection set.
@@ -456,7 +455,9 @@
         :variable-values variable-values
         :schema schema
         :field-resolver field-resolver
-        :document document}))))
+        :document document})
+
+      (throw (ex-info "No selection set in query" {:query query})))))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
@@ -470,9 +471,9 @@
         ;; CoerceVariableValues(schema, operation, variableValues). (TODO)
         coerced-variable-values variable-values]
 
-    (case (:operation-type operation)
+    (case (::document/operation-type operation)
       ;; 3. If operation is a
-      "query" ;; operation:
+      :query ;; operation:
       ;;   a. Return ExecuteQuery(operation, schema, coercedVariableValues,
       ;;   initialValue).
       (execute-query
@@ -493,4 +494,4 @@
 
       ;; TODO
 
-      (throw (ex-info "No operation type on operation" {:operation operation})))))
+      (throw (ex-info "Unsupported operation type on operation" {:operation operation})))))

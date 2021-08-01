@@ -5,13 +5,12 @@
    [clojure.test :refer [deftest is are testing]]
    [clojure.java.io :as io]
    [juxt.grab.alpha.parser :as parser]
-   [juxt.grab.alpha.execution :as execution]))
+   [juxt.grab.alpha.execution :as execution]
+   [juxt.grab.alpha.document :as document]))
 
 (alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (set! *print-level* 20)
-
-
 
 (deftest badly-formed-trailing-text
   (is
@@ -71,16 +70,18 @@
                    {:field field}))))})))))
 
 
-#_(let [document
-      (->  "query { user(id: 4) { name } }"
-           grab/parse-graphql
-           )]
+#_(let [schema
+      (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
+          parser/parse-graphql
+          schema/parse-tree->schema)
 
-  (grab/execute-request
-   {:schema
-    (-> (slurp (io/resource "juxt/grab/test.graphql"))
-        grab/parse-graphql
-        schema/document->schema)
+      document
+      (-> "query { user(id: 4) { name } }"
+          parser/parse-graphql
+          document/parse-tree->document)]
+
+  (execution/execute-request
+   {:schema schema
 
     :document document
 

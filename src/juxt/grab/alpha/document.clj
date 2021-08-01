@@ -9,9 +9,11 @@
    (->>
     (keep
      (fn [definition]
-       (when (::reap/operation-type definition)
+       (when-let [op-type (::reap/operation-type definition)]
          (let [nm (::reap/name definition)]
-           [nm (assoc definition ::name nm)])))
+           [nm {::name nm
+                ::operation-type (keyword op-type)
+                ::parse-tree definition}])))
      parse-tree)
     (into {}))
    ::parse-tree parse-tree})
