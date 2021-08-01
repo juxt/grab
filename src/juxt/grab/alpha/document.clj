@@ -21,11 +21,11 @@
   get-operation
   [doc op-name]
   (if-let [op (get (::operations doc) op-name)]
-    (if (nil? op-name)
+    (if op-name
+      op
       (if (= (count (::operations doc)) 1)
         op
-        (throw (ex-info "Operation name is nil and multiple operations exist" {})))
-      op)
-    (if (nil? op-name)
-      (throw (ex-info "Operation name required" {}))
-      (throw (ex-info "Operation not found" {:operation-name op-name})))))
+        (throw (ex-info "Operation name not specified and multiple operations exist" {}))))
+    (if op-name
+      (throw (ex-info "Operation not found" {:operation-name op-name}))
+      (throw (ex-info "Operation name required" {})))))
