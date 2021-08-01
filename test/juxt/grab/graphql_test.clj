@@ -51,42 +51,10 @@
 
            (grab/execute-request
             {:schema
-             (reify grab/Schema
-               (resolve-type [this object-type field-name]
-
-                 (cond
-
-                   (= object-type :root)
-                   {"kind" "OBJECT"
-                    "name" "Root"
-                    ;;"fields" [{"name" "users"}]
-                    }
-
-                   (= (get object-type "name") "Root")
-                   (case field-name
-                     "user"
-                     {"kind" "SCALAR"}
-
-                     "users"
-                     {"name" "users"
-                      "kind" "LIST"
-                      "ofType" {"kind" "OBJECT"
-                                #_#_"fields" [{"name" "username"}
-                                              {"name" "email"}]}})
-
-                   (= field-name "username")
-                   {"kind" "SCALAR"}
-
-                   (= field-name "email")
-                   {"kind" "SCALAR"}
-
-                   :else
-                   (throw
-                    (ex-info
-                     "TODO: resolve-type"
-                     {:this this
-                      :object-type object-type
-                      :field-name field-name})))))
+             (-> (slurp (io/resource "juxt/grab/test.graphql"))
+                 grab/parse-graphql
+                 grab/validate-graphql-document
+                 schema/document->schema)
 
              :document document
 
