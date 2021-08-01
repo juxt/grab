@@ -5,6 +5,7 @@
 
 (ns juxt.grab.alpha.graphql
   (:require
+   [juxt.grab.alpha.schema :as schema]
    [juxt.reap.alpha.api :as reap]
    [juxt.reap.alpha.graphql :as reap-graphql]
    [flatland.ordered.map :refer [ordered-map]]))
@@ -487,10 +488,7 @@
 
   ;; 1. Let queryType be the root Query type in schema.
   (let [query-type-name (get-in schema "queryType")
-        query-type (throw (ex-info "TODO: resolve type" {}))#_(resolve-type
-                        schema
-                        :root
-                        query-type-name)]
+        query-type (schema/get-root-query-type schema)]
 
     ;; 2. Assert: queryType is an Object type.
     (when-not (= (get query-type "kind") "OBJECT")

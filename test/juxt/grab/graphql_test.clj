@@ -3,7 +3,9 @@
 (ns juxt.grab.graphql-test
   (:require
    [clojure.test :refer [deftest is are testing]]
-   [juxt.grab.alpha.graphql :as grab]))
+   [clojure.java.io :as io]
+   [juxt.grab.alpha.graphql :as grab]
+   [juxt.grab.alpha.schema :as schema]))
 
 (set! *print-level* 20)
 
@@ -86,3 +88,48 @@
                   (ex-info
                    "TODO: Resolve field"
                    {:field field}))))})))))
+
+
+#_(let [document
+      (->  "query { users { username email } }"
+           #_"{ user }"
+           grab/parse-graphql
+           grab/validate-graphql-document)]
+
+  (grab/execute-request
+   {:schema
+    (-> (slurp (io/resource "juxt/grab/test.graphql"))
+        grab/parse-graphql
+        grab/validate-graphql-document
+        schema/document->schema)
+
+    :document document
+
+    :variable-values {}
+
+    :initial-value {"users"
+                    [{"username" "mal" "email" "mal@juxt.pro"}
+                     {"username" "jdt" "email" "jdt@juxt.pro"}
+                     {"username" "tim" "email" "tim@juxt.pro"}]}
+
+    :field-resolver
+    (fn [{:keys [object-type object-value field-name argument-values] :as field}]
+      (cond
+
+        (= field-name "user")
+        "Malcolm"
+
+        (= field-name "users")
+        (get object-value "users")
+
+        (= field-name "username")
+        (get object-value "username")
+
+        (= field-name "email")
+        (get object-value "email")
+
+        :else
+        (throw
+         (ex-info
+          "TODO: Resolve field"
+          {:field field}))))}))

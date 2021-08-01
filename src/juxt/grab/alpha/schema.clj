@@ -5,23 +5,22 @@
 (defn some-match [coll k v]
   (some #(when (= (get % k) v) %) coll))
 
-(defn type-definition? [s]
-  (contains?
-   #{"ScalarTypeDefinition"
-     "ObjectTypeDefinition"
-     "InterfaceTypeDefinition"
-     "UnionTypeDefinition"
-     "EnumTypeDefinition"
-     "InputObjectTypeDefinition"}
-   s))
+(def type-kind-map
+  {"ScalarTypeDefinition" :scalar
+   "ObjectTypeDefinition" :object
+   "InterfaceTypeDefinition" :interface
+   "UnionTypeDefinition" :union
+   "EnumTypeDefinition" :enum
+   "InputObjectTypeDefinition" :input-object})
 
 (defn document->schema
-  ""
+  "Return a grab-specified schema as a map from a reap-parsed document."
   [doc]
   (let [types-by-name
         (->> doc
-             (filter (comp type-definition? :type))
-             (map (juxt :name identity))
+             (keep
+              #(when-let [kind (type-kind-map (:type %))]
+                 [(:name %) (assoc % :kind kind)]))
              (into {}))
         root-query-type-name
         (some-> (some-match doc :type "SchemaDefinition")
