@@ -32,6 +32,16 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
                    schema/document->schema)]
     (is (= "Person" (get-in schema [:root-operation-type-names :query])))))
 
+(deftest get-root-query-type-test
+  (is (= 2
+         (-> (slurp (io/resource "juxt/grab/test.graphql"))
+             grab/parse-graphql
+             grab/validate-graphql-document
+             schema/document->schema
+             schema/get-root-query-type
+             :fields
+             count))))
+
 #_(def schema-string
   (str/join
    " "
