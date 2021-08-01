@@ -1,0 +1,7 @@
+type Person {
+  name: String
+  picture(size: Int): Url
+}
+schema {
+  query: Person
+}

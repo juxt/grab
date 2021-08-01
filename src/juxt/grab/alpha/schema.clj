@@ -5,13 +5,29 @@
 (defn some-match [coll k v]
   (some #(when (= (get % k) v) %) coll))
 
-(defn document->schema
-    ""
-    [doc]
-    (let [root-query-type-name
-          (some-> (some-match doc :type "SchemaDefinition")
-                  :root-operation-types
-                  (some-match :operation-type "query")
-                  :named-type)]
+(defn type-definition? [s]
+  (contains?
+   #{"ScalarTypeDefinition"
+     "ObjectTypeDefinition"
+     "InterfaceTypeDefinition"
+     "UnionTypeDefinition"
+     "EnumTypeDefinition"
+     "InputObjectTypeDefinition"}
+   s))
 
-      {:root-operation-types {:query (some-match doc :name root-query-type-name)}}))
+(defn document->schema
+  ""
+  [doc]
+  (let [types-by-name
+        (->> doc
+             (filter (comp type-definition? :type))
+             (map (juxt :name identity))
+             (into {}))
+        root-query-type-name
+        (some-> (some-match doc :type "SchemaDefinition")
+                :root-operation-types
+                (some-match :operation-type "query")
+                :named-type)]
+
+    {:types-by-name types-by-name
+     :root-operation-type-names {:query root-query-type-name}}))

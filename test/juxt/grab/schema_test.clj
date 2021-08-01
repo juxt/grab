@@ -5,7 +5,8 @@
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.graphql :as grab]
    [juxt.grab.alpha.schema :as schema]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.java.io :as io]))
 
 (def example-56 "
 type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :size $size]]}\") {
@@ -24,6 +25,13 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
               {:name "picture", :args [{:name "size", :type "Int"}], :type "Url"}]}]
            (grab/parse-graphql example-56))))
 
+(deftest schema-test
+  (let [schema (-> (slurp (io/resource "juxt/grab/test.graphql"))
+                   grab/parse-graphql
+                   grab/validate-graphql-document
+                   schema/document->schema)]
+    (is (= "Person" (get-in schema [:root-operation-type-names :query])))))
+
 #_(def schema-string
   (str/join
    " "
@@ -34,15 +42,6 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
   (schema/document->schema
    (grab/validate-graphql-document
     (grab/parse-graphql schema-string))))
-
-(deftest schema-test
-  (let [schema (-> "type Person { name: String
-                                  picture(size: Int): Url}
-                    schema { query: Person }"
-                   grab/parse-graphql
-                   grab/validate-graphql-document
-                   schema/document->schema)]
-    (is (= "Person" (get-in schema [:root-operation-types :query :name])))))
 
 #_(let [document
       (grab/validate-graphql-document
