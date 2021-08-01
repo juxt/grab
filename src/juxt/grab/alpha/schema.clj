@@ -33,5 +33,8 @@
 
 ;; Convenience accessors
 
+(defn get-type [doc type-name]
+  (get-in doc [:types-by-name type-name]))
+
 (defn get-root-query-type [doc]
-  (get-in doc [:types-by-name (get-in doc [:root-operation-type-names :query])]))
+  (get-type doc (get-in doc [:root-operation-type-names :query])))
