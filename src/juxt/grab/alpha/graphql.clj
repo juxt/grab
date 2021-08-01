@@ -429,9 +429,6 @@
   (assert schema)
   (assert document)
 
-;;  (println "execute-selection-set-normally")
-;;  (pprint {:object-value object-value})
-
   ;; 1. Let groupedFieldSet be the result of CollectFields
   (let [grouped-field-set
         (collect-fields
@@ -439,9 +436,6 @@
           :selection-set selection-set
           :variable-values variable-values
           :document document})
-
-;;        _ (println "grouped-field-set")
-;;        _ (pprint grouped-field-set)
 
         ;; 2. Initialize resultMap to an empty ordered map.
         result-map (ordered-map)]
