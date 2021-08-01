@@ -4,39 +4,20 @@
   (:require
    [clojure.test :refer [deftest is are testing]]
    [clojure.java.io :as io]
-   [juxt.grab.alpha.graphql :as grab]
-   [juxt.grab.alpha.schema :as schema]))
+   [juxt.grab.alpha.parser :as parser]
+   [juxt.grab.alpha.execution :as execution]))
+
+(alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (set! *print-level* 20)
 
-(deftest parse-query-test
-  (is (= '({:operation-type "query",
-            :selection-set [[:field {:name "user", :arguments {}}]]})
-         (-> "query { user }"
-             grab/parse-graphql
-             grab/validate-graphql-document))))
 
-(deftest get-operation-test
-  (let [doc (-> "query foo { user } query bar { user }"
-                grab/parse-graphql
-                grab/validate-graphql-document)]
-    (are [arg expected]
-        (= expected (:name (grab/get-operation doc arg)))
-      "foo" "foo"
-      "bar" "bar")
-    (is (thrown? clojure.lang.ExceptionInfo
-                 (grab/get-operation doc nil))
-        "Otherwise produce a query error requiring operationName.")
-    (is (thrown? clojure.lang.ExceptionInfo
-                 (grab/get-operation doc "zip"))
-        "If operation was not found, produce a query error.")))
 
-;;
 (deftest badly-formed-trailing-text
   (is
    (thrown?
     clojure.lang.ExceptionInfo
-    (grab/parse-graphql "query foo { user } query bar { }"))
+    (parser/parse-graphql "query foo { user } query bar { }"))
    "The final query clause is invalid and this should cause an error"))
 
 #_(deftest query-test
@@ -90,16 +71,15 @@
                    {:field field}))))})))))
 
 
-(let [document
+#_(let [document
       (->  "query { user(id: 4) { name } }"
            grab/parse-graphql
-           grab/validate-graphql-document)]
+           )]
 
   (grab/execute-request
    {:schema
     (-> (slurp (io/resource "juxt/grab/test.graphql"))
         grab/parse-graphql
-        grab/validate-graphql-document
         schema/document->schema)
 
     :document document

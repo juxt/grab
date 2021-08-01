@@ -2,10 +2,10 @@
 
 (ns juxt.grab.schema-test
   (:require
-   [clojure.test :refer [deftest is are testing]]
-   [juxt.grab.alpha.graphql :as grab]
+   [clojure.test :refer [deftest is]]
+   [juxt.reap.alpha.graphql :as reap]
+   [juxt.grab.alpha.parser :as parser]
    [juxt.grab.alpha.schema :as schema]
-   [clojure.string :as str]
    [clojure.java.io :as io]))
 
 (def example-56 "
@@ -14,63 +14,28 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
   picture(size: Int): Url}")
 
 (deftest parse-example-56-test
-    (is (= [{:type "ObjectTypeDefinition",
-             :name "Person",
-             :directives
-             {"crux"
-              {"query"
-               "{:find [e] :where [[?e :name][?e :picture ?p][?p :size $size]]}"}},
-             :fields
-             [{:name "name", :type "String"}
-              {:name "picture", :args [{:name "size", :type "Int"}], :type "Url"}]}]
-           (grab/parse-graphql example-56))))
+  (is (= [#::reap{:type "ObjectTypeDefinition",
+                  :name "Person",
+                  :directives
+                  {"crux"
+                   {"query"
+                    "{:find [e] :where [[?e :name][?e :picture ?p][?p :size $size]]}"}},
+                  :fields
+                  [#::reap{:name "name", :type "String"}
+                   #::reap{:name "picture", :args [#::reap{:name "size", :type "Int"}], :type "Url"}]}]
+         (parser/parse-graphql example-56))))
 
 (deftest schema-test
   (let [schema (-> (slurp (io/resource "juxt/grab/test.graphql"))
-                   grab/parse-graphql
-                   grab/validate-graphql-document
-                   schema/document->schema)]
-    (is (= "Person" (get-in schema [:root-operation-type-names :query])))))
+                   parser/parse-graphql
+                   schema/parse-tree->schema)]
+    (is (= "Person" (get-in schema [::schema/root-operation-type-names :query])))))
 
 (deftest get-root-query-type-test
   (let [type (-> (slurp (io/resource "juxt/grab/test.graphql"))
-                 grab/parse-graphql
-                 grab/validate-graphql-document
-                 schema/document->schema
-                 schema/get-root-query-type
-                 )]
-    (is (= "Person" (:name type)))
-    (is (= :object (:kind type)))
-    (is (= 2 (count (:fields type))))))
-
-#_(-> (slurp (io/resource "juxt/grab/test.graphql"))
-      grab/parse-graphql
-      grab/validate-graphql-document
-      schema/document->schema
-      )
-
-#_(def schema-string
-  (str/join
-   " "
-   [example-56
-    "schema { query: Person }"]))
-
-#_(def schema
-  (schema/document->schema
-   (grab/validate-graphql-document
-    (grab/parse-graphql schema-string))))
-
-#_(let [document
-      (grab/validate-graphql-document
-       (grab/parse-graphql
-        "query { name }"))]
-
-  (grab/execute-request
-   {:schema
-    (->Schema schema)
-    :document document
-    :operation-name nil
-    :variable-values {}
-    :initial-value {:db 'db}
-    :field-resolver {}
-    }))
+                 parser/parse-graphql
+                 schema/parse-tree->schema
+                 schema/get-root-query-type)]
+    (is (= "Person" (::reap/name type)))
+    (is (= :object (::schema/kind type)))
+    (is (= 2 (count (::reap/fields type))))))

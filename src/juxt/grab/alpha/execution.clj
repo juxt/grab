@@ -1,63 +1,10 @@
 ;; Copyright © 2020, JUXT LTD.
 
-;; TODO: Promote this namespace to juxt/grab, it's a GraphQL engine,
-;; without batteries.
-
-(ns juxt.grab.alpha.graphql
+(ns juxt.grab.alpha.execution
   (:require
+   [juxt.grab.alpha.document :as document]
    [juxt.grab.alpha.schema :as schema]
-   [juxt.reap.alpha.api :as reap]
-   [juxt.reap.alpha.graphql :as reap-graphql]
    [flatland.ordered.map :refer [ordered-map]]))
-
-(defn parse-graphql
-  "Return a document"
-  [s]
-  (reap/decode reap-graphql/Document s))
-
-(defn operations
-    "Return just the operations of a document, expanding any shorthand
-    definition."
-    [graphql-doc]
-    (->> graphql-doc
-         (map
-          (fn [definition]
-            (if (= (keys definition) [:selection-set])
-              (into {:operation-type "query"} definition)
-              definition)))
-         (filter :operation-type)))
-
-(defn validate-graphql-document
-  "'If a Document contains only one operation, that operation may be unnamed or
-  represented in the shorthand form, which omits both the query keyword and
-  operation name. Otherwise, if a GraphQL Document contains multiple operations,
-  each operation must be named.'"
-  [doc]
-  (when-not
-      (or
-       (= (count (filter #(= (:operation-type %) "query") (operations doc))) 1)
-       (every? :name (operations doc)))
-      (throw (ex-info "Invalid GraphQL document" {:doc doc})))
-  doc)
-
-(def operation-types #{"query" "mutation" "subscription"})
-
-(defn
-  ^{:graphql/name "GetOperation"}
-  get-operation
-  ([doc op-name]
-   (if (nil? op-name)
-     (let [ops (filter #(operation-types (:operation-type %))
-                       (operations doc))]
-       (if (= (count ops) 1)
-         (first ops)
-         (throw (ex-info "Operation name required" {}))))
-     (if-let [op (some #(when (= (:name %) op-name) %) doc)]
-       op
-       (throw (ex-info "Operation name not found" {:operation-name op-name}))))))
-
-#_(defprotocol Schema
-  (resolve-type [_ object-type field-name]))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
@@ -518,7 +465,7 @@
   execute-request [{:keys [schema document operation-name variable-values initial-value field-resolver]}]
 
   ;; 1. Let operation be the result of GetOperation(document, operationName).
-  (let [operation (get-operation document operation-name)
+  (let [operation (document/get-operation document operation-name)
         ;; 2. Let coercedVariableValues be the result of
         ;; CoerceVariableValues(schema, operation, variableValues). (TODO)
         coerced-variable-values variable-values]

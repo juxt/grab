@@ -1,6 +1,8 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.alpha.schema)
+(ns juxt.grab.alpha.schema
+  (:require
+   [juxt.reap.alpha.graphql :as reap]))
 
 (defn some-match [coll k v]
   (some #(when (= (get % k) v) %) coll))
@@ -13,28 +15,28 @@
    "EnumTypeDefinition" :enum
    "InputObjectTypeDefinition" :input-object})
 
-(defn document->schema
+(defn parse-tree->schema
   "Return a grab-specified schema as a map from a reap-parsed document."
-  [doc]
+  [parse-tree]
   (let [types-by-name
-        (->> doc
+        (->> parse-tree
              (keep
-              #(when-let [kind (type-kind-map (:type %))]
-                 [(:name %) (assoc % :kind kind)]))
+              #(when-let [kind (type-kind-map (::reap/type %))]
+                 [(::reap/name %) (assoc % ::kind kind)]))
              (into {}))
         root-query-type-name
-        (some-> (some-match doc :type "SchemaDefinition")
-                :root-operation-types
-                (some-match :operation-type "query")
-                :named-type)]
+        (some-> (some-match parse-tree ::reap/type "SchemaDefinition")
+                ::reap/root-operation-types
+                (some-match ::reap/operation-type "query")
+                ::reap/named-type)]
 
-    {:types-by-name types-by-name
-     :root-operation-type-names {:query root-query-type-name}}))
+    {::types-by-name types-by-name
+     ::root-operation-type-names {:query root-query-type-name}}))
 
 ;; Convenience accessors
 
 (defn get-type [doc type-name]
-  (get-in doc [:types-by-name type-name]))
+  (get-in doc [::types-by-name type-name]))
 
 (defn get-root-query-type [doc]
-  (get-type doc (get-in doc [:root-operation-type-names :query])))
+  (get-type doc (get-in doc [::root-operation-type-names :query])))
