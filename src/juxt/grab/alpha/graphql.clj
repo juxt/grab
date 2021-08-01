@@ -448,7 +448,9 @@
        ;; This value is unaffected if an alias is used.
        (let [field-name (:name (first fields))
              ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-             field-type (throw (ex-info "TODO" {}))#_(resolve-type schema object-type field-name)]
+             field-type (throw (ex-info "TODO" {:object-type object-type
+                                                :object-value object-value
+                                                :field-name field-name}))#_(resolve-type schema object-type field-name)]
 
          ;; c. If fieldType is defined:
          (if field-type
@@ -485,7 +487,7 @@
         query-type (schema/get-root-query-type schema)]
 
     ;; 2. Assert: queryType is an Object type.
-    (when-not (= (get query-type "kind") "OBJECT")
+    (when-not (= (get query-type :kind) :object)
       (throw (ex-info
               "Query type must be an OBJECT"
               (into
