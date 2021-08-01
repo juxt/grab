@@ -90,9 +90,8 @@
                    {:field field}))))})))))
 
 
-#_(let [document
-      (->  "query { users { username email } }"
-           #_"{ user }"
+(let [document
+      (->  "query { user(id: 4) { name } }"
            grab/parse-graphql
            grab/validate-graphql-document)]
 
@@ -107,10 +106,7 @@
 
     :variable-values {}
 
-    :initial-value {"users"
-                    [{"username" "mal" "email" "mal@juxt.pro"}
-                     {"username" "jdt" "email" "jdt@juxt.pro"}
-                     {"username" "tim" "email" "tim@juxt.pro"}]}
+    :initial-value {:_hint "initial-value"}
 
     :field-resolver
     (fn [{:keys [object-type object-value field-name argument-values] :as field}]
