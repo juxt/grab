@@ -280,10 +280,13 @@
       (do
         ;; a. If result is not a collection of values, throw a field error.
         (when-not (sequential? result)
-          (throw (ex-info "Resolver must return a collection" {:field-type field-type}))
-          )
+          (throw (ex-info "Resolver must return a collection" {:field-type field-type})))
+
         ;; b. Let innerType be the inner type of fieldType.
-        (let [inner-type (get field-type "ofType")]
+        (let [inner-type (get field-type ::schema/item-type)
+              inner-type (if (string? inner-type)
+                           (schema/get-type schema inner-type)
+                           inner-type)]
           ;; c. Return a list where each list item is the result of calling
           ;; CompleteValue(innerType, fields, resultItem, variableValues),
           ;; where resultItem is each item in result.

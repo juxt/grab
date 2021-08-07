@@ -63,3 +63,47 @@ type Person { name: String
                 "name" (:name object-value)
                 (throw (ex-info "TODO:1b" args)))
               (throw (ex-info "TODO:2" args))))})))))
+
+
+(deftest execute-request-with-list-test
+  (is
+   (= {:data
+       {"users"
+        [{"name" "Cheri Berthiaume", "picture" "/cb-800x600.jpg"}
+         {"name" "Cruz Jarrard", "picture" "/cj-800x600.jpg"}
+         {"name" "Viktoriya Zhukova", "picture" "/vz-800x600.jpg"}
+         {"name" "Bernardina Vesely", "picture" "/bv-800x600.jpg"}]},
+       :errors []}
+
+      (let [schema (->schema "
+schema { query: Root }
+scalar Url
+type Root { users(filter: String): [Person] }
+type Person { name: String
+              picture(size: Int): Url }")
+            document (->document "query { users { name picture(size: 1) }}")
+            users {1 {:name "Cheri Berthiaume" :slug "cb"}
+                   2 {:name "Cruz Jarrard" :slug "cj"}
+                   3 {:name "Viktoriya Zhukova" :slug "vz"}
+                   4 {:name "Bernardina Vesely" :slug "bv"}}]
+
+        (execution/execute-request
+         {:schema schema
+          :document document
+          :field-resolver
+          (fn [{:keys [field-name object-type object-value argument-values]
+                :as args}]
+            (case (::schema/name object-type)
+              "Root"
+              (case field-name
+                "users"
+                (vals users)
+                (throw (ex-info "Fail" args)))
+              "Person"
+              (case field-name
+                "name" (:name object-value)
+                "picture" (case (get argument-values "size")
+                            1 (format "/%s-800x600.jpg" (:slug object-value))
+                            2 (format "/%s-1024x768.jpg" (:slug object-value)))
+                (throw (ex-info "Fail" args)))
+              (throw (ex-info "Fail" args))))})))))
