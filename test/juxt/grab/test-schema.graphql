@@ -2,6 +2,9 @@ type Person {
   name: String
   picture(size: Int): Url
 }
+type Query {
+  user(id: Int): Person
+}
 schema {
-  query: Person
+  query: Query
 }

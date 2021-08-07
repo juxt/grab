@@ -70,13 +70,22 @@
                    {:field field}))))})))))
 
 
-#_(let [schema
-      (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
+#_(-> "schema { query: User } type User { user: String }"
+          parser/parse-graphql
+          schema/parse-tree->schema)
+
+#_(-> "query Foo { user }"
+          parser/parse-graphql
+          document/parse-tree->document)
+
+
+(let [schema
+      (-> "schema { query: User } type User { user: String }"
           parser/parse-graphql
           schema/parse-tree->schema)
 
       document
-      (-> "query { user(id: 4) { name } }"
+      (-> "query { user }"
           parser/parse-graphql
           document/parse-tree->document)]
 
@@ -85,28 +94,21 @@
 
     :document document
 
+    :operation-name nil
+
     :variable-values {}
 
     :initial-value {:_hint "initial-value"}
 
     :field-resolver
     (fn [{:keys [object-type object-value field-name argument-values] :as field}]
-      (cond
-
-        (= field-name "user")
-        "Malcolm"
-
-        (= field-name "users")
-        (get object-value "users")
-
-        (= field-name "username")
-        (get object-value "username")
-
-        (= field-name "email")
-        (get object-value "email")
-
-        :else
+      (case field-name
+        "user" "mal"
         (throw
          (ex-info
           "TODO: Resolve field"
-          {:field field}))))}))
+          {:object-type object-type
+           :object-value object-value
+           :field-name field-name
+           :field field})))
+      )}))

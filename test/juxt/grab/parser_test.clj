@@ -9,6 +9,6 @@
 
 (deftest parse-query-test
   (is (= '({::reap/operation-type "query",
-            ::reap/selection-set [[::reap/field {::reap/name "user", ::reap/arguments {}}]]})
+            ::reap/selection-set [{::reap/field {::reap/name "user", ::reap/arguments {}}}]})
          (-> "query { user }"
              parser/parse-graphql))))

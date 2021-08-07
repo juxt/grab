@@ -28,13 +28,30 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
   (let [schema (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                    parser/parse-graphql
                    schema/parse-tree->schema)]
-    (is (= "Person" (get-in schema [::schema/root-operation-type-names :query])))))
+    (is (= "Query" (get-in schema [::schema/root-operation-type-names :query])))))
 
 (deftest get-root-query-type-test
   (let [type (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                  parser/parse-graphql
                  schema/parse-tree->schema
                  schema/get-root-query-type)]
-    (is (= "Person" (::reap/name type)))
+    (is (= "Query" (::schema/name type)))
     (is (= :object (::schema/kind type)))
-    (is (= 2 (count (::reap/fields type))))))
+    (is (= 1 (count (::schema/fields type))))
+    (let [[_ user-field] (first (::schema/fields type))]
+      (is (= "user" (::schema/name user-field)))
+      (is (= "Person" (::schema/type user-field))))))
+
+;; TODO: Write schema tests
+
+#_(-> "type Root { users: [User] } type User { name: String }"
+          parser/parse-graphql
+          schema/parse-tree->schema)
+
+#_(-> "type Root { user: [[User]!]! } type User { name: String }"
+          parser/parse-graphql
+          schema/parse-tree->schema)
+
+#_(-> "type User { name: String }"
+    parser/parse-graphql
+    )

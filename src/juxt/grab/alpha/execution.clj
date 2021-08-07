@@ -18,9 +18,11 @@
 
   (assert document)
 
+;;  (throw (ex-info "TODO" {:selection-set selection-set}))
+
   (reduce
-   (fn [grouped-fields [selection-type selection]]
-     (case selection-type
+   (fn [grouped-fields selection]
+     (case (::document/selection-type selection)
        ;; c. If selection is a Field:
        :field
        (let [response-key
@@ -98,14 +100,7 @@
                         :fragment fragment
                         :fragment-group-field-set fragment-group-field-set
                         ;;:document document
-                        }))
-
-                   )
-
-                 )
-
-               )
-             )))
+                        }))))))))
 
        :inline-fragment
        (throw (ex-info "TODO: inline-fragment" {:selection selection}))))
@@ -214,6 +209,7 @@
     :crux.graphql.spec-ref/algorithm "ResolveFieldValue"}
   resolve-field-value
   [{:keys [object-type object-value field-name argument-values field-resolver] :as args}]
+  (assert field-name)
   (assert field-resolver)
 
   (field-resolver
@@ -228,103 +224,99 @@
         :crux.graphql.spec-ref/section "6.4.3"
         :crux.graphql.spec-ref/algorithm "CompleteValue"}
   complete-value
-  [{:keys [field-type fields result variable-values field-resolver schema document]}]
+  [{:keys [field-type fields result variable-values field-resolver schema document] :as args}]
 
   (assert field-type)
   (assert schema)
   (assert document)
 
-;;  (println "complete-value with type " field-type)
-;;  (println "complete-value with result " result)
+  (let [kind (::schema/kind field-type)]
+    (cond
+      ;; 1. If the fieldType is a Non‐Null type:
+      (= kind :non-null)
+      ;; a. Let innerType be the inner type of fieldType.
+      (let [inner-type (get field-type ::schema/inner-type)
+            _ (assert inner-type (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type)))
+            ;; b. Let completedResult be the result of calling
+            ;; CompleteValue(…).
+            completed-result
+            (try
+              (complete-value
+               {:field-type inner-type
+                :fields fields
+                :result result
+                :variable-values variable-values
+                :field-resolver field-resolver
+                :schema schema
+                :document document})
+              (catch Throwable e
+                (throw
+                 (ex-info
+                  "Error on complete-value"
+                  {:field-type field-type
+                   :inner-type inner-type}
+                  e))
+                ))]
+        ;; c. If completedResult is null, throw a field error.
+        (when (nil? completed-result)
+          (throw
+           (ex-info
+            "Field error, NON_NULL type returned nil value for inner type"
+            {:inner-type inner-type
+             :result result})))
+        ;; d. Return completedResult.
+        completed-result)
 
-  (cond
-    ;; 1. If the fieldType is a Non‐Null type:
-    (= (get field-type "kind") "NON_NULL")
-    ;; a. Let innerType be the inner type of fieldType.
-    (let [inner-type (get field-type "ofType")
-          _ (assert inner-type (format "Field type %s is NON_NULL but doesn't have a non-nil ofType" (pr-str field-type)))
-          ;; b. Let completedResult be the result of calling
-          ;; CompleteValue(…).
-          completed-result
-          (try
-            (complete-value
-             {:field-type inner-type
-              :fields fields
-              :result result
-              :variable-values variable-values
-              :field-resolver field-resolver
-              :schema schema
-              :document document})
-            (catch Throwable e
-              (throw
-               (ex-info
-                "Error on complete-value"
-                {:field-type field-type
-                 :inner-type inner-type}
-                e))
-              ))]
-      ;; c. If completedResult is null, throw a field error.
-      (when (nil? completed-result)
-        (throw
-         (ex-info
-          "Field error, NON_NULL type returned nil value for inner type"
-          {:inner-type inner-type
-           :result result})))
-      ;; d. Return completedResult.
-      completed-result)
+      ;; 2. If result is null (or another internal value similar to null such
+      ;; as undefined or NaN), return null.
+      (nil? result) nil
 
-    ;; 2. If result is null (or another internal value similar to null such
-    ;; as undefined or NaN), return null.
-    (nil? result) nil
+      ;; 3. If fieldType is a List type:
+      (= kind :list)
+      (do
+        ;; a. If result is not a collection of values, throw a field error.
+        (when-not (sequential? result)
+          (throw (ex-info "Resolver must return a collection" {:field-type field-type}))
+          )
+        ;; b. Let innerType be the inner type of fieldType.
+        (let [inner-type (get field-type "ofType")]
+          ;; c. Return a list where each list item is the result of calling
+          ;; CompleteValue(innerType, fields, resultItem, variableValues),
+          ;; where resultItem is each item in result.
 
-    ;; 3. If fieldType is a List type:
-    (= (get field-type "kind") "LIST")
-    (do
-      ;; a. If result is not a collection of values, throw a field error.
-      (when-not (sequential? result)
-        (throw (ex-info "Resolver must return a collection" {:field-type field-type}))
-        )
-      ;; b. Let innerType be the inner type of fieldType.
-      (let [inner-type (get field-type "ofType")]
-        ;; c. Return a list where each list item is the result of calling
-        ;; CompleteValue(innerType, fields, resultItem, variableValues),
-        ;; where resultItem is each item in result.
+          (doall
+           (for [result-item result]
+             (complete-value
+              {:field-type inner-type
+               :fields fields
+               :result result-item
+               :variable-values variable-values
+               :field-resolver field-resolver
+               :schema schema
+               :document document})))))
 
-        (doall
-         (for [result-item result]
-           (complete-value
-            {:field-type inner-type
-             :fields fields
-             :result result-item
-             :variable-values variable-values
-             :field-resolver field-resolver
-             :schema schema
-             :document document})))))
+      ;; 4. If fieldType is a Scalar or Enum type:
+      (#{:scalar :enum} kind)
+      ;; a. Return the result of “coercing” result, ensuring it is a legal value of fieldType, otherwise null.
+      result
 
-    ;; 4. If fieldType is a Scalar or Enum type:
-    (#{"SCALAR" "ENUM"} (get field-type "kind"))
-    ;; a. Return the result of “coercing” result, ensuring it is a legal value of fieldType, otherwise null.
-    result
-
-    ;; 5. If fieldType is an Object, Interface, or Union type:
-    (#{"OBJECT" "INTERFACE" "UNION"} (get field-type "kind"))
-    (let [object-type
-          (if (= (get field-type "kind") "OBJECT")
-            field-type
-            (resolve-abstract-type
-             {:field-type field-type
-              :result result}))
-          sub-selection-set (merge-selection-sets {:fields fields})]
-;;      (println "Going again with field-type" field-type)
-;;      (println "Going again with result" result)
-      (execute-selection-set-normally
-       {:selection-set sub-selection-set
-        :object-type object-type
-        :object-value result
-        :variable-values variable-values
-        :field-resolver field-resolver
-        :schema schema
-        :document document}))))
+      ;; 5. If fieldType is an Object, Interface, or Union type:
+      (#{:object :interface :union} kind)
+      (let [object-type
+            (if (= (get field-type "kind") "OBJECT")
+              field-type
+              (resolve-abstract-type
+               {:field-type field-type
+                :result result}))
+            sub-selection-set (merge-selection-sets {:fields fields})]
+        (execute-selection-set-normally
+         {:selection-set sub-selection-set
+          :object-type object-type
+          :object-value result
+          :variable-values variable-values
+          :field-resolver field-resolver
+          :schema schema
+          :document document})))))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
@@ -337,8 +329,9 @@
 
   ;; 1. Let field be the first entry in fields.
   (let [field (first fields)
+
         ;; 2. Let fieldName be the field name of field.
-        field-name (:name field)
+        field-name (::document/name field)
         ;; 3. Let argumentValues be the result of CoerceArgumentValues(…).
         argument-values
         (coerce-argument-values
@@ -376,6 +369,7 @@
   (assert schema)
   (assert document)
 
+
   ;; 1. Let groupedFieldSet be the result of CollectFields
   (let [grouped-field-set
         (collect-fields
@@ -393,11 +387,30 @@
 
        ;; a. Let fieldName be the name of the first entry in fields. Note:
        ;; This value is unaffected if an alias is used.
-       (let [field-name (:name (first fields))
+       (let [field (first fields)
+             field-name (::document/name field)
              ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-             field-type (throw (ex-info "TODO" {:object-type object-type
-                                                :object-value object-value
-                                                :field-name field-name}))#_(resolve-type schema object-type field-name)]
+             field-type
+             (let [ft (get-in object-type [::schema/fields field-name ::schema/type])]
+               (if (string? ft)
+                 (schema/get-type schema ft)
+                 ft))
+
+             #_(throw
+                (ex-info
+                 "TODO"
+                 {:object-type object-type
+                  :object-value object-value
+                  :field (first fields)
+                  :fields fields
+                  :field-name field-name}))
+             #_(resolve-type schema object-type field-name)]
+
+         #_(throw (ex-info "TODO" {:response-key response-key
+                                 :fields fields
+                                 :field (first fields)
+                                 :field-name field-name
+                                 :field-type field-type}))
 
          ;; c. If fieldType is defined:
          (if field-type
@@ -442,8 +455,10 @@
                 :crux.graphql.spec-ref/step 2}
                (meta #'execute-query)))))
 
+    (assert (::document/selection-set query))
+
     ;; 3. Let selectionSet be the top level Selection Set in query.
-    (if-let [selection-set (:selection-set query)]
+    (let [selection-set (::document/selection-set query)]
       ;; 4. Let data be the result of running ExecuteSelectionSet
       ;; normally (allowing parallelization).
       ;; 5. Let errors be any field errors produced while executing the selection set.
@@ -455,9 +470,7 @@
         :variable-values variable-values
         :schema schema
         :field-resolver field-resolver
-        :document document})
-
-      (throw (ex-info "No selection set in query" {:query query})))))
+        :document document}))))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"

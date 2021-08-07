@@ -4,6 +4,23 @@
   (:require
    [juxt.reap.alpha.graphql :as reap]))
 
+(defn process-selection-set [selection-set]
+  (for [selection selection-set
+        :let [field (::reap/field selection)
+              fragment-spread (::reap/fragment-spread selection)]]
+    (cond
+      field
+      (into {::selection-type :field}
+            (cond->
+                {::name (::reap/name field)
+                 ::arguments (::reap/arguments field)}
+                (::reap/selection-set field)
+                (assoc ::selection-set (process-selection-set (::reap/selection-set field)))))
+      fragment-spread
+      {::selection-type :field-spread}
+      :else
+      (throw (ex-info "TODO" {:selection selection})))))
+
 (defn parse-tree->document [parse-tree]
   {::operations
    (->>
@@ -13,6 +30,7 @@
          (let [nm (::reap/name definition)]
            [nm {::name nm
                 ::operation-type (keyword op-type)
+                ::selection-set (process-selection-set (::reap/selection-set definition))
                 ::parse-tree definition}])))
      parse-tree)
     (into {}))
