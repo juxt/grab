@@ -2,6 +2,7 @@
 
 (ns juxt.grab.alpha.schema
   (:require
+   [juxt.grab.alpha.parser :as parser]
    [juxt.reap.alpha.graphql :as reap]
    [juxt.grab.alpha.schema :as schema]))
 
@@ -80,6 +81,13 @@
 
     {::types-by-name types-by-name
      ::root-operation-type-names {:query root-query-type-name}}))
+
+(defn ->schema
+  "Parse the input string to a data structure representing a GraphQL schema."
+  [s]
+  (-> s
+      parser/parse-graphql
+      parse-tree->schema))
 
 ;; Convenience accessors
 

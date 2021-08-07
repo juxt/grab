@@ -4,9 +4,9 @@
   (:require
    [clojure.test :refer [deftest is are testing]]
    [clojure.java.io :as io]
-   [juxt.grab.alpha.parser :as parser]
    [juxt.grab.alpha.execution :as execution]
-   [juxt.grab.alpha.document :as document]))
+   [juxt.grab.alpha.document :refer [->document]]
+   [juxt.grab.alpha.schema :refer [->schema]]))
 
 (alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
@@ -79,36 +79,18 @@
           document/parse-tree->document)
 
 
-(let [schema
-      (-> "schema { query: User } type User { user: String }"
-          parser/parse-graphql
-          schema/parse-tree->schema)
-
-      document
-      (-> "query { user }"
-          parser/parse-graphql
-          document/parse-tree->document)]
-
-  (execution/execute-request
-   {:schema schema
-
-    :document document
-
-    :operation-name nil
-
-    :variable-values {}
-
-    :initial-value {:_hint "initial-value"}
-
-    :field-resolver
-    (fn [{:keys [object-type object-value field-name argument-values] :as field}]
-      (case field-name
-        "user" "mal"
-        (throw
-         (ex-info
-          "TODO: Resolve field"
-          {:object-type object-type
-           :object-value object-value
-           :field-name field-name
-           :field field})))
-      )}))
+(execution/execute-request
+ {:schema (->schema "schema { query: User } type User { user: String }")
+  :document (->document "query { user }")
+  :field-resolver
+  (fn [{:keys [object-type object-value field-name argument-values] :as field}]
+    (case field-name
+      "user" "mal"
+      (throw
+       (ex-info
+        "TODO: Resolve field"
+        {:object-type object-type
+         :object-value object-value
+         :field-name field-name
+         :field field})))
+    )})

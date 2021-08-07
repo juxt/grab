@@ -2,6 +2,7 @@
 
 (ns juxt.grab.alpha.document
   (:require
+   [juxt.grab.alpha.parser :as parser]
    [juxt.reap.alpha.graphql :as reap]))
 
 (defn process-selection-set [selection-set]
@@ -35,6 +36,13 @@
      parse-tree)
     (into {}))
    ::parse-tree parse-tree})
+
+(defn ->document
+  "Parse the input string to a data structure representing a GraphQL document."
+  [input]
+  (-> input
+      parser/parse-graphql
+      parse-tree->document))
 
 (defn
   ^{:graphql/name "GetOperation"}
