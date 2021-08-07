@@ -22,6 +22,7 @@
 
   (reduce
    (fn [grouped-fields selection]
+     (prn "selection is" selection)
      (case (::document/selection-type selection)
        ;; c. If selection is a Field:
        :field
@@ -30,7 +31,7 @@
              ;; if defined, otherwise the field name).
 
              ;; TODO: The response-key will be the alias, if it exists
-             (:name selection)]
+             (::document/name selection)]
          (update
           grouped-fields
           ;; ii. Let groupForResponseKey be the list in groupedFields for responseKey;
