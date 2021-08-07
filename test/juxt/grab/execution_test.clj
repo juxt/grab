@@ -4,10 +4,8 @@
   (:require
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.execution :as execution]
-   [juxt.grab.alpha.document :refer [->document]]
-   [juxt.grab.alpha.schema :refer [->schema]]
-   [juxt.grab.alpha.schema :as schema]
-   [juxt.grab.alpha.document :as document]))
+   [juxt.grab.alpha.document :refer [->document] :as document]
+   [juxt.grab.alpha.schema :refer [->schema] :as schema]))
 
 (alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
@@ -36,17 +34,32 @@
           :field field
           :variable-values variable-values})))))
 
-#_(let [schema (->schema "
+(deftest execute-request-test
+  (is
+   (= {:data {"user" {"name" "Mark Zuckerberg"}}, :errors []}
+      (let [schema (->schema "
+schema { query: Root }
 type Root { user(id: Int): Person }
 type Person { name: String
               picture(size: Int): Url }")
-      document (->document "query Test { user(id: 4) { name }}")
+            document (->document "query { user(id: 4) { name }}")
+            users {4 {:name "Mark Zuckerberg"}}]
 
-      object-type (schema/get-type schema "Root")
-      field (get-in document [::document/operations "Test" ::document/selection-set 0])
-      variable-values {}]
-
-  (execution/coerce-argument-values
-   {:object-type object-type
-    :field field
-    :variable-values variable-values}))
+        (execution/execute-request
+         {:schema schema
+          :document document
+          :field-resolver
+          (fn [{:keys [field-name object-type object-value]
+                {:strs [id]} :argument-values
+                :as args}]
+            (case (::schema/name object-type)
+              "Root"
+              (case field-name
+                "user"
+                (get users id)
+                (throw (ex-info "TODO:1" args)))
+              "Person"
+              (case field-name
+                "name" (:name object-value)
+                (throw (ex-info "TODO:1b" args)))
+              (throw (ex-info "TODO:2" args))))})))))

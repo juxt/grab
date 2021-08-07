@@ -201,7 +201,7 @@
   [{:keys [fields]}]
   (reduce
    (fn [selection-set field]
-     (let [field-selection-set (:selection-set field)]
+     (let [field-selection-set (::document/selection-set field)]
        (cond-> selection-set
          field-selection-set (concat field-selection-set))))
    (list)
@@ -307,12 +307,13 @@
       ;; 5. If fieldType is an Object, Interface, or Union type:
       (#{:object :interface :union} kind)
       (let [object-type
-            (if (= (get field-type "kind") "OBJECT")
+            (if (= kind :object)
               field-type
               (resolve-abstract-type
                {:field-type field-type
                 :result result}))
             sub-selection-set (merge-selection-sets {:fields fields})]
+
         (execute-selection-set-normally
          {:selection-set sub-selection-set
           :object-type object-type
@@ -372,7 +373,6 @@
 
   (assert schema)
   (assert document)
-
 
   ;; 1. Let groupedFieldSet be the result of CollectFields
   (let [grouped-field-set
@@ -437,7 +437,7 @@
          result-map
          grouped-field-set)]
 
-    {:data data :errors []}))
+    data))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
@@ -469,7 +469,7 @@
           ;; 4. Let data be the result of running ExecuteSelectionSet
           ;; normally (allowing parallelization).
           ;; 5. Let errors be any field errors produced while executing the selection set.
-          {:keys [data errors]}
+          data
           (execute-selection-set-normally
            {:selection-set selection-set
             :object-type query-type
@@ -479,8 +479,10 @@
             :field-resolver field-resolver
             :document document})]
 
+      ;; TODO: catch and collect FieldErrors
+
       ;; 6. Return an unordered map containing data and errors.
-      {:data data :errors errors})))
+      {:data data :errors []})))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
