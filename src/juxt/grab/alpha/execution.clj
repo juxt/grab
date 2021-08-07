@@ -379,59 +379,61 @@
           :document document})
 
         ;; 2. Initialize resultMap to an empty ordered map.
-        result-map (ordered-map)]
+        result-map (ordered-map)
 
-    ;; 3. For each groupedFieldSet as responseKey and fields:
-    (reduce
-     (fn [result-map [response-key fields]]
+        data ;; 3. For each groupedFieldSet as responseKey and fields:
+        (reduce
+         (fn [result-map [response-key fields]]
 
-       ;; a. Let fieldName be the name of the first entry in fields. Note:
-       ;; This value is unaffected if an alias is used.
-       (let [field (first fields)
-             field-name (::document/name field)
-             ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-             field-type
-             (let [ft (get-in object-type [::schema/fields field-name ::schema/type])]
-               (if (string? ft)
-                 (schema/get-type schema ft)
-                 ft))
+           ;; a. Let fieldName be the name of the first entry in fields. Note:
+           ;; This value is unaffected if an alias is used.
+           (let [field (first fields)
+                 field-name (::document/name field)
+                 ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
+                 field-type
+                 (let [ft (get-in object-type [::schema/fields field-name ::schema/type])]
+                   (if (string? ft)
+                     (schema/get-type schema ft)
+                     ft))
 
-             #_(throw
-                (ex-info
-                 "TODO"
-                 {:object-type object-type
-                  :object-value object-value
-                  :field (first fields)
-                  :fields fields
-                  :field-name field-name}))
-             #_(resolve-type schema object-type field-name)]
+                 #_(throw
+                    (ex-info
+                     "TODO"
+                     {:object-type object-type
+                      :object-value object-value
+                      :field (first fields)
+                      :fields fields
+                      :field-name field-name}))
+                 #_(resolve-type schema object-type field-name)]
 
-         #_(throw (ex-info "TODO" {:response-key response-key
-                                 :fields fields
-                                 :field (first fields)
-                                 :field-name field-name
-                                 :field-type field-type}))
+             #_(throw (ex-info "TODO" {:response-key response-key
+                                       :fields fields
+                                       :field (first fields)
+                                       :field-name field-name
+                                       :field-type field-type}))
 
-         ;; c. If fieldType is defined:
-         (if field-type
-           ;; i. Let responseValue be ExecuteField(objectType, objectValue,
-           ;; fields, fieldType, variableValues).
-           (let [response-value
-                 (execute-field
-                  {:object-type object-type
-                   :object-value object-value
-                   :field-type field-type
-                   :fields fields
-                   :variable-values variable-values
-                   :field-resolver field-resolver
-                   :schema schema
-                   :document document})]
-             ;; ii. Set responseValue as the value for responseKey in resultMap.
-             (conj result-map [response-key response-value]))
-           ;; Otherwise return the accumulator
-           result-map)))
-     result-map
-     grouped-field-set)))
+             ;; c. If fieldType is defined:
+             (if field-type
+               ;; i. Let responseValue be ExecuteField(objectType, objectValue,
+               ;; fields, fieldType, variableValues).
+               (let [response-value
+                     (execute-field
+                      {:object-type object-type
+                       :object-value object-value
+                       :field-type field-type
+                       :fields fields
+                       :variable-values variable-values
+                       :field-resolver field-resolver
+                       :schema schema
+                       :document document})]
+                 ;; ii. Set responseValue as the value for responseKey in resultMap.
+                 (conj result-map [response-key response-value]))
+               ;; Otherwise return the accumulator
+               result-map)))
+         result-map
+         grouped-field-set)]
+
+    {:data data :errors []}))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
@@ -457,20 +459,24 @@
 
     (assert (::document/selection-set query))
 
-    ;; 3. Let selectionSet be the top level Selection Set in query.
-    (let [selection-set (::document/selection-set query)]
-      ;; 4. Let data be the result of running ExecuteSelectionSet
-      ;; normally (allowing parallelization).
-      ;; 5. Let errors be any field errors produced while executing the selection set.
+    (let [ ;; 3. Let selectionSet be the top level Selection Set in query.
+          selection-set (::document/selection-set query)
+
+          ;; 4. Let data be the result of running ExecuteSelectionSet
+          ;; normally (allowing parallelization).
+          ;; 5. Let errors be any field errors produced while executing the selection set.
+          {:keys [data errors]}
+          (execute-selection-set-normally
+           {:selection-set selection-set
+            :object-type query-type
+            :object-value initial-value
+            :variable-values variable-values
+            :schema schema
+            :field-resolver field-resolver
+            :document document})]
+
       ;; 6. Return an unordered map containing data and errors.
-      (execute-selection-set-normally
-       {:selection-set selection-set
-        :object-type query-type
-        :object-value initial-value
-        :variable-values variable-values
-        :schema schema
-        :field-resolver field-resolver
-        :document document}))))
+      {:data data :errors errors})))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
