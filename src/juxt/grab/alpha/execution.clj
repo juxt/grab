@@ -122,23 +122,23 @@
         ;; 1. Let coercedValues be an empty unordered Map.
         coerced-values {}
         ;; 2. Let argumentValues be the argument values provided in field.
-        argument-values (:arguments field)
+        argument-values (::document/arguments field)
         ;; 3. Let fieldName be the name of field.
-        field-name (:name field)
+        field-name (::document/name field)
         ;; 4. Let argumentDefinitions be the arguments defined by objectType
         ;; for the field named fieldName.
-        argument-definitions (some #(when (= (get % "name") field-name) (get % "args")) (get object-type "fields"))]
+        argument-definitions (get-in object-type [::schema/fields field-name ::schema/args])]
 
     ;; 5. For each argumentDefinition in argumentDefinitions:
     (reduce
      (fn [acc argument-definition]
 
        (let [ ;; a. Let argumentName be the name of argumentDefinition.
-             argument-name (get argument-definition "name")
+             argument-name (::schema/name argument-definition)
              ;; b. Let argumentType be the expected type of argumentDefinition.
-             argument-type (get argument-definition "type")
+             argument-type (::schema/type argument-definition)
              ;; c. Let defaultValue be the default value for argumentDefinition.
-             default-value (find argument-definition "defaultValue")
+             default-value (find argument-definition ::schema/default-value) ;; TODO
              ;; d. Let hasValue be true if argumentValues provides
              ;; a value for the name argumentName.
              has-value (find argument-values argument-name)
@@ -165,17 +165,20 @@
 
            ;; j. Otherwise if hasValue is true:
            has-value
-           (cond
-             ;; i. If value is null:
-             (nil? (second has-value))
-             ;; 1. Add an entry to coercedValues named argumentName with the value null.
-             (conj acc [argument-name nil])
-             ;; ii. Otherwise, if argumentValue is a Variable: (TODO)
+           (do
+             ;;(throw (ex-info "hasValue!" {:value value}))
+             (cond
+               ;; i. If value is null:
+               (nil? argument-value)
+               ;; 1. Add an entry to coercedValues named argumentName with the value null.
+               (conj acc [argument-name nil])
+               ;; ii. Otherwise, if argumentValue is a Variable: (TODO)
 
-             :else
-             ;; TODO: apply coercion rules, for now just set it to the value
-             (let [coerced-value value]
-               (conj acc [argument-name value])))
+               :else
+               ;; TODO: apply coercion rules, for now just set it to the value
+               (let [coerced-value value]
+                 ;;(throw (ex-info "here" {argument-name value}))
+                 (conj acc [argument-name value]))))
 
            :else acc)))
 
