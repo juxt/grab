@@ -44,13 +44,8 @@
         "{ firstName }"
         {"firstName" "Mark"})))
 
-
-
-;; Not sure yet, should this error?
-
-
-
 ;; 2.5 Fields
+
 (deftest fields-test
   (let [field-resolver
         (fn [args]
@@ -78,11 +73,11 @@
     (is
      (= {:data
          {"me"
-          {"id" 1,
-           "firstName" "Isaac",
-           "lastName" "Newton",
-           "birthday" {"month" 1, "day" 4},
-           "friends" [{"name" "Gottfried Wilhelm Leibniz"}]}},
+          {"id" 1
+           "firstName" "Isaac"
+           "lastName" "Newton"
+           "birthday" {"month" 1 "day" 4}
+           "friends" [{"name" "Gottfried Wilhelm Leibniz"}]}}
          :errors []}
 
         (execute
