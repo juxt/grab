@@ -19,6 +19,12 @@
                     :schema (->schema schema)
                     :field-resolver field-resolver}))
 
+(defn field-resolver [{:keys [field-name]}]
+  (case field-name
+    "id" 4
+    "firstName" "Mark"
+    "lastName" "Zuckerberg"))
+
 (deftest selection-sets-test
   (are [query expected]
       (=
@@ -26,11 +32,7 @@
        (execute
         query
         (slurp (io/resource "juxt/grab/schema-1.graphql"))
-        (fn [{:keys [field-name]}]
-          (case field-name
-            "id" 4
-            "firstName" "Mark"
-            "lastName" "Zuckerberg"))))
+        field-resolver))
 
       "{ id firstName lastName }"
       {"id" 4
