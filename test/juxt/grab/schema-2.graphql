@@ -1,0 +1,24 @@
+schema {
+  query: Root
+}
+
+type Root {
+  me: User
+}
+
+type User {
+  id: String
+  firstName: String
+  lastName: String
+  birthday: Birthday
+  friends: [Friend]
+}
+
+type Birthday {
+  month: Int
+  day: Int
+}
+
+type Friend {
+  name: String
+}
