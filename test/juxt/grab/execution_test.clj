@@ -25,7 +25,7 @@
   (let [schema (->schema "type Root { user(id: Int): Person }")
         document (->document "query Test { user(id: 4) { name }}")
         object-type (schema/get-type schema "Root")
-        field (get-in document [::document/operations "Test" ::document/selection-set 0])
+        field (get-in document [::document/operations-by-name "Test" ::document/selection-set 0])
         variable-values {}]
     (is
      (= {"id" 4}
