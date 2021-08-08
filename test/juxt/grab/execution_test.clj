@@ -57,12 +57,12 @@ type Person { name: String
               (case field-name
                 "user"
                 (get users id)
-                (throw (ex-info "TODO:1" args)))
+                (throw (ex-info "Fail" args)))
               "Person"
               (case field-name
                 "name" (:name object-value)
-                (throw (ex-info "TODO:1b" args)))
-              (throw (ex-info "TODO:2" args))))})))))
+                (throw (ex-info "Fail" args)))
+              (throw (ex-info "Fail" args))))})))))
 
 
 (deftest execute-request-with-list-test
