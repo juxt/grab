@@ -20,3 +20,11 @@
     (is (thrown? clojure.lang.ExceptionInfo
                  (document/get-operation doc "zip"))
         "If operation was not found, produce a query error.")))
+
+(deftest shorthand-test
+  (let [doc (-> "{ user }"
+                parser/parse-graphql
+                document/parse-tree->document)
+        operation (document/get-operation doc nil)]
+    (is (= :query (::document/operation-type operation)))
+    (is (nil? (::document/name operation)))))

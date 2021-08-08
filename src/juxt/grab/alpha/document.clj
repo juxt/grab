@@ -3,7 +3,8 @@
 (ns juxt.grab.alpha.document
   (:require
    [juxt.grab.alpha.parser :as parser]
-   [juxt.reap.alpha.graphql :as reap]))
+   [juxt.reap.alpha.graphql :as reap]
+   [juxt.grab.alpha.document :as document]))
 
 (defn process-selection-set [selection-set]
   (mapv
@@ -24,9 +25,19 @@
          (throw (ex-info "TODO" {:selection selection})))))
    selection-set))
 
+(defn- expand-shorthand-document [parse-tree]
+  (if (= (count parse-tree) 1)
+    (let [operation (first parse-tree)]
+      (if (= (keys operation) [::reap/selection-set])
+        [(assoc operation ::reap/operation-type :query)]
+        parse-tree))
+    parse-tree))
+
 (defn parse-tree->document [parse-tree]
   {::operations-by-name
    (->>
+    parse-tree
+    expand-shorthand-document
     (keep
      (fn [definition]
        (when-let [op-type (::reap/operation-type definition)]
@@ -34,10 +45,9 @@
            [nm {::name nm
                 ::operation-type (keyword op-type)
                 ::selection-set (process-selection-set (::reap/selection-set definition))
-                ::parse-tree definition}])))
-     parse-tree)
+                ::parse-tree definition}]))))
     (into {}))
-   ::parse-tree parse-tree})
+   ::parse-tree (expand-shorthand-document parse-tree)})
 
 (defn ->document
   "Parse the input string to a data structure representing a GraphQL document."
