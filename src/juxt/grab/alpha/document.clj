@@ -18,7 +18,9 @@
                    {::name (::reap/name field)
                     ::arguments (::reap/arguments field)}
                    (::reap/selection-set field)
-                   (assoc ::selection-set (process-selection-set (::reap/selection-set field)))))
+                   (assoc ::selection-set (process-selection-set (::reap/selection-set field)))
+                   (::reap/alias field)
+                   (assoc ::alias (::reap/alias field))))
          fragment-spread
          {::selection-type :field-spread}
          :else

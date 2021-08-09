@@ -5,7 +5,8 @@
    [juxt.grab.alpha.execution :refer [execute-request]]
    [juxt.grab.alpha.document :refer [->document] :as document]
    [juxt.grab.alpha.schema :refer [->schema] :as schema]
-   [clojure.test :refer [deftest is are testing]]
+   [juxt.grab.alpha.parser :as parser]
+   [clojure.test :refer [deftest is are]]
    [clojure.java.io :as io]))
 
 ;; 2.4 Selection Sets
@@ -118,6 +119,56 @@
           ["Person" "profilePic"]
           (format "https://profiles.juxt.site/newton/%d.jpg" (get-in args [:argument-values "size"]))
 
-          (throw (ex-info "Resolve field" args))))
+          (throw (ex-info "Resolve field" args))))}))))
 
-      :initial-value {}}))))
+;; 2.7 Field Alias
+
+(deftest field-alias-test
+  (let [field-resolver
+        (fn [args]
+          (condp = [(get-in args [:object-type ::schema/name])
+                    (get-in args [:field-name])]
+            ["Root" "user"]
+            (get {4 {:id 4
+                     :name "Mark Zuckerberg"}}
+                 (get-in args [:argument-values "id"]))
+
+            ["Person" "id"]
+            (get-in args [:object-value :id])
+
+            ["Person" "name"]
+            (get-in args [:object-value :name])
+
+            ["Person" "profilePic"]
+            (format "https://cdn.site.io/pic-4-%d.jpg" (get-in args [:argument-values "size"]))
+
+            (throw (ex-info "Resolve field" args))))]
+    (is
+     (=
+      {:data
+       {"user"
+        {"id" 4
+         "name" "Mark Zuckerberg"
+         "smallPic" "https://cdn.site.io/pic-4-64.jpg"
+         "bigPic" "https://cdn.site.io/pic-4-1024.jpg"}},
+       :errors []}
+
+      (execute
+       {:document (slurp (io/resource "juxt/grab/example-14.graphql"))
+        :schema (slurp (io/resource "juxt/grab/schema-3.graphql"))
+        :field-resolver field-resolver
+        :initial-value {}})))
+
+    (is
+     (=
+      {:data
+       {"zuck"
+        {"id" 4
+         "name" "Mark Zuckerberg"}}
+       :errors []}
+
+      (execute
+       {:document (slurp (io/resource "juxt/grab/example-16.graphql"))
+        :schema (slurp (io/resource "juxt/grab/schema-3.graphql"))
+        :field-resolver field-resolver
+        :initial-value {}})))))

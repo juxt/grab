@@ -18,8 +18,6 @@
 
   (assert document)
 
-;;  (throw (ex-info "TODO" {:selection-set selection-set}))
-
   (reduce
    (fn [grouped-fields selection]
      (prn "selection is" selection)
@@ -31,7 +29,7 @@
              ;; if defined, otherwise the field name).
 
              ;; TODO: The response-key will be the alias, if it exists
-             (::document/name selection)]
+             (or (::document/alias selection) (::document/name selection))]
          (update
           grouped-fields
           ;; ii. Let groupForResponseKey be the list in groupedFields for responseKey;
