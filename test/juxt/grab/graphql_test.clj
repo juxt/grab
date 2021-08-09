@@ -85,3 +85,39 @@
           :schema (slurp (io/resource "juxt/grab/schema-2.graphql"))
           :field-resolver field-resolver
           :initial-value {}})))))
+
+;; 2.6 Arguments
+
+(deftest arguments-test
+  (is
+   (=
+    {:data
+     {"user"
+      {"id" 1,
+       "name" "Isaac Newton",
+       "profilePic" "https://profiles.juxt.site/newton/100.jpg"}},
+     :errors []}
+
+    (execute
+     {:document (slurp (io/resource "juxt/grab/example-10.graphql"))
+      :schema (slurp (io/resource "juxt/grab/schema-3.graphql"))
+      :field-resolver
+      (fn [args]
+        (condp = [(get-in args [:object-type ::schema/name])
+                  (get-in args [:field-name])]
+          ["Root" "user"]
+          {:id 1
+           :name "Isaac Newton"}
+
+          ["Person" "id"]
+          (get-in args [:object-value :id])
+
+          ["Person" "name"]
+          (get-in args [:object-value :name])
+
+          ["Person" "profilePic"]
+          (format "https://profiles.juxt.site/newton/%d.jpg" (get-in args [:argument-values "size"]))
+
+          (throw (ex-info "Resolve field" args))))
+
+      :initial-value {}}))))

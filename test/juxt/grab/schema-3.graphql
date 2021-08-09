@@ -1,0 +1,15 @@
+schema {
+  query: Root
+}
+
+type Root {
+  user(id: Int): Person
+}
+
+type Person {
+  id: Int
+  name: String
+  profilePic(size: Int): Url
+}
+
+scalar Url
