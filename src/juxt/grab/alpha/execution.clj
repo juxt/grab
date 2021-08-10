@@ -20,7 +20,6 @@
 
   (reduce
    (fn [grouped-fields selection]
-     (prn "selection is" selection)
      (case (::document/selection-type selection)
        ;; c. If selection is a Field:
        :field
@@ -48,8 +47,6 @@
        (let [fragment-spread-name (::document/fragment-name selection)]
          ;; ii. If fragmentSpreadName is in visitedFragments, continue with
          ;; the next selection in selectionSet.
-         (prn "fragment-spread-name" fragment-spread-name)
-         (prn "visited-fragments" visited-fragments)
 
          (if (contains? visited-fragments fragment-spread-name)
            grouped-fields
@@ -69,7 +66,6 @@
 
                ;; vi. Let fragmentType be the type condition on fragment.
                (let [fragment-type (::document/named-type fragment)]
-                 (prn "fragment is" fragment)
 
                  (assert fragment-type)
 
