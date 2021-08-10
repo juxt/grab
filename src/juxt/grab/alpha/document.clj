@@ -9,47 +9,88 @@
 (defn process-selection-set [selection-set]
   (mapv
    (fn [selection]
-     (let [field (::reap/field selection)
-           fragment-spread (::reap/fragment-spread selection)]
-       (cond
-         field
-         (into {::selection-type :field}
-               (cond->
-                   {::name (::reap/name field)
-                    ::arguments (::reap/arguments field)}
-                   (::reap/selection-set field)
-                   (assoc ::selection-set (process-selection-set (::reap/selection-set field)))
-                   (::reap/alias field)
-                   (assoc ::alias (::reap/alias field))))
-         fragment-spread
-         {::selection-type :field-spread}
-         :else
-         (throw (ex-info "TODO" {:selection selection})))))
+     (into
+      selection
+      (case (::reap/selection-type selection)
+        :field
+        (cond->
+            {::selection-type :field
+             ::name (::reap/name selection)
+             ::arguments (::reap/arguments selection)}
+
+          (::reap/selection-set selection)
+          (assoc ::selection-set (process-selection-set (::reap/selection-set selection)))
+          (::reap/directives selection)
+          (assoc ::directives (::reap/directives selection))
+          (::reap/alias selection)
+          (assoc ::alias (::reap/alias selection)))
+
+        :fragment-spread
+        (cond->
+            {::selection-type :fragment-spread
+             ::fragment-name (::reap/fragment-name selection)}
+          (::reap/named-type selection)
+          (assoc ::named-type (::reap/named-type selection))
+          (::reap/directives selection)
+          (assoc ::directives (::reap/directives selection))
+          (::reap/selection-set selection)
+          (assoc ::selection-set (process-selection-set (::reap/selection-set selection))))
+
+        :else
+        (throw (ex-info "TODO" {:selection selection})))))
    selection-set))
 
-(defn- expand-shorthand-document [parse-tree]
-  (if (= (count parse-tree) 1)
-    (let [operation (first parse-tree)]
-      (if (= (keys operation) [::reap/selection-set])
-        [(assoc operation ::reap/operation-type :query)]
-        parse-tree))
-    parse-tree))
+(defn expand-shorthand-document [parse-tree]
+  (let [shorthand?
+        (fn [definition]
+          (and
+           (= (:juxt.reap.alpha.graphql/type definition) "OperationDefinition")
+           (if-let [op-type (::reap/operation-type definition)]
+             (= op-type "query")
+             true)))]
+    (if (= (count (filter shorthand? parse-tree)) 1)
+      (map (fn [definition]
+             (cond-> definition
+               (shorthand? definition)
+               (assoc ::reap/operation-type "query")))
+           parse-tree)
+      parse-tree)))
 
 (defn parse-tree->document [parse-tree]
-  {::operations-by-name
-   (->>
-    parse-tree
-    expand-shorthand-document
-    (keep
-     (fn [definition]
-       (when-let [op-type (::reap/operation-type definition)]
-         (let [nm (::reap/name definition)]
-           [nm {::name nm
-                ::operation-type (keyword op-type)
-                ::selection-set (process-selection-set (::reap/selection-set definition))
-                ::parse-tree definition}]))))
-    (into {}))
-   ::parse-tree (expand-shorthand-document parse-tree)})
+  (->>
+   parse-tree
+   expand-shorthand-document
+   (reduce
+    (fn [acc definition]
+      (case (::reap/type definition)
+        "OperationDefinition"
+        (let [nm (::reap/name definition)
+              op-type (::reap/operation-type definition)
+              directives (::reap/directives definition)]
+          (assoc-in
+           acc [::operations-by-name nm]
+           (into
+            definition
+            {::name nm
+             ::operation-type (keyword op-type)
+             ::directives directives
+             ::selection-set (process-selection-set (::reap/selection-set definition))})))
+
+        "FragmentDefinition"
+        (let [nm (::reap/fragment-name definition)
+              directives (::reap/directives definition)]
+          (assoc-in
+           acc [::fragments-by-name nm]
+           (into
+            definition
+            (cond->
+                {::fragment-name nm
+                 ::named-type (::reap/named-type definition)
+                 ::selection-set (process-selection-set (::reap/selection-set definition))}
+              directives (assoc ::directives directives)))))))
+
+    {::operations-by-name {}
+     ::fragments-by-name {}})))
 
 (defn ->document
   "Parse the input string to a data structure representing a GraphQL document."

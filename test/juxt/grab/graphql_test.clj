@@ -5,9 +5,10 @@
    [juxt.grab.alpha.execution :refer [execute-request]]
    [juxt.grab.alpha.document :refer [->document] :as document]
    [juxt.grab.alpha.schema :refer [->schema] :as schema]
-   [juxt.grab.alpha.parser :as parser]
    [clojure.test :refer [deftest is are]]
    [clojure.java.io :as io]))
+
+(set! clojure.core/*print-namespace-maps* false)
 
 ;; 2.4 Selection Sets
 
@@ -172,3 +173,80 @@
         :schema (slurp (io/resource "juxt/grab/schema-3.graphql"))
         :field-resolver field-resolver
         :initial-value {}})))))
+
+;; 2.8 Fragments
+
+(deftest fragments-test
+  (is
+   (=
+    {:data
+     {"user"
+      {"friends"
+       [{"id" 5,
+         "name" "Daysi Pennock",
+         "profilePic" "https://cdn.site.io/pic-5-50.jpg"}
+        {"id" 6,
+         "name" "Meagan Chason",
+         "profilePic" "https://cdn.site.io/pic-6-50.jpg"}
+        {"id" 7,
+         "name" "Katrina Ulibarri",
+         "profilePic" "https://cdn.site.io/pic-7-50.jpg"}],
+       "mutualFriends"
+       [{"id" 6,
+         "name" "Meagan Chason",
+         "profilePic" "https://cdn.site.io/pic-6-50.jpg"}
+        {"id" 7,
+         "name" "Katrina Ulibarri",
+         "profilePic" "https://cdn.site.io/pic-7-50.jpg"}]}},
+     :errors []}
+
+    (let [people
+          {4 {:id 4
+              :name "Mark Zuckerberg"
+              :friends [5 6 7]
+              :mutualFriends [6 7]}
+           5 {:id 5
+              :name "Daysi Pennock"}
+           6 {:id 6
+              :name "Meagan Chason"}
+           7 {:id 7
+              :name "Katrina Ulibarri"}
+           8 {:id 8
+              :name "Shanae Zajicek"}
+           9 {:id 9
+              :name "Carlos Stefanik"}
+           10 {:id 10
+               :name "Tamisha Ciampa"}}]
+      (execute
+       {:document (slurp (io/resource #_"juxt/grab/example-18.graphql" "juxt/grab/example-19.graphql"))
+        :schema (slurp (io/resource "juxt/grab/schema-4.graphql"))
+        :field-resolver
+        (fn [args]
+          (condp = [(get-in args [:object-type ::schema/name])
+                    (get-in args [:field-name])]
+            ["Root" "user"]
+            (get people
+                 (get-in args [:argument-values "id"]))
+
+            ["Person" "id"]
+            (get-in args [:object-value :id])
+
+            ["Person" "name"]
+            (get-in args [:object-value :name])
+
+            ["Person" "friends"]
+            (for [id (get-in args [:object-value :friends])]
+              (get people id))
+
+            ["Person" "mutualFriends"]
+            (for [id (get-in args [:object-value :mutualFriends])]
+              (get people id))
+
+            ["Person" "profilePic"]
+            (format "https://cdn.site.io/pic-%d-%d.jpg"
+                    (get-in args [:object-value :id])
+                    (get-in args [:argument-values "size"]))
+
+            (throw (ex-info "Resolve field" args))))}))
+
+    )))

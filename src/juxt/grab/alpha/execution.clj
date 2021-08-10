@@ -45,9 +45,12 @@
        :fragment-spread
        ;; d. If selection is a FragmentSpread:
        ;; i. Let fragmentSpreadName be the name of selection.
-       (let [fragment-spread-name (:fragment-name selection)]
+       (let [fragment-spread-name (::document/fragment-name selection)]
          ;; ii. If fragmentSpreadName is in visitedFragments, continue with
          ;; the next selection in selectionSet.
+         (prn "fragment-spread-name" fragment-spread-name)
+         (prn "visited-fragments" visited-fragments)
+
          (if (contains? visited-fragments fragment-spread-name)
            grouped-fields
 
@@ -55,16 +58,20 @@
                  visited-fragments (conj visited-fragments fragment-spread-name)
                  ;; iv. Let fragment be the Fragment in the current Document
                  ;; whose name is fragmentSpreadName.
-                 fragment (some
-                           #(when (= (:fragment-name %) fragment-spread-name)
-                              %) document)]
+
+                 ;; TODO: Create fragment index
+                 fragment (get-in document [::document/fragments-by-name fragment-spread-name])]
+
              ;; v. If no such fragment exists, continue with the next
              ;; selection in selectionSet.
              (if-not fragment
                grouped-fields
 
                ;; vi. Let fragmentType be the type condition on fragment.
-               (let [fragment-type (:named-type fragment)]
+               (let [fragment-type (::document/named-type fragment)]
+                 (prn "fragment is" fragment)
+
+                 (assert fragment-type)
 
                  ;; vii. If DoesFragmentTypeApply(objectType, fragmentType) is
                  ;; false, continue with the next selection in selectionSet. (TODO)
@@ -72,7 +79,7 @@
                  (let [
                        ;; viii. Let fragmentSelectionSet be the top‐level selection
                        ;; set of fragment.
-                       fragment-selection-set (:selection-set fragment)
+                       fragment-selection-set (::document/selection-set fragment)
                        ;; ix. Let fragmentGroupedFieldSet be the result of calling
                        ;; CollectFields(objectType, fragmentSelectionSet,
                        ;; visitedFragments).

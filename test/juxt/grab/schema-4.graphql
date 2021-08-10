@@ -1,0 +1,17 @@
+schema {
+  query: Root
+}
+
+type Root {
+  user(id: Int): Person
+}
+
+type Person {
+  id: Int
+  name: String
+  profilePic(size: Int): Url
+  friends(first: Int): [Person]
+  mutualFriends(first: Int): [Person]
+}
+
+scalar Url
