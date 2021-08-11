@@ -3,16 +3,19 @@
 (ns juxt.grab.antlr
   (:require
    [clj-antlr.core :as antlr]
+   [juxt.grab.alpha.execution :as execution]
    [clojure.java.io :as io]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defmulti process
-  (fn [[fst]]
-    (cond (keyword? fst) fst
-          :else :constant)))
+  (fn [x]
+    (cond
+      (and (sequential? x) (keyword? (first x))) (first x)
+      (or (keyword? x) (string? x)) :constant
+      :else (throw (ex-info "FAIL" {:x x})))))
 
-(defmethod process :constant [[token]]
+(defmethod process :constant [_]
   nil)
 
 (defmethod process :default [[k & vals]]
@@ -25,13 +28,17 @@
   (process inner))
 
 (defmethod process :executableDefinition [[_ inner]]
-  (process inner))
+  (into
+   {::g/definition-type :executable-definition}
+   (process inner)))
 
 (defmethod process :typeSystemDefinition [[_ inner]]
   (process inner))
 
 (defmethod process :typeDefinition [[_ inner]]
-  (process inner))
+  (into
+   {::g/definition-type :type-definition}
+   (process inner)))
 
 (defmethod process :stringValue [[_ val]]
   val)
@@ -55,16 +62,14 @@
   {::g/named-type (process val)})
 
 (defmethod process :arguments [[_ & terms]]
-  (-> terms
-      (->>
-       (keep process)
-       (apply merge))))
-
-(defmethod process :argument [[_ & terms]]
-  {::g/argument
+  {::g/arguments
    (->> terms
         (keep process)
-        (apply merge))})
+        (into {}))})
+
+(defmethod process :argument [[_ name _ value]]
+  [(::g/name (process name))
+   (::g/value (process value))])
 
 (defmethod process :fieldDefinition [[_ & terms]]
   (-> terms
@@ -74,7 +79,7 @@
       ;; Update result to extract what we need
       (update ::g/type get-in [::g/named-type ::g/name])))
 
-(defmethod process :fieldsDefinition [[ & terms]]
+(defmethod process :fieldsDefinition [[_ & terms]]
   {::g/field-definitions
    (into {}
          (map (juxt ::g/name identity)
@@ -83,7 +88,8 @@
 (defmethod process :argumentsDefinition [[_ & terms]]
   {::g/arguments-definition
    (->> terms
-        (keep process))})
+        (keep process)
+        (vec))})
 
 (defmethod process :inputValueDefinition [[_ & terms]]
   (-> terms
@@ -116,10 +122,10 @@
         (map (juxt ::g/name identity))
         (into {}))})
 
-(defmethod process :operationDefinition [[_ & terms]]
-  (->> terms
-        (keep process)
-        (apply merge)))
+(defmethod process :operationDefinition [[_ operation-type & terms]]
+  (into
+   {::g/operation-type (process operation-type)}
+   (apply merge (keep process terms))))
 
 (defmethod process :selectionSet [[_ & selections]]
   {::g/selection-set
@@ -131,25 +137,82 @@
   (process inner))
 
 (defmethod process :operationType [[_ val]]
-  {::g/operation-type
-   (case val
-     "query" :query
-     "mutation" :mutation
-     "subscription" :subscription)})
+  (case val
+    "query" :query
+    "mutation" :mutation
+    "subscription" :subscription))
 
 (defmethod process :field [[_ & terms]]
-  {::g/selection-type :field
-   ::g/field (->> terms
-                  (keep process)
-                  (apply merge))})
+  (into
+   {::g/selection-type :field}
+   (->> terms
+        (keep process)
+        (apply merge))))
+
+(defmethod process :document [[_ & definitions]]
+  {::g/document (vec (keep process definitions))})
+
+(defmethod process :schemaDefinition [[_ & terms]]
+  {::g/schema (apply merge (keep process terms))})
+
+(defmethod process :rootOperationTypeDefinition [[_ operation-type _ named-type]]
+  {(process operation-type)
+   (get-in (process named-type) [::g/named-type ::g/name])})
+
 
 ;; Note: wouldn't it be easier if we handled strings?
 
 (let [graphql-parser (antlr/parser (slurp (io/resource "GraphQL.g4")))
-      ;;document (graphql-parser (slurp (io/resource "juxt/grab/schema-3.graphql")))
-      document (graphql-parser (slurp (io/resource "juxt/grab/query-3.graphql")))
+      schema (process (graphql-parser (slurp (io/resource "juxt/grab/schema-3.graphql"))))
+      document (process (graphql-parser (slurp (io/resource "juxt/grab/query-3.graphql"))))
       ]
 
-  (process document)
+  (let [document
+        (-> document
+            (assoc
+             :juxt.grab.alpha.document/operations-by-name
+             (->> document
+                  ::g/document
+                  (filter #(contains? % ::g/operation-type))
+                  (map (juxt ::g/name identity))
+                  (into {})))
+            juxt.grab.alpha.reap.document/expand-shorthand-document)
 
-  )
+        schema (assoc schema
+                      :juxt.grab.alpha.schema/types-by-name
+                      (->> schema
+                           ::g/document
+                           (filter #(= (::g/definition-type %) :type-definition))
+                           (map (juxt ::g/name identity))
+                           (into {"Int" {::g/name "Int"
+                                         ::g/kind :scalar}
+                                  "Float" {::g/name "Float"
+                                           ::g/kind :scalar}
+                                  "String" {::g/name "String"
+                                            ::g/kind :scalar}
+                                  "Boolean" {::g/name "Boolean"
+                                             ::g/kind :scalar}
+                                  "ID" {::g/name "ID"
+                                        ::g/kind :scalar}}))
+                      :juxt.grab.alpha.schema/root-operation-type-names
+                      (second (first (first (filter #(contains? % ::g/schema) (::g/document schema))))))]
+
+    (execution/execute-request
+     {:schema schema
+      :document document
+      :field-resolver
+      (fn [args]
+        (def args args)
+        (condp =
+            [(get-in args [:object-type ::g/name])
+             (get-in args [:field-name])]
+            ["Root" "user"]
+            {:name "Isaac Newton"}
+
+            ["Person" "name"]
+            (get-in args [:object-value :name])
+
+            ["Person" "profilePic"]
+            (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
+
+            (throw (ex-info "" args))))})))

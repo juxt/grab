@@ -1,5 +1,6 @@
 query {
   user(id: 4) {
     name
+    profilePic(size: 100)
   }
 }
