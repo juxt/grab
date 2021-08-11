@@ -4,7 +4,8 @@
   (:require
    [clj-antlr.core :as antlr]
    [juxt.grab.alpha.execution :as execution]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   juxt.grab.alpha.reap.document))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
