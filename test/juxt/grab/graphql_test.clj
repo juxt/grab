@@ -6,7 +6,27 @@
    [juxt.grab.alpha.document :refer [->document] :as document]
    [juxt.grab.alpha.schema :refer [->schema] :as schema]
    [clojure.test :refer [deftest is are]]
-   [clojure.java.io :as io]))
+   [clojure.walk :refer [postwalk]]
+   [clojure.java.io :as io]
+   [juxt.grab.alpha.parser :as parser]))
+
+(defn dissoc-namespace-keys [m ns]
+  (reduce-kv
+   (fn [acc k v]
+     (cond-> acc
+       (or (not (keyword? k))
+           (nil? (namespace k))
+           (not (.startsWith (namespace k) ns))) (assoc k v)))
+   {}
+   m))
+
+(defn dissoc-reap-keys [m]
+  (postwalk
+   (fn [m]
+     (cond-> m
+       (map? m)
+       (dissoc-namespace-keys "juxt.reap.alpha")))
+   m))
 
 (set! clojure.core/*print-namespace-maps* false)
 
@@ -218,7 +238,7 @@
            10 {:id 10
                :name "Tamisha Ciampa"}}]
       (execute
-       {:document (slurp (io/resource #_"juxt/grab/example-18.graphql" "juxt/grab/example-19.graphql"))
+       {:document (slurp (io/resource "juxt/grab/example-19.graphql"))
         :schema (slurp (io/resource "juxt/grab/schema-4.graphql"))
         :field-resolver
         (fn [args]
@@ -247,6 +267,43 @@
                     (get-in args [:object-value :id])
                     (get-in args [:argument-values "size"]))
 
-            (throw (ex-info "Resolve field" args))))}))
+            (throw (ex-info "Resolve field" args))))})))))
 
-    )))
+
+#_(execute
+ {:document (slurp (io/resource "juxt/grab/example-23.graphql"))
+  :schema (slurp (io/resource "juxt/grab/schema-5.graphql"))
+  :field-resolver
+  (fn [args]
+    (condp = [(get-in args [:object-type ::schema/name])
+              (get-in args [:field-name])]
+      (throw (ex-info "Resolve field" args))))})
+
+
+#_(->document (slurp (io/resource "juxt/grab/example-23.graphql")))
+
+#_(parser/parse-graphql (slurp (io/resource "juxt/grab/example-23.graphql")))
+
+#_(parser/parse-graphql
+ "query inlineFragmentTyping {
+  profiles(handles: [\"zuck\", \"cocacola\"]) {
+    handle
+    ... on User {
+      friends {
+        count
+      }
+    }
+    ... on Page {
+      likers {
+        count
+      }
+    }
+  }
+}
+")
+
+#_(parser/parse-graphql
+ "query inlineFragmentTyping {
+profiles(handles: [10, 20])
+}
+")

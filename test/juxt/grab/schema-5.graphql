@@ -1,0 +1,29 @@
+schema {
+  query: Query
+}
+
+type Query {
+  profiles(handles: [String]): Profile
+}
+
+interface Profile {
+  handle: Int
+}
+
+type User implements Profile {
+  friends: Friends
+}
+
+interface Countable {
+  count: Int
+}
+
+type Friends implements Countable {
+}
+
+type Pager implements Profile {
+  likers: Likers
+}
+
+type Likers implements Countable {
+}
