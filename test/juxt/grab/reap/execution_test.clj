@@ -5,10 +5,11 @@
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.execution :as execution]
    [juxt.grab.alpha.reap.document :refer [->document] :as reap.document]
-   [juxt.grab.alpha.reap.schema :refer [->schema] :as reap.schema]))
+   [juxt.grab.alpha.reap.schema :refer [->schema] :as reap.schema]
+   [juxt.grab.alpha.schema :as schema]
+   [juxt.grab.alpha.document :as document]))
 
 (alias 'document (create-ns 'juxt.grab.alpha.document))
-(alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (set! *print-level* 20)
 
@@ -53,7 +54,7 @@ type Person { name: String
           (fn [{:keys [field-name object-type object-value]
                 {:strs [id]} :argument-values
                 :as args}]
-            (case (::schema/name object-type)
+            (case (::document/name object-type)
               "Root"
               (case field-name
                 "user"
@@ -64,7 +65,6 @@ type Person { name: String
                 "name" (:name object-value)
                 (throw (ex-info "Fail" args)))
               (throw (ex-info "Fail" args))))})))))
-
 
 (deftest execute-request-with-list-test
   (is
@@ -94,7 +94,7 @@ type Person { name: String
           :field-resolver
           (fn [{:keys [field-name object-type object-value argument-values]
                 :as args}]
-            (case (::schema/name object-type)
+            (case (::document/name object-type)
               "Root"
               (case field-name
                 "users"

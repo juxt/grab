@@ -130,18 +130,18 @@
         field-name (::document/name field)
         ;; 4. Let argumentDefinitions be the arguments defined by objectType
         ;; for the field named fieldName.
-        argument-definitions (get-in object-type [::schema/field-definitions field-name ::schema/arguments-definition])]
+        argument-definitions (get-in object-type [::document/field-definitions field-name ::document/arguments-definition])]
 
     ;; 5. For each argumentDefinition in argumentDefinitions:
     (reduce
      (fn [acc argument-definition]
 
        (let [ ;; a. Let argumentName be the name of argumentDefinition.
-             argument-name (::schema/name argument-definition)
+             argument-name (::document/name argument-definition)
              ;; b. Let argumentType be the expected type of argumentDefinition.
-             argument-type (::schema/type argument-definition)
+             argument-type (::document/type argument-definition)
              ;; c. Let defaultValue be the default value for argumentDefinition.
-             default-value (find argument-definition ::schema/default-value) ;; TODO
+             default-value (find argument-definition ::document/default-value) ;; TODO
              ;; d. Let hasValue be true if argumentValues provides
              ;; a value for the name argumentName.
              has-value (find argument-values argument-name)
@@ -237,12 +237,12 @@
   (assert schema)
   (assert document)
 
-  (let [kind (::schema/kind field-type)]
+  (let [kind (::document/kind field-type)]
     (cond
       ;; 1. If the fieldType is a Non‐Null type:
       (= kind :non-null)
       ;; a. Let innerType be the inner type of fieldType.
-      (let [inner-type (get field-type ::schema/inner-type)
+      (let [inner-type (get field-type ::document/inner-type)
             _ (assert inner-type (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type)))
             ;; b. Let completedResult be the result of calling
             ;; CompleteValue(…).
@@ -286,7 +286,7 @@
           (throw (ex-info "Resolver must return a collection" {:field-type field-type})))
 
         ;; b. Let innerType be the inner type of fieldType.
-        (let [inner-type (get field-type ::schema/item-type)
+        (let [inner-type (get field-type ::document/item-type)
               inner-type (if (string? inner-type)
                            (schema/get-type schema inner-type)
                            inner-type)]
@@ -401,7 +401,7 @@
                  field-name (::document/name field)
                  ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
                  field-type
-                 (let [ft (get-in object-type [::schema/field-definitions field-name ::schema/type])]
+                 (let [ft (get-in object-type [::document/field-definitions field-name ::document/type])]
                    (if (string? ft)
                      (schema/get-type schema ft)
                      ft))
@@ -458,7 +458,7 @@
   (let [query-type (schema/get-root-query-type schema)]
 
     ;; 2. Assert: queryType is an Object type.
-    (when-not (= (get query-type ::schema/kind) :object)
+    (when-not (= (get query-type ::document/kind) :object)
       (throw (ex-info
               "Query type must be an OBJECT"
               (into

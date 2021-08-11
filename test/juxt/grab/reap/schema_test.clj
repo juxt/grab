@@ -31,8 +31,6 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
                            :type "Url"}]}]
          (reap.parser/parse-graphql example-56))))
 
-(reap.parser/parse-graphql example-56)
-
 (deftest schema-test
   (let [schema (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                    reap.parser/parse-graphql
@@ -44,12 +42,12 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
                  reap.parser/parse-graphql
                  reap.schema/parse-tree->schema
                  schema/get-root-query-type)]
-    (is (= "Query" (::schema/name type)))
-    (is (= :object (::schema/kind type)))
-    (is (= 1 (count (::schema/field-definitions type))))
-    (let [[_ user-field] (first (::schema/field-definitions type))]
-      (is (= "user" (::schema/name user-field)))
-      (is (= "Person" (::schema/type user-field))))))
+    (is (= "Query" (::document/name type)))
+    (is (= :object (::document/kind type)))
+    (is (= 1 (count (::document/field-definitions type))))
+    (let [[_ user-field] (first (::document/field-definitions type))]
+      (is (= "user" (::document/name user-field)))
+      (is (= "Person" (::document/type user-field))))))
 
 ;; TODO: Write schema tests
 
