@@ -1,12 +1,13 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.execution-test
+(ns juxt.grab.reap.execution-test
   (:require
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.execution :as execution]
-   [juxt.grab.alpha.document :refer [->document] :as document]
-   [juxt.grab.alpha.schema :refer [->schema] :as schema]))
+   [juxt.grab.alpha.reap.document :refer [->document] :as reap.document]
+   [juxt.grab.alpha.reap.schema :refer [->schema] :as reap.schema]))
 
+(alias 'document (create-ns 'juxt.grab.alpha.document))
 (alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (set! *print-level* 20)

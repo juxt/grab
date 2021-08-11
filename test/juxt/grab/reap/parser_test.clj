@@ -1,9 +1,9 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.parser-test
+(ns juxt.grab.reap.parser-test
   (:require
    [clojure.test :refer [deftest is are testing]]
-   [juxt.grab.alpha.parser :as parser]))
+   [juxt.grab.alpha.reap.parser :as reap.parser]))
 
 (alias 'reap (create-ns 'juxt.reap.alpha.graphql))
 
@@ -15,4 +15,4 @@
               ::reap/name "user"
               ::reap/arguments {}}]})
          (-> "query { user }"
-             parser/parse-graphql))))
+             reap.parser/parse-graphql))))

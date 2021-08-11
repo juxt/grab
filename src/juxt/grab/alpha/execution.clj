@@ -2,9 +2,11 @@
 
 (ns juxt.grab.alpha.execution
   (:require
-   [juxt.grab.alpha.document :as document]
    [juxt.grab.alpha.schema :as schema]
+   [juxt.grab.alpha.document :as document]
    [flatland.ordered.map :refer [ordered-map]]))
+
+(alias 'document (create-ns 'juxt.grab.alpha.document))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
@@ -128,7 +130,7 @@
         field-name (::document/name field)
         ;; 4. Let argumentDefinitions be the arguments defined by objectType
         ;; for the field named fieldName.
-        argument-definitions (get-in object-type [::schema/fields field-name ::schema/args])]
+        argument-definitions (get-in object-type [::schema/field-definitions field-name ::schema/arguments-definition])]
 
     ;; 5. For each argumentDefinition in argumentDefinitions:
     (reduce
@@ -399,7 +401,7 @@
                  field-name (::document/name field)
                  ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
                  field-type
-                 (let [ft (get-in object-type [::schema/fields field-name ::schema/type])]
+                 (let [ft (get-in object-type [::schema/field-definitions field-name ::schema/type])]
                    (if (string? ft)
                      (schema/get-type schema ft)
                      ft))

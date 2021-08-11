@@ -1,14 +1,16 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.graphql-test
+(ns juxt.grab.reap.graphql-test
   (:require
-   [juxt.grab.alpha.execution :refer [execute-request]]
-   [juxt.grab.alpha.document :refer [->document] :as document]
-   [juxt.grab.alpha.schema :refer [->schema] :as schema]
    [clojure.test :refer [deftest is are]]
    [clojure.walk :refer [postwalk]]
    [clojure.java.io :as io]
-   [juxt.grab.alpha.parser :as parser]))
+   [juxt.grab.alpha.execution :refer [execute-request]]
+   [juxt.grab.alpha.reap.document :refer [->document] :as reap.document]
+   [juxt.grab.alpha.reap.schema :refer [->schema] :as reap.schema]))
+
+(alias 'document (create-ns 'juxt.grab.alpha.document))
+(alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (defn dissoc-namespace-keys [m ns]
   (reduce-kv
