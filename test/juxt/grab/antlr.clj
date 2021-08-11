@@ -7,13 +7,19 @@
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
-(defmulti process first)
+(defmulti process
+  (fn [[fst]]
+    (cond (keyword? fst) fst
+          :else :constant)))
+
+(defmethod process :constant [[token]]
+  nil)
 
 (defmethod process :default [[k & vals]]
   {:not-handled! {:k k :vals vals}})
 
 (defmethod process :document [[_ & definitions]]
-  (map process definitions))
+  (keep process definitions))
 
 (defmethod process :definition [[_ inner]]
   (process inner))
@@ -51,22 +57,19 @@
 (defmethod process :arguments [[_ & terms]]
   (-> terms
       (->>
-       (filter sequential?)
-       (map process)
+       (keep process)
        (apply merge))))
 
 (defmethod process :argument [[_ & terms]]
   {::g/argument
    (->> terms
-        (filter sequential?)
-        (map process)
+        (keep process)
         (apply merge))})
 
 (defmethod process :fieldDefinition [[_ & terms]]
   (-> terms
       (->>
-       (filter sequential?)
-       (map process)
+       (keep process)
        (apply merge))
       ;; Update result to extract what we need
       (update ::g/type get-in [::g/named-type ::g/name])))
@@ -75,61 +78,54 @@
   {::g/field-definitions
    (into {}
          (map (juxt ::g/name identity)
-              (map process (filter sequential? terms))))})
+              (keep process terms)))})
 
 (defmethod process :argumentsDefinition [[_ & terms]]
   {::g/arguments-definition
    (->> terms
-        (filter sequential?)
-        (map process))})
+        (keep process))})
 
 (defmethod process :inputValueDefinition [[_ & terms]]
   (-> terms
-      (->> (filter sequential?)
-           (map process)
-           (apply merge)
-           )
+      (->> (keep process)
+           (apply merge))
       (update ::g/type get-in [::g/named-type ::g/name])))
 
 (defmethod process :objectTypeDefinition [[_ & inner]]
   (->> inner
-       (filter sequential?)
-       (map process)
+       (keep process)
        (apply merge)
        (into {::g/kind :object})))
 
 (defmethod process :scalarTypeDefinition [[_ & inner]]
   (->> inner
-       (filter sequential?)
-       (map process)
+       (keep process)
        (apply merge)
        (into {::g/kind :scalar})))
 
 (defmethod process :directive [[_ & terms]]
   (->> terms
-       (filter sequential?)
-       (map process)
+       (keep process)
        (apply merge)))
 
 (defmethod process :directives [[_ & directives]]
   {::g/directives
    (->> directives
-        (map process)
+        (keep process)
 
         (map (juxt ::g/name identity))
         (into {}))})
 
 (defmethod process :operationDefinition [[_ & terms]]
   (->> terms
-        (filter sequential?)
-        (map process)
+        (keep process)
         (apply merge)))
 
 (defmethod process :selectionSet [[_ & selections]]
   {::g/selection-set
    (->> selections
-        (filter sequential?)
-        (mapv process))})
+        (keep process)
+        vec)})
 
 (defmethod process :selection [[_ inner]]
   (process inner))
@@ -144,8 +140,7 @@
 (defmethod process :field [[_ & terms]]
   {::g/selection-type :field
    ::g/field (->> terms
-                  (filter sequential?)
-                  (map process)
+                  (keep process)
                   (apply merge))})
 
 ;; Note: wouldn't it be easier if we handled strings?
