@@ -5,6 +5,7 @@
    [clj-antlr.core :as antlr]
    [clojure.java.io :as io]))
 
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defmulti process first)
 
@@ -17,6 +18,9 @@
 (defmethod process :definition [[_ inner]]
   (process inner))
 
+(defmethod process :executableDefinition [[_ inner]]
+  (process inner))
+
 (defmethod process :typeSystemDefinition [[_ inner]]
   (process inner))
 
@@ -27,22 +31,22 @@
   val)
 
 (defmethod process :description [[_ inner]]
-  {:description (process inner)})
+  {::g/description (process inner)})
 
 (defmethod process :name [[_ val]]
-  {:name val})
+  {::g/name val})
 
 (defmethod process :value [[_ val]]
-  {:value (process val)})
+  {::g/value (process val)})
 
 (defmethod process :intValue [[_ val]]
   (Integer/parseInt val))
 
 (defmethod process :type_ [[_ val]]
-  {:type (process val)})
+  {::g/type (process val)})
 
 (defmethod process :namedType [[_ val]]
-  {:named-type (process val)})
+  {::g/named-type (process val)})
 
 (defmethod process :arguments [[_ & terms]]
   (-> terms
@@ -52,7 +56,7 @@
        (apply merge))))
 
 (defmethod process :argument [[_ & terms]]
-  {:argument
+  {::g/argument
    (->> terms
         (filter sequential?)
         (map process)
@@ -65,16 +69,16 @@
        (map process)
        (apply merge))
       ;; Update result to extract what we need
-      (update :type get-in [:named-type :name])))
+      (update ::g/type get-in [::g/named-type ::g/name])))
 
 (defmethod process :fieldsDefinition [[ & terms]]
-  {:field-definitions
+  {::g/field-definitions
    (into {}
-         (map (juxt :name identity)
+         (map (juxt ::g/name identity)
               (map process (filter sequential? terms))))})
 
 (defmethod process :argumentsDefinition [[_ & terms]]
-  {:arguments-definition
+  {::g/arguments-definition
    (->> terms
         (filter sequential?)
         (map process))})
@@ -85,21 +89,21 @@
            (map process)
            (apply merge)
            )
-      (update :type get-in [:named-type :name])))
+      (update ::g/type get-in [::g/named-type ::g/name])))
 
 (defmethod process :objectTypeDefinition [[_ & inner]]
   (->> inner
        (filter sequential?)
        (map process)
        (apply merge)
-       (into {:kind :object})))
+       (into {::g/kind :object})))
 
 (defmethod process :scalarTypeDefinition [[_ & inner]]
   (->> inner
        (filter sequential?)
        (map process)
        (apply merge)
-       (into {:kind :scalar})))
+       (into {::g/kind :scalar})))
 
 (defmethod process :directive [[_ & terms]]
   (->> terms
@@ -108,38 +112,49 @@
        (apply merge)))
 
 (defmethod process :directives [[_ & directives]]
-  {:directives
+  {::g/directives
    (->> directives
         (map process)
-        (map (juxt :name identity))
+
+        (map (juxt ::g/name identity))
         (into {}))})
 
+(defmethod process :operationDefinition [[_ & terms]]
+  (->> terms
+        (filter sequential?)
+        (map process)
+        (apply merge)))
+
+(defmethod process :selectionSet [[_ & selections]]
+  {::g/selection-set
+   (->> selections
+        (filter sequential?)
+        (mapv process))})
+
+(defmethod process :selection [[_ inner]]
+  (process inner))
+
+(defmethod process :operationType [[_ val]]
+  {::g/operation-type
+   (case val
+     "query" :query
+     "mutation" :mutation
+     "subscription" :subscription)})
+
+(defmethod process :field [[_ & terms]]
+  {::g/selection-type :field
+   ::g/field (->> terms
+                  (filter sequential?)
+                  (map process)
+                  (apply merge))})
+
+;; Note: wouldn't it be easier if we handled strings?
 
 (let [graphql-parser (antlr/parser (slurp (io/resource "GraphQL.g4")))
-      document (graphql-parser (slurp (io/resource "juxt/grab/schema-3.graphql")))]
+      ;;document (graphql-parser (slurp (io/resource "juxt/grab/schema-3.graphql")))
+      document (graphql-parser (slurp (io/resource "juxt/grab/query-3.graphql")))
+      ]
 
-  (last (process document))
+  (process document)
 
   )
-
-"Url"
-  {:juxt.grab.alpha.schema/kind :scalar,
-   :juxt.grab.alpha.schema/name "Url",
-   :juxt.grab.alpha.schema/field-definitions {}}
-
-(comment
-  "Person"
-  {:juxt.grab.alpha.schema/kind :object,
-   :juxt.grab.alpha.schema/name "Person",
-   :juxt.grab.alpha.schema/field-definitions
-   {"id"
-    {:juxt.grab.alpha.schema/name "id", :juxt.grab.alpha.schema/type "Int"},
-    "name"
-    {:juxt.grab.alpha.schema/name "name",
-     :juxt.grab.alpha.schema/type "String"},
-    "profilePic"
-    {:juxt.grab.alpha.schema/name "profilePic",
-     :juxt.grab.alpha.schema/type "Url",
-     :juxt.grab.alpha.schema/arguments-definition
-     ({:juxt.grab.alpha.schema/name "size",
-       :juxt.grab.alpha.schema/type "Int"})}}})

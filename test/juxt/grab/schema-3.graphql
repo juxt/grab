@@ -6,7 +6,7 @@ type Root {
   user(id: Int): Person
 }
 
-type Person {
+type Person @crux(q: "") {
   id: Int
   name: String
   profilePic(size: Int): Url
