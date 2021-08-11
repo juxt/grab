@@ -9,7 +9,7 @@
    [juxt.grab.alpha.schema :as schema]
    [clojure.java.io :as io]))
 
-(alias 'document (create-ns 'juxt.grab.alpha.document))
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (def example-56 "
 type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :size $size]]}\") {
@@ -42,12 +42,12 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
                  reap.parser/parse-graphql
                  reap.schema/parse-tree->schema
                  schema/get-root-query-type)]
-    (is (= "Query" (::document/name type)))
-    (is (= :object (::document/kind type)))
-    (is (= 1 (count (::document/field-definitions type))))
-    (let [[_ user-field] (first (::document/field-definitions type))]
-      (is (= "user" (::document/name user-field)))
-      (is (= "Person" (::document/type user-field))))))
+    (is (= "Query" (::g/name type)))
+    (is (= :object (::g/kind type)))
+    (is (= 1 (count (::g/field-definitions type))))
+    (let [[_ user-field] (first (::g/field-definitions type))]
+      (is (= "user" (::g/name user-field)))
+      (is (= "Person" (::g/type user-field))))))
 
 ;; TODO: Write schema tests
 

@@ -9,7 +9,7 @@
    [juxt.grab.alpha.schema :as schema]
    [juxt.grab.alpha.document :as document]))
 
-(alias 'document (create-ns 'juxt.grab.alpha.document))
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (set! *print-level* 20)
 
@@ -27,7 +27,7 @@
   (let [schema (->schema "type Root { user(id: Int): Person }")
         document (->document "query Test { user(id: 4) { name }}")
         object-type (schema/get-type schema "Root")
-        field (get-in document [::document/operations-by-name "Test" ::document/selection-set 0])
+        field (get-in document [::document/operations-by-name "Test" ::g/selection-set 0])
         variable-values {}]
     (is
      (= {"id" 4}
@@ -54,7 +54,7 @@ type Person { name: String
           (fn [{:keys [field-name object-type object-value]
                 {:strs [id]} :argument-values
                 :as args}]
-            (case (::document/name object-type)
+            (case (::g/name object-type)
               "Root"
               (case field-name
                 "user"
@@ -94,7 +94,7 @@ type Person { name: String
           :field-resolver
           (fn [{:keys [field-name object-type object-value argument-values]
                 :as args}]
-            (case (::document/name object-type)
+            (case (::g/name object-type)
               "Root"
               (case field-name
                 "users"

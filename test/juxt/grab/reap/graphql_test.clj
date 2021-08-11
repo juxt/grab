@@ -11,6 +11,7 @@
 
 (alias 'document (create-ns 'juxt.grab.alpha.document))
 (alias 'schema (create-ns 'juxt.grab.alpha.schema))
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defn dissoc-namespace-keys [m ns]
   (reduce-kv
@@ -73,7 +74,7 @@
 (deftest fields-test
   (let [field-resolver
         (fn [args]
-          (condp = [(get-in args [:object-type ::document/name])
+          (condp = [(get-in args [:object-type ::g/name])
                     (get-in args [:field-name])]
             ["Root" "me"]
             {:id 1
@@ -127,7 +128,7 @@
       :schema (slurp (io/resource "juxt/grab/schema-3.graphql"))
       :field-resolver
       (fn [args]
-        (condp = [(get-in args [:object-type ::document/name])
+        (condp = [(get-in args [:object-type ::g/name])
                   (get-in args [:field-name])]
           ["Root" "user"]
           {:id 1
@@ -149,7 +150,7 @@
 (deftest field-alias-test
   (let [field-resolver
         (fn [args]
-          (condp = [(get-in args [:object-type ::document/name])
+          (condp = [(get-in args [:object-type ::g/name])
                     (get-in args [:field-name])]
             ["Root" "user"]
             (get {4 {:id 4
@@ -244,7 +245,7 @@
         :schema (slurp (io/resource "juxt/grab/schema-4.graphql"))
         :field-resolver
         (fn [args]
-          (condp = [(get-in args [:object-type ::document/name])
+          (condp = [(get-in args [:object-type ::g/name])
                     (get-in args [:field-name])]
             ["Root" "user"]
             (get people
@@ -277,7 +278,7 @@
   :schema (slurp (io/resource "juxt/grab/schema-5.graphql"))
   :field-resolver
   (fn [args]
-    (condp = [(get-in args [:object-type ::document/name])
+    (condp = [(get-in args [:object-type ::g/name])
               (get-in args [:field-name])]
       (throw (ex-info "Resolve field" args))))})
 

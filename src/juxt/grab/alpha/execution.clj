@@ -6,7 +6,7 @@
    [juxt.grab.alpha.document :as document]
    [flatland.ordered.map :refer [ordered-map]]))
 
-(alias 'document (create-ns 'juxt.grab.alpha.document))
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defn
   ^{:crux.graphql.spec-ref/version "June2018"
@@ -22,7 +22,7 @@
 
   (reduce
    (fn [grouped-fields selection]
-     (case (::document/selection-type selection)
+     (case (::g/selection-type selection)
        ;; c. If selection is a Field:
        :field
        (let [response-key
@@ -30,7 +30,7 @@
              ;; if defined, otherwise the field name).
 
              ;; TODO: The response-key will be the alias, if it exists
-             (or (::document/alias selection) (::document/name selection))]
+             (or (::g/alias selection) (::g/name selection))]
          (update
           grouped-fields
           ;; ii. Let groupForResponseKey be the list in groupedFields for responseKey;
@@ -46,7 +46,7 @@
        :fragment-spread
        ;; d. If selection is a FragmentSpread:
        ;; i. Let fragmentSpreadName be the name of selection.
-       (let [fragment-spread-name (::document/fragment-name selection)]
+       (let [fragment-spread-name (::g/fragment-name selection)]
          ;; ii. If fragmentSpreadName is in visitedFragments, continue with
          ;; the next selection in selectionSet.
 
@@ -59,7 +59,7 @@
                  ;; whose name is fragmentSpreadName.
 
                  ;; TODO: Create fragment index
-                 fragment (get-in document [::document/fragments-by-name fragment-spread-name])]
+                 fragment (get-in document [::g/fragments-by-name fragment-spread-name])]
 
              ;; v. If no such fragment exists, continue with the next
              ;; selection in selectionSet.
@@ -67,7 +67,7 @@
                grouped-fields
 
                ;; vi. Let fragmentType be the type condition on fragment.
-               (let [fragment-type (::document/named-type fragment)]
+               (let [fragment-type (::g/named-type fragment)]
 
                  (assert fragment-type)
 
@@ -77,7 +77,7 @@
                  (let [
                        ;; viii. Let fragmentSelectionSet be the top‐level selection
                        ;; set of fragment.
-                       fragment-selection-set (::document/selection-set fragment)
+                       fragment-selection-set (::g/selection-set fragment)
                        ;; ix. Let fragmentGroupedFieldSet be the result of calling
                        ;; CollectFields(objectType, fragmentSelectionSet,
                        ;; visitedFragments).
@@ -125,23 +125,23 @@
         ;; 1. Let coercedValues be an empty unordered Map.
         coerced-values {}
         ;; 2. Let argumentValues be the argument values provided in field.
-        argument-values (::document/arguments field)
+        argument-values (::g/arguments field)
         ;; 3. Let fieldName be the name of field.
-        field-name (::document/name field)
+        field-name (::g/name field)
         ;; 4. Let argumentDefinitions be the arguments defined by objectType
         ;; for the field named fieldName.
-        argument-definitions (get-in object-type [::document/field-definitions field-name ::document/arguments-definition])]
+        argument-definitions (get-in object-type [::g/field-definitions field-name ::g/arguments-definition])]
 
     ;; 5. For each argumentDefinition in argumentDefinitions:
     (reduce
      (fn [acc argument-definition]
 
        (let [ ;; a. Let argumentName be the name of argumentDefinition.
-             argument-name (::document/name argument-definition)
+             argument-name (::g/name argument-definition)
              ;; b. Let argumentType be the expected type of argumentDefinition.
-             argument-type (::document/type argument-definition)
+             argument-type (::g/type argument-definition)
              ;; c. Let defaultValue be the default value for argumentDefinition.
-             default-value (find argument-definition ::document/default-value) ;; TODO
+             default-value (find argument-definition ::g/default-value) ;; TODO
              ;; d. Let hasValue be true if argumentValues provides
              ;; a value for the name argumentName.
              has-value (find argument-values argument-name)
@@ -204,7 +204,7 @@
   [{:keys [fields]}]
   (reduce
    (fn [selection-set field]
-     (let [field-selection-set (::document/selection-set field)]
+     (let [field-selection-set (::g/selection-set field)]
        (cond-> selection-set
          field-selection-set (concat field-selection-set))))
    (list)
@@ -237,12 +237,12 @@
   (assert schema)
   (assert document)
 
-  (let [kind (::document/kind field-type)]
+  (let [kind (::g/kind field-type)]
     (cond
       ;; 1. If the fieldType is a Non‐Null type:
       (= kind :non-null)
       ;; a. Let innerType be the inner type of fieldType.
-      (let [inner-type (get field-type ::document/inner-type)
+      (let [inner-type (get field-type ::g/inner-type)
             _ (assert inner-type (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type)))
             ;; b. Let completedResult be the result of calling
             ;; CompleteValue(…).
@@ -286,7 +286,7 @@
           (throw (ex-info "Resolver must return a collection" {:field-type field-type})))
 
         ;; b. Let innerType be the inner type of fieldType.
-        (let [inner-type (get field-type ::document/item-type)
+        (let [inner-type (get field-type ::g/item-type)
               inner-type (if (string? inner-type)
                            (schema/get-type schema inner-type)
                            inner-type)]
@@ -342,7 +342,7 @@
   (let [field (first fields)
 
         ;; 2. Let fieldName be the field name of field.
-        field-name (::document/name field)
+        field-name (::g/name field)
         ;; 3. Let argumentValues be the result of CoerceArgumentValues(…).
         argument-values
         (coerce-argument-values
@@ -398,10 +398,10 @@
            ;; a. Let fieldName be the name of the first entry in fields. Note:
            ;; This value is unaffected if an alias is used.
            (let [field (first fields)
-                 field-name (::document/name field)
+                 field-name (::g/name field)
                  ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
                  field-type
-                 (let [ft (get-in object-type [::document/field-definitions field-name ::document/type])]
+                 (let [ft (get-in object-type [::g/field-definitions field-name ::g/type])]
                    (if (string? ft)
                      (schema/get-type schema ft)
                      ft))
@@ -458,7 +458,7 @@
   (let [query-type (schema/get-root-query-type schema)]
 
     ;; 2. Assert: queryType is an Object type.
-    (when-not (= (get query-type ::document/kind) :object)
+    (when-not (= (get query-type ::g/kind) :object)
       (throw (ex-info
               "Query type must be an OBJECT"
               (into
@@ -467,10 +467,10 @@
                 :crux.graphql.spec-ref/step 2}
                (meta #'execute-query)))))
 
-    (assert (::document/selection-set query))
+    (assert (::g/selection-set query))
 
     (let [ ;; 3. Let selectionSet be the top level Selection Set in query.
-          selection-set (::document/selection-set query)
+          selection-set (::g/selection-set query)
 
           ;; 4. Let data be the result of running ExecuteSelectionSet
           ;; normally (allowing parallelization).
@@ -502,7 +502,7 @@
         ;; CoerceVariableValues(schema, operation, variableValues). (TODO)
         coerced-variable-values variable-values]
 
-    (case (::document/operation-type operation)
+    (case (::g/operation-type operation)
       ;; 3. If operation is a
       :query ;; operation:
       ;;   a. Return ExecuteQuery(operation, schema, coercedVariableValues,

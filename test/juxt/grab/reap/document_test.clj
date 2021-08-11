@@ -7,12 +7,14 @@
    [juxt.grab.alpha.reap.document :as rd]
    [juxt.grab.alpha.document :as document]))
 
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+
 (deftest get-operation-test
   (let [doc (-> "query foo { user } query bar { user }"
                 parser/parse-graphql
                 rd/parse-tree->document)]
     (are [arg expected]
-        (= expected (::document/name (document/get-operation doc arg)))
+        (= expected (::g/name (document/get-operation doc arg)))
         "foo" "foo"
         "bar" "bar")
     (is (thrown? clojure.lang.ExceptionInfo
@@ -27,5 +29,5 @@
                 parser/parse-graphql
                 rd/parse-tree->document)
         operation (document/get-operation doc nil)]
-    (is (= :query (::document/operation-type operation)))
-    (is (nil? (::document/name operation)))))
+    (is (= :query (::g/operation-type operation)))
+    (is (nil? (::g/name operation)))))
