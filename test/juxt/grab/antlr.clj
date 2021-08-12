@@ -4,8 +4,7 @@
   (:require
    [clj-antlr.core :as antlr]
    [juxt.grab.alpha.execution :as execution]
-   [clojure.java.io :as io]
-   juxt.grab.alpha.reap.document))
+   [clojure.java.io :as io]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -176,8 +175,7 @@
                   ::g/document
                   (filter #(contains? % ::g/operation-type))
                   (map (juxt ::g/name identity))
-                  (into {})))
-            juxt.grab.alpha.reap.document/expand-shorthand-document)
+                  (into {}))))
 
         schema (assoc schema
                       :juxt.grab.alpha.schema/types-by-name
