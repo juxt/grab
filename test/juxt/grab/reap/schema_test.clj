@@ -5,8 +5,8 @@
    [clojure.test :refer [deftest is]]
    [juxt.reap.alpha.graphql :as reap]
    [juxt.grab.alpha.reap.parser :as reap.parser]
-   [juxt.grab.alpha.reap.schema :as reap.schema]
-   [juxt.grab.alpha.schema :as schema]
+   [juxt.grab.alpha.reap.document :as reap.document]
+   [juxt.grab.alpha.document :as document]
    [clojure.java.io :as io]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
@@ -34,14 +34,14 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
 (deftest schema-test
   (let [schema (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                    reap.parser/parse-graphql
-                   reap.schema/parse-tree->schema)]
-    (is (= "Query" (get-in schema [::schema/root-operation-type-names :query])))))
+                   reap.document/parse-tree->schema)]
+    (is (= "Query" (get-in schema [::document/root-operation-type-names :query])))))
 
 (deftest get-root-query-type-test
   (let [type (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                  reap.parser/parse-graphql
-                 reap.schema/parse-tree->schema
-                 schema/get-root-query-type)]
+                 reap.document/parse-tree->schema
+                 document/get-root-query-type)]
     (is (= "Query" (::g/name type)))
     (is (= :object (::g/kind type)))
     (is (= 1 (count (::g/field-definitions type))))

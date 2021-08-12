@@ -4,9 +4,7 @@
   (:require
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.execution :as execution]
-   [juxt.grab.alpha.reap.document :refer [->document] :as reap.document]
-   [juxt.grab.alpha.reap.schema :refer [->schema] :as reap.schema]
-   [juxt.grab.alpha.schema :as schema]
+   [juxt.grab.alpha.reap.document :refer [->document ->schema] :as reap.document]
    [juxt.grab.alpha.document :as document]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
@@ -26,7 +24,7 @@
 (deftest coerce-argument-values-test
   (let [schema (->schema "type Root { user(id: Int): Person }")
         document (->document "query Test { user(id: 4) { name }}")
-        object-type (schema/get-type schema "Root")
+        object-type (document/get-type schema "Root")
         field (get-in document [::document/operations-by-name "Test" ::g/selection-set 0])
         variable-values {}]
     (is

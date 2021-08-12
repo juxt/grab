@@ -288,7 +288,7 @@
         ;; b. Let innerType be the inner type of fieldType.
         (let [inner-type (get field-type ::g/item-type)
               inner-type (if (string? inner-type)
-                           (schema/get-type schema inner-type)
+                           (document/get-type schema inner-type)
                            inner-type)]
           ;; c. Return a list where each list item is the result of calling
           ;; CompleteValue(innerType, fields, resultItem, variableValues),
@@ -403,7 +403,7 @@
                  field-type
                  (let [ft (get-in object-type [::g/field-definitions field-name ::g/type])]
                    (if (string? ft)
-                     (schema/get-type schema ft)
+                     (document/get-type schema ft)
                      ft))
 
                  #_(throw
@@ -455,7 +455,7 @@
   (assert document)
 
   ;; 1. Let queryType be the root Query type in schema.
-  (let [query-type (schema/get-root-query-type schema)]
+  (let [query-type (document/get-root-query-type schema)]
 
     ;; 2. Assert: queryType is an Object type.
     (when-not (= (get query-type ::g/kind) :object)

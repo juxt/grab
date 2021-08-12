@@ -178,7 +178,7 @@
                   (into {}))))
 
         schema (assoc schema
-                      :juxt.grab.alpha.schema/types-by-name
+                      :juxt.grab.alpha.document/types-by-name
                       (->> schema
                            ::g/document
                            (filter #(= (::g/definition-type %) :type-definition))
@@ -193,7 +193,7 @@
                                              ::g/kind :scalar}
                                   "ID" {::g/name "ID"
                                         ::g/kind :scalar}}))
-                      :juxt.grab.alpha.schema/root-operation-type-names
+                      :juxt.grab.alpha.document/root-operation-type-names
                       (second (first (first (filter #(contains? % ::g/schema) (::g/document schema))))))]
 
     (execution/execute-request

@@ -6,8 +6,7 @@
    [clojure.walk :refer [postwalk]]
    [clojure.java.io :as io]
    [juxt.grab.alpha.execution :refer [execute-request]]
-   [juxt.grab.alpha.reap.document :refer [->document] :as reap.document]
-   [juxt.grab.alpha.reap.schema :refer [->schema] :as reap.schema]))
+   [juxt.grab.alpha.reap.document :refer [->document ->schema] :as reap.document]))
 
 (alias 'document (create-ns 'juxt.grab.alpha.document))
 (alias 'schema (create-ns 'juxt.grab.alpha.schema))
