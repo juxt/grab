@@ -1,10 +1,11 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.parser
+(ns juxt.grab.alpha.parser
   (:require
    [clj-antlr.core :as antlr]
-   [juxt.grab.alpha.execution :as execution]
    [clojure.java.io :as io]))
+
+(defonce parser (antlr/parser (slurp (io/resource "GraphQL.g4"))))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -159,59 +160,31 @@
   {(process operation-type)
    (get-in (process named-type) [::g/named-type ::g/name])})
 
-
-;; Note: wouldn't it be easier if we handled strings?
-
-(let [graphql-parser (antlr/parser (slurp (io/resource "GraphQL.g4")))
-      schema (process (graphql-parser (slurp (io/resource "juxt/grab/schema-3.graphql"))))
-      document (process (graphql-parser (slurp (io/resource "juxt/grab/query-3.graphql"))))
-      ]
-
-  (let [document
-        (-> document
-            (assoc
-             :juxt.grab.alpha.document/operations-by-name
-             (->> document
-                  ::g/document
-                  (filter #(contains? % ::g/operation-type))
-                  (map (juxt ::g/name identity))
-                  (into {}))))
-
-        schema (assoc schema
-                      :juxt.grab.alpha.document/types-by-name
-                      (->> schema
-                           ::g/document
-                           (filter #(= (::g/definition-type %) :type-definition))
-                           (map (juxt ::g/name identity))
-                           (into {"Int" {::g/name "Int"
-                                         ::g/kind :scalar}
-                                  "Float" {::g/name "Float"
-                                           ::g/kind :scalar}
-                                  "String" {::g/name "String"
-                                            ::g/kind :scalar}
-                                  "Boolean" {::g/name "Boolean"
-                                             ::g/kind :scalar}
-                                  "ID" {::g/name "ID"
-                                        ::g/kind :scalar}}))
-                      :juxt.grab.alpha.document/root-operation-type-names
-                      (second (first (first (filter #(contains? % ::g/schema) (::g/document schema))))))]
-
-    (execution/execute-request
-     {:schema schema
-      :document document
-      :field-resolver
-      (fn [args]
-        (def args args)
-        (condp =
-            [(get-in args [:object-type ::g/name])
-             (get-in args [:field-name])]
-            ["Root" "user"]
-            {:name "Isaac Newton"}
-
-            ["Person" "name"]
-            (get-in args [:object-value :name])
-
-            ["Person" "profilePic"]
-            (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
-
-            (throw (ex-info "" args))))})))
+(defn parse [s]
+  (let [doc (-> s parser process)]
+    (-> doc
+        (assoc
+         :juxt.grab.alpha.document/operations-by-name
+         (->> doc
+              ::g/document
+              (filter #(contains? % ::g/operation-type))
+              (map (juxt ::g/name identity))
+              (into {})))
+        (assoc
+         :juxt.grab.alpha.document/types-by-name
+         (->> doc
+              ::g/document
+              (filter #(= (::g/definition-type %) :type-definition))
+              (map (juxt ::g/name identity))
+              (into {"Int" {::g/name "Int"
+                            ::g/kind :scalar}
+                     "Float" {::g/name "Float"
+                              ::g/kind :scalar}
+                     "String" {::g/name "String"
+                               ::g/kind :scalar}
+                     "Boolean" {::g/name "Boolean"
+                                ::g/kind :scalar}
+                     "ID" {::g/name "ID"
+                           ::g/kind :scalar}}))
+         :juxt.grab.alpha.document/root-operation-type-names
+         (second (first (first (filter #(contains? % ::g/schema) (::g/document doc)))))))))
