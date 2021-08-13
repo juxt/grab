@@ -1,6 +1,6 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.antlr
+(ns juxt.grab.parser
   (:require
    [clj-antlr.core :as antlr]
    [juxt.grab.alpha.execution :as execution]
