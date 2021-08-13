@@ -49,7 +49,6 @@
           :document document
           :field-resolver
           (fn [args]
-            (def args args)
             (condp =
                 [(get-in args [:object-type ::g/name])
                  (get-in args [:field-name])]

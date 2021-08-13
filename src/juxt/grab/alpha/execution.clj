@@ -2,7 +2,6 @@
 
 (ns juxt.grab.alpha.execution
   (:require
-   [juxt.grab.alpha.schema :as schema]
    [juxt.grab.alpha.document :as document]
    [flatland.ordered.map :refer [ordered-map]]))
 
@@ -168,20 +167,18 @@
 
            ;; j. Otherwise if hasValue is true:
            has-value
-           (do
-             ;;(throw (ex-info "hasValue!" {:value value}))
-             (cond
-               ;; i. If value is null:
-               (nil? argument-value)
-               ;; 1. Add an entry to coercedValues named argumentName with the value null.
-               (conj acc [argument-name nil])
-               ;; ii. Otherwise, if argumentValue is a Variable: (TODO)
+           (cond
+             ;; i. If value is null:
+             (nil? argument-value)
+             ;; 1. Add an entry to coercedValues named argumentName with the value null.
+             (conj acc [argument-name nil])
+             ;; ii. Otherwise, if argumentValue is a Variable: (TODO)
 
-               :else
-               ;; TODO: apply coercion rules, for now just set it to the value
-               (let [coerced-value value]
-                 ;;(throw (ex-info "here" {argument-name value}))
-                 (conj acc [argument-name value]))))
+             :else
+             ;; TODO: apply coercion rules, for now just set it to the value
+             (let [coerced-value value]
+               ;;(throw (ex-info "here" {argument-name value}))
+               (conj acc [argument-name value])))
 
            :else acc)))
 
