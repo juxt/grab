@@ -6,6 +6,7 @@
    [juxt.reap.alpha.graphql :as reap]))
 
 (alias 'document (create-ns 'juxt.grab.alpha.document))
+(alias 'schema (create-ns 'juxt.grab.alpha.schema))
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defn process-selection-set [selection-set]
@@ -174,8 +175,8 @@
                 (some-match ::reap/operation-type "query")
                 ::reap/named-type)]
 
-    {::document/types-by-name types-by-name
-     ::document/root-operation-type-names {:query root-query-type-name}}))
+    {::schema/types-by-name types-by-name
+     ::schema/root-operation-type-names {:query root-query-type-name}}))
 
 (defn ->schema
   "Parse the input string to a data structure representing a GraphQL schema."
