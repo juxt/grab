@@ -1,0 +1,10 @@
+query getDogName {
+  dog {
+    name
+    color
+  }
+}
+
+extend type Dog {
+  color: String
+}
