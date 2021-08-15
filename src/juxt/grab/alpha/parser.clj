@@ -150,9 +150,6 @@
         (keep process)
         (apply merge))))
 
-(defmethod process :document [[_ & definitions]]
-  {::g/document (vec (keep process definitions))})
-
 (defmethod process :schemaDefinition [[_ & terms]]
   {::g/schema (apply merge (keep process terms))})
 
@@ -161,7 +158,8 @@
    (get-in (process named-type) [::g/named-type ::g/name])})
 
 (defn parse [s]
-  (let [doc (-> s parser process)]
+  (-> s parser process)
+  #_(let [doc ]
     (-> doc
         (assoc
          :juxt.grab.alpha.document/operations-by-name

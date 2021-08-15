@@ -2,6 +2,8 @@
 
 (ns juxt.grab.alpha.document)
 
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+
 (defn
   ^{:graphql/name "GetOperation"}
   get-operation
@@ -34,3 +36,12 @@
   (if-let [root-type (get-in schema [::root-operation-type-names :query])]
     (get-type schema root-type)
     (throw (ex-info "Query root type not found" {}))))
+
+
+(defn executable
+  "Validate document as an executable, returning a structure that is efficient for
+  execution."
+  [document]
+  (when (some #(#{:type-definition} (::g/definition-type %)) document)
+    (throw (ex-info "A document containing a TypeSystemDefinition is invalid for execution" {:document document})))
+  document)
