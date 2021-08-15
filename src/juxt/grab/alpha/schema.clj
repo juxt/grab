@@ -11,7 +11,9 @@
   [document]
 
   {::root-operation-type-names
-   (second (first (first (filter #(contains? % ::g/schema) document))))
+   (or
+    (second (first (first (filter #(contains? % ::g/schema) document))))
+    {:query "Query" :mutation "Mutation" :subscription "Subscription"})
 
    ::types-by-name
    (->> document
