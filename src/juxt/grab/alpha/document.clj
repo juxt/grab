@@ -37,5 +37,10 @@
   {::operations-by-name
    (->> document
         (filter #(contains? % ::g/operation-type))
-        (map (juxt ::g/name identity))
-        (into {}))})
+        (group-by ::g/name)
+        (reduce-kv
+         (fn [acc k v]
+           (when (> (count v) 1)
+             (throw (ex-info "Operation name is not unique" {:name k})))
+           (assoc acc k (first v)))
+         {}))})

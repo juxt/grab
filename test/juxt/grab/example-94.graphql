@@ -1,0 +1,11 @@
+query dogOperation {
+  dog {
+    name
+  }
+}
+
+mutation dogOperation {
+  mutateDog {
+    id
+  }
+}

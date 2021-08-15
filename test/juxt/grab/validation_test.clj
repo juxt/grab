@@ -20,3 +20,18 @@
     clojure.lang.ExceptionInfo
     (executable
      (parser/parse (slurp (io/resource "juxt/grab/example-91.graphql")))))))
+
+(deftest operation-name-uniqueness-test
+  (is
+   (executable
+    (parser/parse (slurp (io/resource "juxt/grab/example-92.graphql")))))
+  (is
+   (thrown?
+    clojure.lang.ExceptionInfo
+    (executable
+     (parser/parse (slurp (io/resource "juxt/grab/example-93.graphql"))))))
+  (is
+   (thrown?
+    clojure.lang.ExceptionInfo
+    (executable
+     (parser/parse (slurp (io/resource "juxt/grab/example-94.graphql")))))))
