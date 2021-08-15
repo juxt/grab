@@ -12,5 +12,3 @@
     clojure.lang.ExceptionInfo
     (let [document (parser/parse "scalar Illegal")]
       (executable document)))))
-
-;(parser/parse "query Test { id firstName lastName } scalar Illegal")

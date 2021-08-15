@@ -6,7 +6,6 @@
    [juxt.reap.alpha.graphql :as reap]
    [juxt.grab.alpha.reap.parser :as reap.parser]
    [juxt.grab.alpha.reap.document :as reap.document]
-   [juxt.grab.alpha.document :as document]
    [juxt.grab.alpha.schema :as schema]
    [clojure.java.io :as io]))
 
@@ -49,17 +48,3 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
     (let [[_ user-field] (first (::g/field-definitions type))]
       (is (= "user" (::g/name user-field)))
       (is (= "Person" (::g/type user-field))))))
-
-;; TODO: Write schema tests
-
-#_(-> "type Root { users: [User] } type User { name: String }"
-          parser/parse-graphql
-          schema/parse-tree->schema)
-
-#_(-> "type Root { user: [[User]!]! } type User { name: String }"
-          parser/parse-graphql
-          schema/parse-tree->schema)
-
-#_(-> "type User { name: String }"
-    parser/parse-graphql
-    )
