@@ -34,13 +34,13 @@
   (when-not (every? #(#{:executable-definition} (::g/definition-type %)) document)
     (throw (ex-info "A document containing a TypeSystemDefinition is invalid for execution" {:document document})))
 
-  {::operations-by-name
-   (->> document
-        (filter #(contains? % ::g/operation-type))
-        (group-by ::g/name)
-        (reduce-kv
-         (fn [acc k v]
-           (when (> (count v) 1)
-             (throw (ex-info "Operation name is not unique" {:name k})))
-           (assoc acc k (first v)))
-         {}))})
+  (let [operations (filter #(contains? % ::g/operation-type) document)
+        operations-by-name (group-by ::g/name operations)]
+    {::operations-by-name
+     (->> operations-by-name
+      (reduce-kv
+       (fn [acc k v]
+         (when (> (count v) 1)
+           (throw (ex-info "Operation name is not unique" {:name k})))
+         (assoc acc k (first v)))
+       {}))}))
