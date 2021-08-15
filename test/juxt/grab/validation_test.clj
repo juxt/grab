@@ -35,3 +35,13 @@
     clojure.lang.ExceptionInfo
     (executable
      (parser/parse (slurp (io/resource "juxt/grab/example-94.graphql")))))))
+
+(deftest lone-operation-test
+  (is
+   (executable
+    (parser/parse (slurp (io/resource "juxt/grab/example-95.graphql")))))
+  (is
+   (thrown?
+    clojure.lang.ExceptionInfo
+    (executable
+    (parser/parse (slurp (io/resource "juxt/grab/example-96.graphql")))))))
