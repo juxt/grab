@@ -9,9 +9,9 @@
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.3.2"
-    :crux.graphql.spec-ref/algorithm "CollectFields"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.3.2"
+    :juxt.grab.alpha.spec-ref/algorithm "CollectFields"}
   collect-fields
   [{:keys [object-type selection-set variable-values visited-fragments document]
     ;; 1. If visitedFragments if not provided, initialize it to the empty
@@ -115,9 +115,9 @@
    selection-set))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.4.1"
-    :crux.graphql.spec-ref/algorithm "CoerceArgumentValues"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.4.1"
+    :juxt.grab.alpha.spec-ref/algorithm "CoerceArgumentValues"}
   coerce-argument-values
   [{:keys [object-type field variable-values]}]
 
@@ -187,17 +187,17 @@
      argument-definitions)))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.4.3"
-    :crux.graphql.spec-ref/algorithm "ResolveAbstractType"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.4.3"
+    :juxt.grab.alpha.spec-ref/algorithm "ResolveAbstractType"}
   resolve-abstract-type
   [{:keys [field-type result]}]
   (throw (ex-info "TODO: resolve-abstract-type" (meta #'resolve-abstract-type))))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.4.3"
-    :crux.graphql.spec-ref/algorithm "MergeSelectionSets"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.4.3"
+    :juxt.grab.alpha.spec-ref/algorithm "MergeSelectionSets"}
   merge-selection-sets
   [{:keys [fields]}]
   (reduce
@@ -209,9 +209,9 @@
    fields))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.4.2"
-    :crux.graphql.spec-ref/algorithm "ResolveFieldValue"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.4.2"
+    :juxt.grab.alpha.spec-ref/algorithm "ResolveFieldValue"}
   resolve-field-value
   [{:keys [object-type object-value field-name argument-values field-resolver] :as args}]
   (assert field-name)
@@ -225,9 +225,9 @@
 
 (declare execute-selection-set-normally)
 
-(defn ^{:crux.graphql.spec-ref/version "June2018"
-        :crux.graphql.spec-ref/section "6.4.3"
-        :crux.graphql.spec-ref/algorithm "CompleteValue"}
+(defn ^{:juxt.grab.alpha.spec-ref/version "June2018"
+        :juxt.grab.alpha.spec-ref/section "6.4.3"
+        :juxt.grab.alpha.spec-ref/algorithm "CompleteValue"}
   complete-value
   [{:keys [field-type fields result variable-values field-resolver schema document] :as args}]
 
@@ -328,9 +328,9 @@
           :document document})))))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.4"
-    :crux.graphql.spec-ref/algorithm "ExecuteField"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.4"
+    :juxt.grab.alpha.spec-ref/algorithm "ExecuteField"}
   execute-field
   [{:keys [object-type object-value field-type fields variable-values field-resolver schema document]}]
   (assert schema)
@@ -368,9 +368,9 @@
       :document document})))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.3"
-    :crux.graphql.spec-ref/algorithm "ExecuteSelectionSet"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.3"
+    :juxt.grab.alpha.spec-ref/algorithm "ExecuteSelectionSet"}
   execute-selection-set-normally
   "Return a map with :data and :errors."
   [{:keys [selection-set object-type object-value variable-values field-resolver schema document]}]
@@ -444,9 +444,9 @@
     data))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.2.1"
-    :crux.graphql.spec-ref/algorithm "ExecuteQuery"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.2.1"
+    :juxt.grab.alpha.spec-ref/algorithm "ExecuteQuery"}
   execute-query
   [{:keys [query schema variable-values initial-value field-resolver document]}]
   (assert schema)
@@ -462,7 +462,7 @@
               (into
                {:query-type query-type
                 :schema schema
-                :crux.graphql.spec-ref/step 2}
+                :juxt.grab.alpha.spec-ref/step 2}
                (meta #'execute-query)))))
 
     (assert (::g/selection-set query))
@@ -489,9 +489,9 @@
       {:data data :errors []})))
 
 (defn
-  ^{:crux.graphql.spec-ref/version "June2018"
-    :crux.graphql.spec-ref/section "6.1"
-    :crux.graphql.spec-ref/algorithm "ExecuteRequest"}
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.1"
+    :juxt.grab.alpha.spec-ref/algorithm "ExecuteRequest"}
   execute-request [{:keys [schema document operation-name variable-values initial-value field-resolver]}]
 
   ;; 1. Let operation be the result of GetOperation(document, operationName).
