@@ -169,6 +169,15 @@
         (keep process)
         vec)})
 
+(defmethod process :fragmentDefinition [[_ & terms]]
+  {::g/fragment-definition (apply merge (keep process terms))})
+
+(defmethod process :typeCondition [[_ _ named-type]]
+  {::g/type-condition (get-in (process named-type) [::g/named-type ::g/name])})
+
+(defmethod process :fragmentName [[_ name]]
+  {::g/fragment-name (::g/name (process name))})
+
 (defmethod process :selection [[_ inner]]
   (process inner))
 
@@ -184,6 +193,9 @@
    (->> terms
         (keep process)
         (apply merge))))
+
+(defmethod process :alias [[_ name]]
+  {::g/alias (::g/name (process name))})
 
 (defmethod process :schemaDefinition [[_ & terms]]
   {::g/schema (apply merge (keep process terms))})
