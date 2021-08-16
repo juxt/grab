@@ -6,7 +6,7 @@
 
 ;; Convenience accessors
 
-(defn schema
+(defn compile-schema
   "Create a schema from the parsed document."
   [document]
 

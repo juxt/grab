@@ -6,14 +6,14 @@
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.parser :as parser]
    [juxt.grab.alpha.document :refer [compile]]
-   [juxt.grab.alpha.schema :refer [schema]]
+   [juxt.grab.alpha.schema :refer [compile-schema]]
    [clojure.java.io :as io]))
 
 (set! clojure.core/*print-namespace-maps* false)
 
 (deftest schema-parsing-test
   (is
-   (schema
+   (compile-schema
     (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))))
 
 (deftest

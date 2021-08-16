@@ -18,7 +18,7 @@
         {"name" "Isaac Newton",
          "profilePic" "https://profile.juxt.site/pic-100.png"}},
        :errors []}
-      (let [schema (schema/schema
+      (let [schema (schema/compile-schema
                     (parser/parse (slurp (io/resource "juxt/grab/schema-3.graphql"))))
             document (document/compile
                       (parser/parse (slurp (io/resource "juxt/grab/query-3.graphql")))
