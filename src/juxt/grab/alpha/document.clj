@@ -37,18 +37,20 @@
 
   (let [operations (filter #(contains? % ::g/operation-type) document)
         operations-by-name (group-by ::g/name operations)
-        anonymous (get operations-by-name nil)]
+        anonymous (get operations-by-name nil)
+        ;; See https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation
+        _ (when (> (count operations) 1)
+            (when-not (empty? anonymous)
+              (throw
+               (ex-info "When there are multiple operations in the document, none can be anonymous" {}))))
 
-    (when (> (count operations) 1)
-      (when-not (empty? anonymous)
-        (throw
-         (ex-info "When there are multiple operations in the document, none can be anonymous" {}))))
+        operations-by-name
+        (->> operations-by-name
+             (reduce-kv
+              (fn [acc k v]
+                (when (> (count v) 1)
+                  (throw (ex-info "Operation name is not unique" {:name k})))
+                (assoc acc k (first v)))
+              {}))]
 
-    {::operations-by-name
-     (->> operations-by-name
-          (reduce-kv
-           (fn [acc k v]
-             (when (> (count v) 1)
-               (throw (ex-info "Operation name is not unique" {:name k})))
-             (assoc acc k (first v)))
-           {}))}))
+    {::operations-by-name operations-by-name}))
