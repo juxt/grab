@@ -10,6 +10,11 @@
 
 (set! clojure.core/*print-namespace-maps* false)
 
+(deftest schema-parsing-test
+  (is
+   (schema
+    (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))))
+
 (deftest illegal-type-system-definition-test
   (is
    (thrown?

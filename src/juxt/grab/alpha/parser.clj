@@ -110,6 +110,41 @@
        (apply merge)
        (into {::g/kind :scalar})))
 
+(defmethod process :unionTypeDefinition [[_ & terms]]
+  (->> terms
+       (keep process)
+       (apply merge)
+       (into {::g/kind :union})))
+
+(defmethod process :unionMemberTypes [[_ & terms]]
+  {::g/member-types
+   (mapv #(get-in % [::g/named-type ::g/name]) (keep process terms))})
+
+(defmethod process :enumTypeDefinition [[_ & terms]]
+  (->> terms
+       (keep process)
+       (apply merge)
+       (into {::g/kind :enum})))
+
+(defmethod process :enumValuesDefinition [[_ & terms]]
+  {::g/enum-values (vec (keep process terms))})
+
+(defmethod process :enumValueDefinition [[_ & terms]]
+  (->> terms (keep process) (apply merge)))
+
+(defmethod process :enumValue [[_ & terms]]
+  (->> terms (keep process) (apply merge)))
+
+(defmethod process :interfaceTypeDefinition [[_ & terms]]
+  (->> terms
+       (keep process)
+       (apply merge)
+       (into {::g/kind :interface})))
+
+(defmethod process :implementsInterfaces [[_ & terms]]
+  {::g/interfaces
+   (mapv #(get-in % [::g/named-type ::g/name]) (keep process terms))})
+
 (defmethod process :directive [[_ & terms]]
   (->> terms
        (keep process)
