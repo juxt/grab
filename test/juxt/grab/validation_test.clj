@@ -15,7 +15,10 @@
    (schema
     (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))))
 
-(deftest illegal-type-system-definition-test
+(deftest
+  ^{:juxt/see
+    "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
+  illegal-type-system-definition-test
   (is
    (thrown?
     clojure.lang.ExceptionInfo
@@ -23,6 +26,8 @@
     (executable (parser/parse "scalar Illegal")))))
 
 (deftest illegal-type-extension-test
+  ^{:juxt/see
+    "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   (is
    (thrown?
     clojure.lang.ExceptionInfo
@@ -31,6 +36,8 @@
      (parser/parse (slurp (io/resource "juxt/grab/example-91.graphql")))))))
 
 (deftest operation-name-uniqueness-test
+  ^{:juxt/see
+    "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
    (executable
     (parser/parse (slurp (io/resource "juxt/grab/example-92.graphql")))))
@@ -47,8 +54,10 @@
     (executable
      (parser/parse (slurp (io/resource "juxt/grab/example-94.graphql")))))))
 
-
-(deftest lone-operation-test
+(deftest
+  ^{:juxt/see
+    "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
+  lone-operation-test
   (is
    (executable
     (parser/parse (slurp (io/resource "juxt/grab/example-95.graphql")))))
