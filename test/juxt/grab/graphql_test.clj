@@ -20,8 +20,9 @@
        :errors []}
       (let [schema (schema/schema
                     (parser/parse (slurp (io/resource "juxt/grab/schema-3.graphql"))))
-            document (document/executable
-                      (parser/parse (slurp (io/resource "juxt/grab/query-3.graphql"))))]
+            document (document/compile
+                      (parser/parse (slurp (io/resource "juxt/grab/query-3.graphql")))
+                      schema)]
 
         (execute-request
          {:schema schema

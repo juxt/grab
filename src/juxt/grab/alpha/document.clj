@@ -1,6 +1,7 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.alpha.document)
+(ns juxt.grab.alpha.document
+  (:refer-clojure :exclude [compile]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -27,10 +28,10 @@
         ;; c. Return operation.
         operation))))
 
-(defn executable
-  "Validate document as an executable, returning a structure that is efficient for
-  execution."
-  [document]
+(defn compile
+  "Compile a document with respect to the given schema, returning a structure that
+  can be provided to the execution functions."
+  [document schema]
   (when-not (every? #(#{:executable-definition} (::g/definition-type %)) document)
     (throw (ex-info "A document containing a TypeSystemDefinition is invalid for execution" {:document document})))
 
