@@ -9,7 +9,18 @@
    [juxt.grab.alpha.schema :refer [compile-schema]]
    [clojure.java.io :as io]))
 
+(alias 'doc (create-ns 'juxt.grab.alpha.document))
+
 (set! clojure.core/*print-namespace-maps* false)
+
+(defn matches? [{::doc/keys [errors]} regexes]
+  (assert errors)
+  (is (= (count errors) (count regexes)))
+  (doall
+   (map
+    (fn [error regex]
+      (is (re-matches regex (:error error))))
+    errors regexes)))
 
 (deftest schema-parsing-test
   (is
@@ -20,22 +31,17 @@
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   illegal-type-system-definition-test
-  (is
-   (thrown?
-    clojure.lang.ExceptionInfo
-    #"A document containing a TypeSystemDefinition is invalid for execution"
-    (compile (parser/parse "scalar Illegal") {}))))
+  (-> "scalar Illegal"
+      parser/parse
+      (compile {})
+      (matches? [#"A document containing a TypeSystemDefinition is invalid for execution"])))
 
 (deftest illegal-type-extension-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
-  (is
-   (thrown?
-    clojure.lang.ExceptionInfo
-    #"A document containing a TypeSystemDefinition is invalid for execution"
-    (compile
-     (parser/parse (slurp (io/resource "juxt/grab/example-91.graphql")))
-     {}))))
+  (-> "juxt/grab/example-91.graphql"
+      io/resource slurp parser/parse (compile {})
+      (matches? [#"A document containing a TypeSystemDefinition is invalid for execution"])))
 
 (deftest operation-name-uniqueness-test
   ^{:juxt/see
@@ -44,20 +50,18 @@
    (compile
     (parser/parse (slurp (io/resource "juxt/grab/example-92.graphql")))
     {}))
-  (is
-   (thrown?
-    clojure.lang.ExceptionInfo
-    #"Operation name is not unique"
-    (compile
-     (parser/parse (slurp (io/resource "juxt/grab/example-93.graphql")))
-     {})))
-  (is
-   (thrown?
-    clojure.lang.ExceptionInfo
-    #"Operation name is not unique"
-    (compile
-     (parser/parse (slurp (io/resource "juxt/grab/example-94.graphql")))
-     {}))))
+  (-> "juxt/grab/example-93.graphql"
+      io/resource
+      slurp
+      parser/parse
+      (compile {})
+      (matches? [#"Operation name '.+' is not unique"]))
+  (-> "juxt/grab/example-94.graphql"
+      io/resource
+      slurp
+      parser/parse
+      (compile {})
+      (matches? [#"Operation name '.+' is not unique"])))
 
 (deftest
   ^{:juxt/see
@@ -67,13 +71,12 @@
    (compile
     (parser/parse (slurp (io/resource "juxt/grab/example-95.graphql")))
     {}))
-  (is
-   (thrown-with-msg?
-    clojure.lang.ExceptionInfo
-    #"When there are multiple operations in the document, none can be anonymous"
-    (compile
-     (parser/parse (slurp (io/resource "juxt/grab/example-96.graphql")))
-     {}))))
+  (-> "juxt/grab/example-96.graphql"
+      io/resource
+      slurp
+      parser/parse
+      (compile {})
+      (matches? [#"When there are multiple operations in the document, none can be anonymous"])))
 
 ;; TODO: 5.2.3 Subscription Operation Definitions
 ;; These are not yet covered, since subscriptions are not supported.

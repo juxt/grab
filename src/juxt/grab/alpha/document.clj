@@ -28,29 +28,49 @@
         ;; c. Return operation.
         operation))))
 
+(defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
+  validate-executable-definitions [{::keys [document] :as acc}]
+  (when-not (every? #(#{:executable-definition} (::g/definition-type %)) document)
+    (update acc ::errors conj
+            {:error "A document containing a TypeSystemDefinition is invalid for execution"})))
+
+(defn add-operations [{::keys [document] :as acc}]
+  (let [operations (filter #(contains? % ::g/operation-type) document)]
+    (assoc acc
+           ::operations operations
+           ::operations-grouped-by-name (group-by ::g/name operations))))
+
+(defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
+  validate-anonymous
+  [{::keys [operations operations-grouped-by-name] :as acc}]
+  (assert operations)
+  (when (> (count operations) 1)
+    (when-not (empty? (get operations-grouped-by-name nil))
+      (update acc ::errors conj {:error "When there are multiple operations in the document, none can be anonymous"}))))
+
+(defn validate-operation-uniqueness [{::keys [operations-grouped-by-name] :as acc}]
+  (reduce-kv
+   (fn [acc n ops]
+     (if (> (count ops) 1)
+       (update acc ::errors conj {:error (format "Operation name '%s' is not unique" n) :name n})
+       (assoc-in acc [::operations-by-name n] (first ops))))
+   acc
+   operations-grouped-by-name))
+
 (defn compile
   "Compile a document with respect to the given schema, returning a structure that
   can be provided to the execution functions."
   [document schema]
-  (when-not (every? #(#{:executable-definition} (::g/definition-type %)) document)
-    (throw (ex-info "A document containing a TypeSystemDefinition is invalid for execution" {:document document})))
 
-  (let [operations (filter #(contains? % ::g/operation-type) document)
-        operations-by-name (group-by ::g/name operations)
-        anonymous (get operations-by-name nil)
-        ;; See https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation
-        _ (when (> (count operations) 1)
-            (when-not (empty? anonymous)
-              (throw
-               (ex-info "When there are multiple operations in the document, none can be anonymous" {}))))
+  (reduce
+   (fn [acc validator]
+     (or (validator acc) acc))
 
-        operations-by-name
-        (->> operations-by-name
-             (reduce-kv
-              (fn [acc k v]
-                (when (> (count v) 1)
-                  (throw (ex-info "Operation name is not unique" {:name k})))
-                (assoc acc k (first v)))
-              {}))]
+   {::errors []
+    ::document document
+    ::schema schema}
 
-    {::operations-by-name operations-by-name}))
+   [validate-executable-definitions
+    add-operations
+    validate-anonymous
+    validate-operation-uniqueness]))
