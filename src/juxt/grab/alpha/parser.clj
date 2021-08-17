@@ -154,14 +154,11 @@
   {::g/directives
    (->> directives
         (keep process)
-
         (map (juxt ::g/name identity))
         (into {}))})
 
-(defmethod process :operationDefinition [[_ operation-type & terms]]
-  (into
-   {::g/operation-type (process operation-type)}
-   (apply merge (keep process terms))))
+(defmethod process :operationDefinition [[_ & terms]]
+  {::g/operation-definition (apply merge (keep process terms))})
 
 (defmethod process :selectionSet [[_ & selections]]
   {::g/selection-set
@@ -182,10 +179,11 @@
   (process inner))
 
 (defmethod process :operationType [[_ val]]
-  (case val
-    "query" :query
-    "mutation" :mutation
-    "subscription" :subscription))
+  {::g/operation-type
+   (case val
+     "query" :query
+     "mutation" :mutation
+     "subscription" :subscription)})
 
 (defmethod process :field [[_ & terms]]
   (into
@@ -201,8 +199,11 @@
   {::g/schema (apply merge (keep process terms))})
 
 (defmethod process :rootOperationTypeDefinition [[_ operation-type _ named-type]]
-  {(process operation-type)
+  {(::g/operation-type (process operation-type))
    (get-in (process named-type) [::g/named-type ::g/name])})
+
+(defn parse* [s]
+  (-> s parser))
 
 (defn parse [s]
   (-> s parser process))

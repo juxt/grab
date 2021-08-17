@@ -35,7 +35,7 @@
             {:error "A document containing a TypeSystemDefinition is invalid for execution"})))
 
 (defn add-operations [{::keys [document] :as acc}]
-  (let [operations (filter #(contains? % ::g/operation-type) document)]
+  (let [operations (keep ::g/operation-definition document)]
     (assoc acc
            ::operations operations
            ::operations-grouped-by-name (group-by ::g/name operations))))
