@@ -23,7 +23,7 @@
   {:not-handled! {:k k :vals vals}})
 
 (defmethod process :document [[_ & definitions]]
-  (keep process definitions))
+  (vec (keep process definitions)))
 
 (defmethod process :definition [[_ inner]]
   (process inner))

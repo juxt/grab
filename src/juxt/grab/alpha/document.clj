@@ -37,7 +37,7 @@
 (defn add-operations [{::keys [document] :as acc}]
   (let [operations (keep ::g/operation-definition document)]
     (assoc acc
-           ::operations operations
+           ::operations (vec operations)
            ::operations-grouped-by-name (group-by ::g/name operations))))
 
 (defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
