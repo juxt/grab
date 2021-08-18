@@ -15,11 +15,11 @@
 
 (defn matches? [{::doc/keys [errors]} regexes]
   (assert errors)
-  (is (= (count errors) (count regexes)))
   (doall
    (map
     (fn [error regex]
-      (is (re-matches regex (:error error))))
+      (when regex
+        (is (re-matches regex (:error error)))))
     errors regexes)))
 
 (deftest schema-parsing-test
@@ -34,14 +34,14 @@
   (-> "scalar Illegal"
       parser/parse
       (compile {})
-      (matches? [#"A document containing a TypeSystemDefinition is invalid for execution"])))
+      (matches? [#"A document containing a type system definition or extension is invalid for execution"])))
 
 (deftest illegal-type-extension-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   (-> "juxt/grab/example-91.graphql"
       io/resource slurp parser/parse (compile {})
-      (matches? [#"A document containing a TypeSystemDefinition is invalid for execution"])))
+      (matches? [#"A document containing a type system definition or extension is invalid for execution"])))
 
 (deftest operation-name-uniqueness-test
   ^{:juxt/see
@@ -55,13 +55,13 @@
       slurp
       parser/parse
       (compile {})
-      (matches? [#"Operation name '.+' is not unique"]))
+      (matches? [nil nil #"Operation name '.+' is not unique"]))
   (-> "juxt/grab/example-94.graphql"
       io/resource
       slurp
       parser/parse
       (compile {})
-      (matches? [#"Operation name '.+' is not unique"])))
+      (matches? [nil nil #"Operation name '.+' is not unique"])))
 
 (deftest
   ^{:juxt/see
@@ -76,9 +76,32 @@
       slurp
       parser/parse
       (compile {})
-      (matches? [#"When there are multiple operations in the document, none can be anonymous"])))
+      (matches? [nil nil #"When there are multiple operations in the document, none can be anonymous"])))
 
 ;; TODO: 5.2.3 Subscription Operation Definitions
 ;; These are not yet covered, since subscriptions are not supported.
 
 ;; 5.3 Fields
+
+(deftest
+  field-name-not-defined-test
+  (let [schema
+        (compile-schema
+         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
+    (-> "query { dog { none }}"
+        parser/parse
+        (compile schema)
+        (matches? [#"Field name '.+' not defined on type in scope '.+'"]))))
+
+(deftest
+  field-name-not-defined-fragment-test
+  (let [schema
+        (compile-schema
+         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
+    (-> "juxt/grab/example-102.graphql"
+        io/resource
+        slurp
+        parser/parse
+        (compile schema)
+        (matches? [#"Field name '.+' not defined on type in scope '.+'"
+                   #"Field name '.+' not defined on type in scope '.+'"]))))

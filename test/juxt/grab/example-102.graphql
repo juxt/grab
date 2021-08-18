@@ -1,0 +1,7 @@
+fragment fieldNotDefined on Dog {
+  meowVolume
+}
+
+fragment aliasedLyingFieldTargetNotDefined on Dog {
+  barkVolume: kawVolume
+}
