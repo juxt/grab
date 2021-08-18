@@ -3,10 +3,10 @@
 (ns juxt.grab.alpha.execution
   (:require
    [juxt.grab.alpha.document :as document]
-   [juxt.grab.alpha.schema :as schema]
    [flatland.ordered.map :refer [ordered-map]]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
+(alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -286,7 +286,7 @@
         ;; b. Let innerType be the inner type of fieldType.
         (let [inner-type (get field-type ::g/item-type)
               inner-type (if (string? inner-type)
-                           (schema/get-type schema inner-type)
+                           (get-in schema [::schema/types-by-name inner-type])
                            inner-type)]
           ;; c. Return a list where each list item is the result of calling
           ;; CompleteValue(innerType, fields, resultItem, variableValues),
@@ -401,7 +401,7 @@
                  field-type
                  (let [ft (get-in object-type [::g/field-definitions field-name ::g/type])]
                    (if (string? ft)
-                     (schema/get-type schema ft)
+                     (get-in schema [::schema/types-by-name ft])
                      ft))
 
                  #_(throw
@@ -453,7 +453,8 @@
   (assert document)
 
   ;; 1. Let queryType be the root Query type in schema.
-  (let [query-type (schema/get-root-query-type schema)]
+  (let [query-type-name (get-in schema [::schema/root-operation-type-names :query])
+        query-type (get-in schema [::schema/types-by-name query-type-name])]
 
     ;; 2. Assert: queryType is an Object type.
     (when-not (= (get query-type ::g/kind) :object)

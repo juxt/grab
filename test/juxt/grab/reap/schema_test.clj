@@ -38,10 +38,12 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
     (is (= "Query" (get-in schema [::schema/root-operation-type-names :query])))))
 
 (deftest get-root-query-type-test
-  (let [type (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
+  (let [schema (-> (slurp (io/resource "juxt/grab/test-schema.graphql"))
                  reap.parser/parse-graphql
                  reap.document/parse-tree->schema
-                 schema/get-root-query-type)]
+                 )
+        type-name (get-in schema [::schema/root-operation-type-names :query])
+        type (get-in schema [::schema/types-by-name type-name])]
     (is (= "Query" (::g/name type)))
     (is (= :object (::g/kind type)))
     (is (= 1 (count (::g/field-definitions type))))
