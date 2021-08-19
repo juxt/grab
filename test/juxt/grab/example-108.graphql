@@ -1,0 +1,4 @@
+fragment conflictingBecauseAlias on Dog {
+  name: nickname
+  name
+}

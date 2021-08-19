@@ -1,0 +1,3 @@
+fragment definedOnImplementorsButNotInterface on Pet {
+  nickname
+}

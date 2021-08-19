@@ -1,0 +1,4 @@
+fragment directFieldSelectionOnUnion on CatOrDog {
+  name
+  barkVolume
+}

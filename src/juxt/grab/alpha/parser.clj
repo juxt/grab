@@ -172,6 +172,13 @@
 (defmethod process :typeCondition [[_ _ named-type]]
   {::g/type-condition (get-in (process named-type) [::g/named-type ::g/name])})
 
+(defmethod process :inlineFragment [[_ & terms]]
+  (into
+   {::g/selection-type :inline-fragment}
+   (->> terms
+        (keep process)
+        (apply merge))))
+
 (defmethod process :fragmentName [[_ name]]
   {::g/fragment-name (::g/name (process name))})
 
