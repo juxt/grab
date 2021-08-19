@@ -15,6 +15,9 @@
 
 (defn matches? [{::doc/keys [errors]} regexes]
   (assert errors)
+  (is
+   (= (count errors) (count regexes))
+   "Count of errors doesn't equal expected count")
   (doall
    (map
     (fn [error regex]
@@ -41,7 +44,7 @@
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   (-> "juxt/grab/example-91.graphql"
       io/resource slurp parser/parse (compile {})
-      (matches? [#"A document containing a type system definition or extension is invalid for execution"])))
+      (matches? [#"A document containing a type system definition or extension is invalid for execution" nil])))
 
 (deftest operation-name-uniqueness-test
   ^{:juxt/see
