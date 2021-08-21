@@ -185,3 +185,25 @@
         parser/parse
         (compile schema)
         (expected-errors []))))
+
+(deftest example-111-test
+  (let [schema
+        (compile-schema
+         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
+    (-> "juxt/grab/example-111.graphql"
+        io/resource
+        slurp
+        parser/parse
+        (compile schema)
+        (expected-errors []))))
+
+(deftest example-112-test
+  (let [schema
+        (compile-schema
+         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
+    (-> "juxt/grab/example-112.graphql"
+        io/resource
+        slurp
+        parser/parse
+        (compile schema)
+        (expected-errors [#"Fields have conflicting return types"]))))

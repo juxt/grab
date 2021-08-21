@@ -78,18 +78,25 @@
           :as selection}]
       (case selection-type
         :field
-        (let [field-type-name (get-in scoped-type [::g/field-definitions field-name ::g/type])
-              scoped-type (get-in schema [::schema/types-by-name field-type-name])]
+        (let [lookup-type (::schema/types-by-name schema)
+              return-type (some-> scoped-type lookup-type
+                                  ::g/field-definitions (get field-name) ::g/type)]
           (-> selection
               (assoc ::scoped-type scoped-type)
+              (assoc ::return-type return-type)
               (cond-> selection-set
-                (update ::g/selection-set scope-selection-set scoped-type schema))))
+                (update ::g/selection-set scope-selection-set return-type schema))))
+
+        :fragment-spread
+        ;; We don't need to do anything because scoped-types are added to
+        ;; fragment definitions separately -- just return the selection
+        ;; unmodified.
+        selection
 
         :inline-fragment
-        (let [scoped-type (get-in schema [::schema/types-by-name type-condition])]
-          (-> selection
-              (assoc ::scoped-type scoped-type)
-              (update ::g/selection-set scope-selection-set scoped-type schema)))
+        (-> selection
+            (assoc ::scoped-type type-condition)
+            (update ::g/selection-set scope-selection-set type-condition schema))
 
         (throw
          (ex-info
@@ -108,11 +115,9 @@
       (mapv
        (fn [op]
          (let [op-type (::g/operation-type op)
-               scoped-type-name (get-in acc [::schema ::schema/root-operation-type-names op-type])
-               scoped-type (get-in schema [::schema/types-by-name scoped-type-name])]
+               scoped-type (get-in acc [::schema ::schema/root-operation-type-names op-type])]
            (-> op
-               (assoc
-                ::scoped-type scoped-type)
+               (assoc ::scoped-type scoped-type)
                (update
                 ::g/selection-set
                 (fn [selection-set]
@@ -126,8 +131,7 @@
       fragments
       (mapv
        (fn [fragment]
-         (let [scoped-type-name (::g/type-condition fragment)
-               scoped-type (get-in schema [::schema/types-by-name scoped-type-name])]
+         (let [scoped-type (::g/type-condition fragment)]
            (-> fragment
                (assoc ::scoped-type scoped-type)
                (update
@@ -135,88 +139,138 @@
                 (fn [selection-set]
                   (scope-selection-set selection-set scoped-type schema)))))))))))
 
-(defn validate-selection [selection parent-scoped-type path]
-  (let [scoped-type (::scoped-type selection)
-        selection-type (::g/selection-type selection)
-        path (conj path
-                   (case selection-type
-                     :field (::g/name selection)
-                     :inline-fragment (::g/name (::scoped-type selection))
-                     (throw (ex-info "TODO" {:selection-type selection-type}))))]
-    (if scoped-type
-      (when-let [selection-set (::g/selection-set selection)]
-        (mapcat #(validate-selection % scoped-type path) selection-set))
-      ;; scoped-type is nil, we infer
-      (let [field-name (::g/name selection)]
-        (case selection-type
-          :field
+(defn validate-selection [{::g/keys [selection-type] :as selection}
+                          ;; TODO: Do we still need to pass down parent-scoped-type?
+                          parent-scoped-type schema path]
+  (let [lookup-type (::schema/types-by-name schema)]
+    (case selection-type
+      :field
+      (let [scoped-type (::scoped-type selection)
+            field-name (::g/name selection)
+            path (conj path (::g/name selection))
+            field-def (some-> scoped-type lookup-type ::g/field-definitions (get field-name))]
+
+        (if-not field-def
           [{:error (format
                     "Field name '%s' not defined on type in scope '%s'"
-                    field-name
-                    (::g/name parent-scoped-type))
+                    (::g/name selection)
+                    parent-scoped-type)
             :selection selection
             :scoped-type parent-scoped-type
-            :field-name field-name
+            :field-name (::g/name selection)
             :path path}]
-          (throw (ex-info "TODO" {:selection-type selection-type})))))))
 
-(defn validate-selection-sets [acc]
+          (when-let [selection-set (::g/selection-set selection)]
+            (mapcat #(validate-selection % scoped-type schema path) selection-set))))
+
+      :fragment-spread [] ; Already covered
+
+      :inline-fragment
+      (let [path (conj path (::scoped-type selection))]
+        (mapcat #(validate-selection % parent-scoped-type schema path)
+                (::g/selection-set selection))))))
+
+(defn validate-selection-sets [{::keys [schema] :as acc}]
   (update
    acc ::errors (comp vec concat)
    (concat
     (for [op (::operations acc)
           selection (::g/selection-set op)
-          error (validate-selection selection (::scoped-type op) [(::g/name op)])
+          error (validate-selection selection (::scoped-type op) schema [(::g/name op)])
           :when error]
       error)
     (for [frag (::fragments acc)
           selection (::g/selection-set frag)
-          error (validate-selection selection (::scoped-type frag) [(::g/fragment-name frag)])
+          error (validate-selection selection (::scoped-type frag) schema [(::g/fragment-name frag)])
           :when error]
       error))))
 
-(defn fields-in-set-can-merge [selection-set parent-scoped-type path]
-  (let [response-name (fn [field]
-                        (or (get field ::g/alias) (get field ::g/name)))
-        ;; "1. Let fieldsForName be the set of selections with a given response
+(defn visit-fields [selection schema]
+  (case (::g/selection-type selection)
+    :field [selection]
+
+    :inline-fragment
+    (mapcat visit-fields (::g/selection-set selection) (repeat schema))
+
+    :fragment-spread
+    ;; If we can't find the fragment, we don't error because this will be
+    ;; spotted by another validator.
+    (when-let [fragment (get-in schema [::fragments-by-name (::g/fragment-name selection)])]
+      (mapcat visit-fields (::g/selection-set fragment) (repeat schema)))
+
+    (throw (ex-info "Unexpected selection type" {:selection selection}))))
+
+(defn fields-by-name [selection-set schema]
+  (->>
+   (mapcat visit-fields selection-set (repeat schema))
+   (group-by (fn [field]
+               (or (get field ::g/alias) (get field ::g/name))))))
+
+(defn same-response-shape [response-name fields schema path]
+  ;; TODO: Non-null and lists
+  ;;(throw (ex-info "Same response shape" {:fields fields}))
+  (let [lookup-type (::schema/types-by-name schema)
+        kinds (mapv #(some-> % ::return-type lookup-type ::g/kind) fields)]
+    (cond
+      (some #{:scalar :enum} kinds)
+      (when (apply not= (map ::return-type fields))
+        {:error "Fields have conflicting return types"
+         :path path
+         :response-name response-name
+         :fields fields}))))
+
+(defn fields-in-set-can-merge [selection-set schema parent-scoped-type path]
+  (let [ ;; "1. Let fieldsForName be the set of selections with a given response
         ;; name in set including visiting fragments and inline fragments."
-        fields-for-name (group-by response-name selection-set)]
+        fields-for-name (fields-by-name selection-set schema)
+        lookup-type (::schema/types-by-name schema)]
 
     (->>
      fields-for-name
-     (keep
+     (mapcat
       (fn [[response-name fields]]
         ;; "2. Given each pair of members fieldA and fieldB in fieldsForName:"
 
-        ;; "a. SameResponseShape(fieldA, fieldB) must be true." (TODO)
+        [
+         ;; "a. SameResponseShape(fieldA, fieldB) must be true." (TODO)
+         (same-response-shape response-name fields schema path)
 
-        ;; "b. If the parent types of fieldA and fieldB are equal or if
-        ;; either is not an Object Type:"
-        (when (or
-               (apply = (map ::scoped-type fields))
-               (some #(not= % :object) (map (comp ::g/kind ::scoped-type) fields)))
-          (cond
-            ;; "i. fieldA and fieldB must have identical field names."
-            (not (apply = (map ::g/name fields)))
-            {:error "Cannot merge since field names are not identical"
-             :selection-set selection-set
-             :parent-scoped-type parent-scoped-type
-             :path path
-             :response-name response-name
-             :fields fields}
+         ;; "b. If the parent types of fieldA and fieldB are equal or if
+         ;; either is not an Object Type:"
+         (when (or
+                (->> fields
+                     (map ::scoped-type)
+                     (apply =))
+                (->> fields
+                     (map #(some-> % ::scoped-type lookup-type ::g/kind))
+                     (some #(not= % :object))))
+           (cond
+             ;; "i. fieldA and fieldB must have identical field names."
+             (not (apply = (map ::g/name fields)))
+             {:error "Cannot merge since field names are not identical"
+              :selection-set selection-set
+              :parent-scoped-type parent-scoped-type
+              :path path
+              :response-name response-name
+              :fields fields
+              :field-scoped-types-equal? (apply = (map ::scoped-type fields))
+              :field-kinds (map (comp ::g/kind ::scoped-type) fields)}
 
-            (not (apply = (map ::g/arguments fields)))
-            {:error "Cannot merge since field arguments are not identical"
-             :selection-set selection-set
-             :parent-scoped-type parent-scoped-type
-             :path path
-             :response-name response-name
-             :fields fields}
+             ;; "ii. fieldA and fieldB must have identical sets of arguments."
+             (not (apply = (map ::g/arguments fields)))
+             {:error "Cannot merge since field arguments are not identical"
+              :selection-set selection-set
+              :parent-scoped-type parent-scoped-type
+              :path path
+              :response-name response-name
+              :fields fields}
 
-
-)))
-
-      ))))
+             ;; TODO: "Let mergedSet be the result of adding the selection set of
+             ;; fieldA and the selection set of
+             ;; fieldB. FieldsInSetCanMerge(mergedSet) must be true."
+             ))]))
+     (filter some?)
+     )))
 
 (defn validate-fields-in-set-can-merge [acc]
   (update
@@ -224,14 +278,14 @@
    (concat
     (for [op (::operations acc)
           :let [selection-set (::g/selection-set op)]
-          error (fields-in-set-can-merge selection-set (::scoped-type op) [(::g/name op)])
+          error (fields-in-set-can-merge selection-set (::schema acc) (::scoped-type op) [(::g/name op)])
           :when error]
       error)
     (for [frag (::fragments acc)
           ;; TODO: Also visit fragments and inline fragments as per spec "including visiting
           ;; fragments and inline fragments."
           :let [selection-set (::g/selection-set frag)]
-          error (fields-in-set-can-merge selection-set (::scoped-type frag) [(::g/fragment-name frag)])
+          error (fields-in-set-can-merge selection-set (::schema acc) (::scoped-type frag) [(::g/fragment-name frag)])
           :when error]
       error))))
 
@@ -258,9 +312,13 @@
     add-operations
     add-default-operation-type
     add-fragments
+
     add-scoped-types-to-operations
     add-scoped-types-to-fragments
     validate-selection-sets
+
     group-operations-by-name
     validate-anonymous
-    validate-operation-uniqueness]))
+    validate-operation-uniqueness
+    validate-fields-in-set-can-merge
+    ]))

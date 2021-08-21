@@ -1,0 +1,8 @@
+fragment conflictingDifferingResponses on Pet {
+  ... on Dog {
+    someValue: nickname
+  }
+  ... on Cat {
+    someValue: meowVolume
+  }
+}
