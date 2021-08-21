@@ -1,0 +1,3 @@
+fragment scalarSelection on Dog {
+  barkVolume
+}

@@ -143,14 +143,19 @@
                           ;; TODO: Do we still need to pass down parent-scoped-type?
                           parent-scoped-type schema path]
   (let [lookup-type (::schema/types-by-name schema)]
+    ;; TODO: selection-type is mentioned in a GraphQL alog, so perhaps used a
+    ;; different keyword.
     (case selection-type
       :field
       (let [scoped-type (::scoped-type selection)
             field-name (::g/name selection)
             path (conj path (::g/name selection))
-            field-def (some-> scoped-type lookup-type ::g/field-definitions (get field-name))]
+            field-def (some-> scoped-type lookup-type ::g/field-definitions (get field-name))
+            selection-type (some-> field-def ::g/type lookup-type)
+            subselection-set (::g/selection-set selection)]
 
-        (if-not field-def
+        (cond
+          (nil? field-def)
           [{:error (format
                     "Field name '%s' not defined on type in scope '%s'"
                     (::g/name selection)
@@ -160,10 +165,15 @@
             :field-name (::g/name selection)
             :path path}]
 
-          (when-let [selection-set (::g/selection-set selection)]
-            (mapcat #(validate-selection % scoped-type schema path) selection-set))))
+          (and (#{:scalar :enum} (some-> selection-type ::g/kind)) subselection-set)
+          [{:error "The subselection set of a scalar or enum must be empty"}]
 
-      :fragment-spread [] ; Already covered
+          subselection-set
+          (mapcat #(validate-selection % scoped-type schema path) subselection-set)
+
+          :else []))
+
+      :fragment-spread []               ; Already covered
 
       :inline-fragment
       (let [path (conj path (::scoped-type selection))]

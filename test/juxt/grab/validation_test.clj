@@ -157,3 +157,13 @@
       (expected-errors [#"Fields have conflicting return types"])))
 
 ;; 5.3.3 Leaf Field Selections
+
+(deftest example-113-test
+  (-> (example "113")
+      (compile (example-schema))
+      (expected-errors [])))
+
+(deftest example-114-test
+  (-> (example "114")
+      (compile (example-schema))
+      (expected-errors [#"The subselection set of a scalar or enum must be empty"])))

@@ -1,0 +1,5 @@
+fragment scalarSelectionsNotAllowedOnInt on Dog {
+  barkVolume {
+    sinceWhen
+  }
+}
