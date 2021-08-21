@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [compile])
   (:require
    [clojure.test :refer [deftest is are testing]]
-   [juxt.grab.alpha.parser :as parser]
+   [juxt.grab.alpha.parser :refer [parse]]
    [juxt.grab.alpha.document :as doc :refer [compile]]
    [juxt.grab.alpha.schema :refer [compile-schema]]
    [clojure.java.io :as io]))
@@ -15,11 +15,11 @@
   (-> (format "juxt/grab/example-%s.graphql" n)
       io/resource
       slurp
-      parser/parse))
+      parse))
 
 (defn example-schema []
   (compile-schema
-   (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql")))))
+   (parse (slurp (io/resource "juxt/grab/example-90.graphql")))))
 
 (defn expected-errors [{::doc/keys [errors]} regexes]
   (assert errors)
@@ -41,7 +41,7 @@
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   illegal-type-system-definition-test
   (-> "scalar Illegal"
-      parser/parse
+      parse
       (compile {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution"])))
 
@@ -57,7 +57,7 @@
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
    (compile
-    (parser/parse (slurp (io/resource "juxt/grab/example-92.graphql")))
+    (parse (slurp (io/resource "juxt/grab/example-92.graphql")))
     {}))
   (-> (example "93")
       (compile {})
@@ -68,7 +68,7 @@
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
    (compile
-    (parser/parse (slurp (io/resource "juxt/grab/example-92.graphql")))
+    (parse (slurp (io/resource "juxt/grab/example-92.graphql")))
     {}))
   (-> (example "94")
       (compile {})
@@ -95,7 +95,7 @@
 
 (deftest field-name-not-defined-test
   (-> "query { dog { none }}"
-      parser/parse
+      parse
       (compile (example-schema))
       (expected-errors [#"Field name '.+' not defined on type in scope '.+'"])))
 
