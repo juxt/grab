@@ -289,36 +289,35 @@
           :when error]
       error))))
 
-(defn compile* [document schema compilers]
-  (reduce
-   (fn [acc f]
-     ;; Allow compilers to return nil (e.g. applicability guards)
-     (or (f acc) acc))
-
-   {::errors []
-    ::document document
-    ::schema schema}
-
-   compilers))
-
 (defn compile
   "Compile a document with respect to the given schema, returning a structure that
   can be provided to the execution functions."
-  [document schema]
+  ([document schema]
+   (compile document schema
+            [validate-executable-definitions
+             add-operations
+             add-default-operation-type
+             add-fragments
 
-  (compile*
-   document schema
-   [validate-executable-definitions
-    add-operations
-    add-default-operation-type
-    add-fragments
+             add-scoped-types-to-operations
+             add-scoped-types-to-fragments
+             validate-selection-sets
 
-    add-scoped-types-to-operations
-    add-scoped-types-to-fragments
-    validate-selection-sets
+             group-operations-by-name
+             validate-anonymous
+             validate-operation-uniqueness
+             validate-fields-in-set-can-merge
+             ]))
 
-    group-operations-by-name
-    validate-anonymous
-    validate-operation-uniqueness
-    validate-fields-in-set-can-merge
-    ]))
+  ([document schema compilers]
+
+   (reduce
+    (fn [acc f]
+      ;; Allow compilers to return nil (e.g. applicability guards)
+      (or (f acc) acc))
+
+    {::errors []
+     ::document document
+     ::schema schema}
+
+    compilers)))

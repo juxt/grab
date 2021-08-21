@@ -11,6 +11,16 @@
 
 (set! clojure.core/*print-namespace-maps* false)
 
+(defn example [n]
+  (-> (format "juxt/grab/example-%s.graphql" n)
+      io/resource
+      slurp
+      parser/parse))
+
+(defn example-schema []
+  (compile-schema
+   (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql")))))
+
 (defn expected-errors [{::doc/keys [errors]} regexes]
   (assert errors)
   (is
@@ -24,9 +34,7 @@
     errors regexes)))
 
 (deftest schema-parsing-test
-  (is
-   (compile-schema
-    (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))))
+  (is (compile-schema (example "90"))))
 
 (deftest
   ^{:juxt/see
@@ -37,45 +45,46 @@
       (compile {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution"])))
 
-(deftest illegal-type-extension-test
+(deftest example-91-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
-  (-> "juxt/grab/example-91.graphql"
-      io/resource slurp parser/parse (compile {})
+  (-> (example "91")
+      (compile {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution" nil])))
 
-(deftest operation-name-uniqueness-test
+(deftest example-93-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
    (compile
     (parser/parse (slurp (io/resource "juxt/grab/example-92.graphql")))
     {}))
-  (-> "juxt/grab/example-93.graphql"
-      io/resource
-      slurp
-      parser/parse
+  (-> (example "93")
       (compile {})
-      (expected-errors [nil nil #"Operation name '.+' is not unique"]))
-  (-> "juxt/grab/example-94.graphql"
-      io/resource
-      slurp
-      parser/parse
+      (expected-errors [nil nil #"Operation name '.+' is not unique"])))
+
+(deftest example-94-test
+  ^{:juxt/see
+    "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
+  (is
+   (compile
+    (parser/parse (slurp (io/resource "juxt/grab/example-92.graphql")))
+    {}))
+  (-> (example "94")
       (compile {})
       (expected-errors [nil nil #"Operation name '.+' is not unique"])))
 
 (deftest
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
-  lone-operation-test
-  (is
-   (compile
-    (parser/parse (slurp (io/resource "juxt/grab/example-95.graphql")))
-    {}))
-  (-> "juxt/grab/example-96.graphql"
-      io/resource
-      slurp
-      parser/parse
+  example-95-test
+  (is (compile (example "95") {})))
+
+(deftest
+  ^{:juxt/see
+    "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
+  example-96-test
+  (-> (example "96")
       (compile {})
       (expected-errors [nil nil #"When there are multiple operations in the document, none can be anonymous"])))
 
@@ -84,126 +93,67 @@
 
 ;; 5.3 Fields
 
-(deftest
-  field-name-not-defined-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "query { dog { none }}"
-        parser/parse
-        (compile schema)
-        (expected-errors [#"Field name '.+' not defined on type in scope '.+'"]))))
+(deftest field-name-not-defined-test
+  (-> "query { dog { none }}"
+      parser/parse
+      (compile (example-schema))
+      (expected-errors [#"Field name '.+' not defined on type in scope '.+'"])))
 
-(deftest
-  field-name-not-defined-fragment-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "juxt/grab/example-102.graphql"
-        io/resource
-        slurp
-        parser/parse
-        (compile schema)
-        (expected-errors (repeat 2 #"Field name '.+' not defined on type in scope '.+'")))))
+(deftest example-102-test
+  (-> (example "102")
+      (compile (example-schema))
+      (expected-errors (repeat 2 #"Field name '.+' not defined on type in scope '.+'"))))
 
-(deftest interface-field-selection-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "juxt/grab/example-103.graphql"
-        io/resource
-        slurp
-        parser/parse
-        (compile schema)
-        (expected-errors []))))
+(deftest example-103-test
+  (-> (example "103")
+      (compile (example-schema))
+      (expected-errors [])))
 
-(deftest defined-on-implementors-but-not-interface-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "juxt/grab/example-104.graphql"
-        io/resource
-        slurp
-        parser/parse
-        (compile schema)
-        (expected-errors [#"Field name 'nickname' not defined on type in scope 'Pet'"]))))
+(deftest example-104-test
+  (-> (example "104")
+      (compile (example-schema))
+      (expected-errors [#"Field name 'nickname' not defined on type in scope 'Pet'"])))
 
 ;; TODO: Add test for example-105 when introspection is added
 
-(deftest direct-field-selection-on-union
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "juxt/grab/example-106.graphql"
-        io/resource
-        slurp
-        parser/parse
-        (compile schema)
-        (expected-errors [#"Field name 'name' not defined on type in scope 'CatOrDog'"
-                          #"Field name 'barkVolume' not defined on type in scope 'CatOrDog'"]))))
+(deftest example-106-test
+  (-> (example "106")
+      (compile (example-schema))
+      (expected-errors [#"Field name 'name' not defined on type in scope 'CatOrDog'"
+                        #"Field name 'barkVolume' not defined on type in scope 'CatOrDog'"])))
 
 ;; 5.3.2 Field Selection Merging
 
 (deftest field-merging-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))
-        compile (fn [res]
-                  (->
-                   res
-                   io/resource
-                   slurp
-                   parser/parse
-                   (doc/compile*
-                    schema
-                    [doc/add-fragments
-                     doc/add-scoped-types-to-fragments
-                     doc/validate-fields-in-set-can-merge])))]
-    (->
-     (compile "juxt/grab/example-102.graphql")
-     (expected-errors []))
+  (let [compilers [doc/add-fragments
+                   doc/add-scoped-types-to-fragments
+                   doc/validate-fields-in-set-can-merge]]
+
+    (-> (example "102")
+        (compile (example-schema) compilers)
+        (expected-errors []))
+
+    (-> (example "108")
+        (compile (example-schema) compilers)
+        (expected-errors [#"Cannot merge since field names are not identical"]))
+
+    (-> (example "109")
+        (compile (example-schema) compilers)
+        (expected-errors []))
 
     (->
-     (compile "juxt/grab/example-108.graphql")
-     (expected-errors [#"Cannot merge since field names are not identical"]))
-
-    (->
-     (compile "juxt/grab/example-109.graphql")
-     (expected-errors []))
-
-    (->
-     (compile "juxt/grab/example-110.graphql")
+     (example "110")
+     (compile (example-schema) compilers)
      (expected-errors (repeat 4 #"Cannot merge since field arguments are not identical")))))
 
-(deftest safe-differing-fields-or-args-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "juxt/grab/example-111.graphql"
-        io/resource
-        slurp
-        parser/parse
-        (compile schema)
-        (expected-errors []))))
-
 (deftest example-111-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "juxt/grab/example-111.graphql"
-        io/resource
-        slurp
-        parser/parse
-        (compile schema)
-        (expected-errors []))))
+  (-> (example "111")
+      (compile (example-schema))
+      (expected-errors [])))
 
 (deftest example-112-test
-  (let [schema
-        (compile-schema
-         (parser/parse (slurp (io/resource "juxt/grab/example-90.graphql"))))]
-    (-> "juxt/grab/example-112.graphql"
-        io/resource
-        slurp
-        parser/parse
-        (compile schema)
-        (expected-errors [#"Fields have conflicting return types"]))))
+  (-> (example "112")
+      (compile (example-schema))
+      (expected-errors [#"Fields have conflicting return types"])))
+
+;; 5.3.3 Leaf Field Selections
