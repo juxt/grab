@@ -36,6 +36,18 @@
 (defmethod process :typeSystemDefinition [[_ inner]]
   (process inner))
 
+(defmethod process :typeSystemExtension [[_ inner]]
+  (process inner))
+
+(defmethod process :typeExtension [[_ inner]]
+  (process inner))
+
+(defmethod process :objectTypeExtension [[_ & terms]]
+  (->> terms
+       (keep process)
+       (apply merge)
+       (into {::g/type-extension-type :object-type-extension})))
+
 (defmethod process :typeDefinition [[_ inner]]
   (into
    {::g/definition-type :type-definition}

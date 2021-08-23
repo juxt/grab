@@ -6,7 +6,7 @@
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.parser :refer [parse]]
    [juxt.grab.alpha.document :as doc :refer [compile]]
-   [juxt.grab.alpha.schema :refer [compile-schema]]
+   [juxt.grab.alpha.schema :refer [compile-schema extend-schema]]
    [clojure.java.io :as io]))
 
 (set! clojure.core/*print-namespace-maps* false)
@@ -167,3 +167,25 @@
   (-> (example "114")
       (compile (example-schema))
       (expected-errors [#"The subselection set of a scalar or enum must be empty"])))
+
+#_(deftest example-115-test
+  (-> (example-schema)
+      (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))))
+
+#_(deftest example-116-test
+  (let [schema
+        (-> (example-schema)
+            (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql")))))]
+    (->(example "116")
+       (compile schema)
+       (expected-errors [#"error"]))))
+
+
+(comment
+  (-> (example-schema)
+      (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql")))))
+
+  (example-schema)
+
+  ;; TODO: Support :typeSystemExtension
+  (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))

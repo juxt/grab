@@ -1,0 +1,11 @@
+query directQueryOnObjectWithoutSubFields {
+  human
+}
+
+query directQueryOnInterfaceWithoutSubFields {
+  pet
+}
+
+query directQueryOnUnionWithoutSubFields {
+  catOrDog
+}
