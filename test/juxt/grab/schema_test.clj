@@ -4,7 +4,10 @@
   (:require
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.schema :refer [compile-schema] :as s]
-   [juxt.grab.alpha.parser :refer [parse]]))
+   [juxt.grab.alpha.parser :refer [parse]]
+   [juxt.grab.validation-test :refer [example]]))
+
+(alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defn expected-errors [{::s/keys [errors]} regexes]
   (assert errors)
@@ -27,7 +30,7 @@
   (-> "type Query { name: String } type Query { name: String }"
       parse
       compile-schema
-      (expected-errors [#"Duplicates found"])))
+      (expected-errors [#"All types within a GraphQL schema must have unique names"])))
 
 ;; "No provided type may have a name which conflicts with any built in types
 ;; (including Scalar and Introspection types)."
@@ -36,7 +39,7 @@
   (-> "type String { length: Int }"
       parse
       compile-schema
-      (expected-errors [#"Conflicts with built-in types"])))
+      (expected-errors [#"No provided type may have a name which conflicts with any built in types" nil])))
 
 ;; "All directives within a GraphQL schema must have unique names."
 
@@ -44,7 +47,8 @@
   (-> "directive @foo on FIELD directive @foo on OBJECT"
       parse
       compile-schema
-      (expected-errors [#"Duplicate directives found"])))
+      (expected-errors [#"All directives within a GraphQL schema must have unique names"
+                        #"The query root operation type must be provided"])))
 
 ;; "All types and directives defined within a schema must not have a name which
 ;; begins with '__' (two underscores), as this is used exclusively by GraphQL’s
@@ -54,4 +58,32 @@
   (-> "type __foo { length: Int }"
       parse
       compile-schema
-      (expected-errors [#"A type or directive cannot be defined with a name that begins with two underscores"])))
+      (expected-errors [#"All types and directives defined within a schema must not have a name.+"
+                        #"The query root operation type must be provided"])))
+
+;; "The query root operation type must be provided and must be an Object type."
+
+(deftest query-root-type-not-provided-test
+  (-> "schema { query: MyQueryRootType }"
+      parse
+      compile-schema
+      (expected-errors [#"The query root operation type must be provided"])))
+
+(deftest query-root-type-not-object-type-test
+  (-> "schema { query: MyQueryRootType } scalar MyQueryRootType"
+      parse
+      compile-schema
+      (expected-errors [#"The query root operation type must be an Object type"])))
+
+(deftest root-operation-type-test
+  (let [s (->
+           (example "37")
+           compile-schema)]
+    (is (= "MyQueryRootType" (get-in s [::s/root-operation-type-names :query])))
+    (is (= :object (get-in s [::s/types-by-name "MyQueryRootType" ::g/kind])))))
+
+
+;; "When using the type system definition language, a document must include at most one schema definition."
+
+
+;; TODO: Default Root Operation Type Names

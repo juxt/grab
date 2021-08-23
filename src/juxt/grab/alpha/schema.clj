@@ -26,8 +26,10 @@
              (duplicates-by ::g/name))]
     (cond-> acc
       duplicates
-      (update ::errors conj {:error "Duplicates found"
-                             :duplicates duplicates}))))
+      (update
+       ::errors conj
+       {:error "All types within a GraphQL schema must have unique names"
+        :duplicates duplicates}))))
 
 (defn check-no-conflicts-with-built-in-types
   "'No provided type may have a name which conflicts
@@ -41,8 +43,10 @@
           (set (keys types-by-name))))]
     (cond-> acc
       conflicts
-      (update ::errors conj {:error "Conflicts with built-in types"
-                             :conflicts (set conflicts)}))))
+      (update
+       ::errors conj
+       {:error "No provided type may have a name which conflicts with any built in types"
+        :conflicts (set conflicts)}))))
 
 (defn check-unique-directive-names
   "'All directives within a GraphQL schema must have unique names.' --
@@ -54,8 +58,10 @@
              (duplicates-by ::g/name))]
     (cond-> acc
       duplicates
-      (update ::errors conj {:error "Duplicate directives found"
-                             :duplicates duplicates}))))
+      (update
+       ::errors conj
+       {:error "All directives within a GraphQL schema must have unique names"
+        :duplicates duplicates}))))
 
 (defn check-reserved-names
   "'All types and directives defined within a schema must not have a name which
@@ -68,22 +74,42 @@
                  (map ::g/name (filter #(#{:type-definition :directive-definition} (::g/definition-type %)) document))))]
     (cond-> acc
       reserved-clashes
-      (update ::errors conj {:error "A type or directive cannot be defined with a name that begins with two underscores"}))))
+      (update
+       ::errors conj
+       {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system"}))))
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn validate-types [{::keys [document] :as acc}]
   (reduce
    (fn [acc {::g/keys [name field-definitions] :as td}]
-     ;; "1. An Object type must define one or more fields."
-     (cond-> acc
-       (or
-        (nil? field-definitions)
-        (zero? (count field-definitions)))
-       (update ::errors conj {:error "An Object type must define one or more fields"})
-
-       true (assoc-in [::types-by-name name] td)))
+     (cond-> (assoc-in acc [::types-by-name name] td)
+       (= (::g/kind td) :object)
+       (cond->
+         ;; "1. An Object type must define one or more fields."
+         (or
+          (nil? field-definitions)
+          (zero? (count field-definitions)))
+         (update ::errors conj {:error "An Object type must define one or more fields"
+                                :type-definition td}))))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
+
+(defn check-root-operation-type [acc]
+  (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
+        query-root-op-type (get-in acc [::types-by-name query-root-op-type-name])]
+    (assert query-root-op-type-name)
+    (cond
+      (nil? query-root-op-type)
+      (update acc
+       ::errors conj
+       {:error "The query root operation type must be provided"})
+
+      (not= :object (get query-root-op-type ::g/kind))
+      (update acc
+       ::errors conj
+       {:error "The query root operation type must be an Object type"})
+
+      :else acc)))
 
 (defn resolve-root-operation-type-names [{::keys [document] :as acc}]
   (assoc
@@ -117,7 +143,9 @@
     check-unique-directive-names
     check-reserved-names
     validate-types
-    resolve-root-operation-type-names]))
+    resolve-root-operation-type-names
+    check-root-operation-type
+    ]))
 
 ;; TODO: This conflicts with clojure.core/extend-type, consider renaming.
 (defmulti extend-type (fn [schema definition] (::g/type-extension-type definition)))
