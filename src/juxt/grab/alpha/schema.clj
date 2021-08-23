@@ -2,7 +2,8 @@
 
 (ns juxt.grab.alpha.schema
   (:refer-clojure :exclude [extend-type])
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [clojure.string :as str]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -60,9 +61,14 @@
   "'All types and directives defined within a schema must not have a name which
   begins with \"__\" (two underscores), as this is used exclusively by GraphQL’s
   introspection system.' -- https://spec.graphql.org/June2018/#sec-Schema"
-  [acc]
-
-  )
+  [{::keys [document types-by-name] :as acc}]
+  (let [reserved-clashes
+        (seq
+         (filter #(str/starts-with? % "__")
+                 (map ::g/name (filter #(#{:type-definition :directive-definition} (::g/definition-type %)) document))))]
+    (cond-> acc
+      reserved-clashes
+      (update ::errors conj {:error "A type or directive cannot be defined with a name that begins with two underscores"}))))
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn validate-types [{::keys [document] :as acc}]

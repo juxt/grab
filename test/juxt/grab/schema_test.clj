@@ -45,3 +45,13 @@
       parse
       compile-schema
       (expected-errors [#"Duplicate directives found"])))
+
+;; "All types and directives defined within a schema must not have a name which
+;; begins with '__' (two underscores), as this is used exclusively by GraphQL’s
+;; introspection system."
+
+(deftest reserved-names-test
+  (-> "type __foo { length: Int }"
+      parse
+      compile-schema
+      (expected-errors [#"A type or directive cannot be defined with a name that begins with two underscores"])))
