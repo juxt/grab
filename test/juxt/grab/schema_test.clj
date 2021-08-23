@@ -84,7 +84,16 @@
 ;; "When using the type system definition language, a document must include at most one schema definition."
 
 (deftest multiple-schema-definitions-test
-  (-> "schema { query: MyQueryRootType } schema { query: MyQueryRootType } type MyQueryRootType { name: String } "
+  (-> "schema { query: MyQueryRootType } schema { query: MyQueryRootType } type MyQueryRootType { someField: String } "
       parse
       compile-schema
       (expected-errors [#"A document must include at most one schema definition"])))
+
+
+;; TODO: Schema extensions and directives
+
+
+(-> "schema { query: MyQueryRootType } type MyQueryRootType { someField: String } "
+      parse
+      compile-schema
+      )
