@@ -89,6 +89,10 @@
       compile-schema
       (expected-errors [#"A document must include at most one schema definition"])))
 
+(deftest schema-with-default-query-no-schema-definition-test
+  (-> (example "38")
+      compile-schema
+      (expected-errors [])))
 
 ;; TODO: Schema extensions and directives
 
