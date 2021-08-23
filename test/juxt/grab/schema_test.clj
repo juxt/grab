@@ -37,3 +37,11 @@
       parse
       compile-schema
       (expected-errors [#"Conflicts with built-in types"])))
+
+;; "All directives within a GraphQL schema must have unique names."
+
+(deftest directive-conflicts-test
+  (-> "directive @foo on FIELD directive @foo on OBJECT"
+      parse
+      compile-schema
+      (expected-errors [#"Duplicate directives found"])))

@@ -25,7 +25,8 @@
              (duplicates-by ::g/name))]
     (cond-> acc
       duplicates
-      (update ::errors conj {:error "Duplicates found"}))))
+      (update ::errors conj {:error "Duplicates found"
+                             :duplicates duplicates}))))
 
 (defn check-no-conflicts-with-built-in-types
   "'No provided type may have a name which conflicts
@@ -45,9 +46,15 @@
 (defn check-unique-directive-names
   "'All directives within a GraphQL schema must have unique names.' --
   https://spec.graphql.org/June2018/#sec-Schema"
-  [acc]
-
-  )
+  [{::keys [document] :as acc}]
+  (let [duplicates
+        (->> document
+             (filter #(= (::g/definition-type %) :directive-definition))
+             (duplicates-by ::g/name))]
+    (cond-> acc
+      duplicates
+      (update ::errors conj {:error "Duplicate directives found"
+                             :duplicates duplicates}))))
 
 (defn check-reserved-names
   "'All types and directives defined within a schema must not have a name which
@@ -79,7 +86,6 @@
    (or
     (second (first (first (filter #(contains? % ::g/schema) document))))
     {:query "Query" :mutation "Mutation" :subscription "Subscription"})))
-
 
 (defn compile-schema
   "Create a schema from the parsed document."

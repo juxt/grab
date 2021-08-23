@@ -224,6 +224,11 @@
 (defmethod process :schemaDefinition [[_ & terms]]
   {::g/schema (apply merge (keep process terms))})
 
+(defmethod process :directiveDefinition [[_ & terms]]
+  (into
+   {::g/definition-type :directive-definition}
+   (apply merge (keep process terms))))
+
 (defmethod process :rootOperationTypeDefinition [[_ operation-type _ named-type]]
   {(::g/operation-type (process operation-type))
    (get-in (process named-type) [::g/named-type ::g/name])})
