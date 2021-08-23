@@ -222,7 +222,8 @@
   {::g/alias (::g/name (process name))})
 
 (defmethod process :schemaDefinition [[_ & terms]]
-  {::g/schema (apply merge (keep process terms))})
+  (into {::g/definition-type :schema-definition}
+        {::g/schema (apply merge (keep process terms))}))
 
 (defmethod process :directiveDefinition [[_ & terms]]
   (into

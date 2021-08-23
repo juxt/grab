@@ -111,12 +111,16 @@
 
       :else acc)))
 
+(defn check-schema-definition-count [{::keys [document] :as acc}]
+  (when (pos? (dec (count (filter #(= (::g/definition-type %) :schema-definition) document))))
+    (update acc ::errors conj {:error "A document must include at most one schema definition"})))
+
 (defn resolve-root-operation-type-names [{::keys [document] :as acc}]
   (assoc
    acc
    ::root-operation-type-names
    (or
-    (second (first (first (filter #(contains? % ::g/schema) document))))
+    (::g/schema (first (filter #(= (::g/definition-type %) :schema-definition) document)))
     {:query "Query" :mutation "Mutation" :subscription "Subscription"})))
 
 (defn compile-schema
@@ -144,6 +148,7 @@
     check-reserved-names
     validate-types
     resolve-root-operation-type-names
+    check-schema-definition-count
     check-root-operation-type
     ]))
 

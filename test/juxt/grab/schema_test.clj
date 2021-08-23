@@ -76,14 +76,15 @@
       (expected-errors [#"The query root operation type must be an Object type"])))
 
 (deftest root-operation-type-test
-  (let [s (->
-           (example "37")
-           compile-schema)]
+  (let [s (-> (example "37")
+              compile-schema)]
     (is (= "MyQueryRootType" (get-in s [::s/root-operation-type-names :query])))
     (is (= :object (get-in s [::s/types-by-name "MyQueryRootType" ::g/kind])))))
 
-
 ;; "When using the type system definition language, a document must include at most one schema definition."
 
-
-;; TODO: Default Root Operation Type Names
+(deftest multiple-schema-definitions-test
+  (-> "schema { query: MyQueryRootType } schema { query: MyQueryRootType } type MyQueryRootType { name: String } "
+      parse
+      compile-schema
+      (expected-errors [#"A document must include at most one schema definition"])))
