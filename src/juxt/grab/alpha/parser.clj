@@ -221,9 +221,17 @@
 (defmethod process :alias [[_ name]]
   {::g/alias (::g/name (process name))})
 
-(defmethod process :schemaDefinition [[_ & terms]]
-  (into {::g/definition-type :schema-definition}
-        {::g/schema (apply merge (keep process terms))}))
+(defmethod process :schemaDefinition [[_ _ directives & terms]]
+  (merge
+   {::g/definition-type :schema-definition}
+   (process directives)
+   {::g/operation-types (apply merge (keep process terms))}))
+
+(defmethod process :schemaExtension [[_ _ _ directives & terms]]
+  (merge
+   {::g/definition-type :schema-extension}
+   (process directives)
+   {::g/operation-types (apply merge (keep process terms))}))
 
 (defmethod process :directiveDefinition [[_ & terms]]
   (into
@@ -231,6 +239,10 @@
    (apply merge (keep process terms))))
 
 (defmethod process :rootOperationTypeDefinition [[_ operation-type _ named-type]]
+  {(::g/operation-type (process operation-type))
+   (get-in (process named-type) [::g/named-type ::g/name])})
+
+(defmethod process :operationTypeDefinition [[_ operation-type _ named-type]]
   {(::g/operation-type (process operation-type))
    (get-in (process named-type) [::g/named-type ::g/name])})
 

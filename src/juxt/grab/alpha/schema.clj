@@ -120,7 +120,7 @@
    acc
    ::root-operation-type-names
    (or
-    (::g/schema (first (filter #(= (::g/definition-type %) :schema-definition) document)))
+    (::g/operation-types (first (filter #(= (::g/definition-type %) :schema-definition) document)))
     {:query "Query" :mutation "Mutation" :subscription "Subscription"})))
 
 (defn compile-schema
