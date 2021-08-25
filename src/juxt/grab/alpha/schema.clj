@@ -172,11 +172,43 @@
   ;; "6. The resulting extended object type must be a super‐set of all interfaces it implements."
   (throw (ex-info "todo" {:definition definition})))
 
+(defn process-schema-extension [schema {::g/keys [directives operation-types]}]
+  (let [add-directives
+        (fn [schema directives]
+          (let [existing-directives
+                (set/intersection
+                 (some-> schema ::g/directives keys set)
+                 (some-> directives keys set))]
+            (if (seq existing-directives)
+              (update
+               schema ::errors conj
+               {:error "Any directives provided must not already apply to the original Schema"
+                :existing-directives existing-directives})
+              (update schema ::g/directives merge directives))))
+        add-operation-types
+        (fn [schema operation-types]
+          (let [duplicates
+                (set/intersection
+                 (some-> schema ::root-operation-type-names keys set)
+                 (some-> operation-types keys set))]
+            (if (seq duplicates)
+              (update
+               schema ::errors conj
+               {:error "Schema extension attempting to add root operation types that already exist"
+                :duplicates duplicates})
+              (update schema ::root-operation-type-names merge operation-types))))]
+    (cond-> schema
+      directives (add-directives directives)
+      operation-types (add-operation-types operation-types))))
+
 (defn extend-schema
   "Extend a schema"
   [schema document]
+  (assert (empty? (::errors schema)) "Cannot extend schema when there are pre-existing errors")
   (reduce
    (fn [schema definition]
-     (extend-type schema definition))
+     (cond-> schema
+       (= (::g/definition-type definition) :schema-extension)
+       (process-schema-extension definition)))
    schema
    document))

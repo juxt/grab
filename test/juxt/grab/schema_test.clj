@@ -4,7 +4,7 @@
   (:require
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.schema :refer [compile-schema] :as s]
-   [juxt.grab.alpha.parser :refer [parse]]
+   [juxt.grab.alpha.parser :refer [parse parse*]]
    [juxt.grab.validation-test :refer [example]]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
@@ -94,10 +94,20 @@
       compile-schema
       (expected-errors [])))
 
-;; TODO: Schema extensions and directives
-
-
-(-> "schema { query: MyQueryRootType } type MyQueryRootType { someField: String } "
-      parse
-      compile-schema
-      )
+(deftest schema-extension-test
+  (let [schema
+        (-> "schema @foo { query: MyQueryRootType } type MyQueryRootType { someField: String } "
+            parse
+            compile-schema)]
+    (-> schema
+        (s/extend-schema (parse "extend schema { mutation: MyMutationRootType }"))
+        (expected-errors []))
+    (-> schema
+        (s/extend-schema (parse "extend schema { query: MyMutationRootType }"))
+        (expected-errors [#"Schema extension attempting to add root operation types that already exist"]))
+    (-> schema
+        (s/extend-schema (parse "extend schema @bar"))
+        (expected-errors []))
+    (-> schema
+        (s/extend-schema (parse "extend schema @foo"))
+        (expected-errors [#"Any directives provided must not already apply to the original Schema"]))))
