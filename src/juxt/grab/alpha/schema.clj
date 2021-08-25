@@ -115,13 +115,17 @@
   (when (pos? (dec (count (filter #(= (::g/definition-type %) :schema-definition) document))))
     (update acc ::errors conj {:error "A document must include at most one schema definition"})))
 
-(defn resolve-root-operation-type-names [{::keys [document] :as acc}]
-  (assoc
-   acc
-   ::root-operation-type-names
-   (or
-    (::g/operation-types (first (filter #(= (::g/definition-type %) :schema-definition) document)))
-    {:query "Query" :mutation "Mutation" :subscription "Subscription"})))
+(defn process-schema-definition [{::keys [document] :as acc}]
+  (let [schema-def (first (filter #(= (::g/definition-type %) :schema-definition) document))]
+    (cond-> acc
+      true
+      (assoc
+       ::root-operation-type-names
+       (or
+        (when schema-def (::g/operation-types schema-def))
+        {:query "Query" :mutation "Mutation" :subscription "Subscription"}))
+      (::g/directives schema-def)
+      (assoc ::g/directives (::g/directives schema-def)))))
 
 (defn compile-schema
   "Create a schema from the parsed document."
@@ -147,10 +151,9 @@
     check-unique-directive-names
     check-reserved-names
     validate-types
-    resolve-root-operation-type-names
+    process-schema-definition
     check-schema-definition-count
-    check-root-operation-type
-    ]))
+    check-root-operation-type]))
 
 ;; TODO: This conflicts with clojure.core/extend-type, consider renaming.
 (defmulti extend-type (fn [schema definition] (::g/type-extension-type definition)))
