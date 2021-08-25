@@ -1,7 +1,6 @@
 ;; Copyright © 2021, JUXT LTD.
 
 (ns juxt.grab.alpha.schema
-  (:refer-clojure :exclude [extend-type])
   (:require [clojure.set :as set]
             [clojure.string :as str]))
 
@@ -156,9 +155,9 @@
     check-root-operation-type]))
 
 ;; TODO: This conflicts with clojure.core/extend-type, consider renaming.
-(defmulti extend-type (fn [schema definition] (::g/type-extension-type definition)))
+#_(defmulti extend-type (fn [schema definition] (::g/type-extension-type definition)))
 
-(defmethod extend-type :object-type-extension [schema definition]
+#_(defmethod extend-type :object-type-extension [schema definition]
   ;; "Object type extensions have the potential to be invalid if incorrectly defined."
 
   (let [t (get-in schema [::types-by-name (::g/name definition)])]
