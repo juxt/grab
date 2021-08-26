@@ -142,7 +142,7 @@
 (defn parse-tree->schema
   "Return a grab-specified schema as a map from a reap-parsed document."
   [parse-tree]
-  (let [types-by-name
+  (let [provided-types
         (->> parse-tree
              (keep
               (fn [typ]
@@ -175,7 +175,7 @@
                 (some-match ::reap/operation-type "query")
                 ::reap/named-type)]
 
-    {::schema/types-by-name types-by-name
+    {::schema/provided-types provided-types
      ::schema/root-operation-type-names {:query root-query-type-name}}))
 
 (defn ->schema

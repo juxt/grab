@@ -43,7 +43,7 @@ type Person @crux(query: \"{:find [e] :where [[?e :name][?e :picture ?p][?p :siz
                  reap.document/parse-tree->schema
                  )
         type-name (get-in schema [::schema/root-operation-type-names :query])
-        type (get-in schema [::schema/types-by-name type-name])]
+        type (get-in schema [::schema/provided-types type-name])]
     (is (= "Query" (::g/name type)))
     (is (= :object (::g/kind type)))
     (is (= 1 (count (::g/field-definitions type))))

@@ -287,7 +287,7 @@
         (let [inner-type (get field-type ::g/item-type)
               inner-type (if (string? inner-type)
                            (or
-                            (get-in schema [::schema/types-by-name inner-type])
+                            (get-in schema [::schema/provided-types inner-type])
                             (get-in schema [::schema/built-in-types inner-type]))
                            inner-type)]
           ;; c. Return a list where each list item is the result of calling
@@ -404,7 +404,7 @@
                  (let [ft (get-in object-type [::g/field-definitions field-name ::g/type])]
                    (if (string? ft)
                      (or
-                      (get-in schema [::schema/types-by-name ft])
+                      (get-in schema [::schema/provided-types ft])
                       (get-in schema [::schema/built-in-types ft]))
                      ft))
 
@@ -458,7 +458,7 @@
 
   ;; 1. Let queryType be the root Query type in schema.
   (let [query-type-name (get-in schema [::schema/root-operation-type-names :query])
-        query-type (get-in schema [::schema/types-by-name query-type-name])]
+        query-type (get-in schema [::schema/provided-types query-type-name])]
 
     ;; 2. Assert: queryType is an Object type.
     (when-not (= (get query-type ::g/kind) :object)

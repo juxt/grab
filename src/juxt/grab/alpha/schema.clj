@@ -66,7 +66,7 @@
   "'All types and directives defined within a schema must not have a name which
   begins with \"__\" (two underscores), as this is used exclusively by GraphQL’s
   introspection system.' -- https://spec.graphql.org/June2018/#sec-Schema"
-  [{::keys [document types-by-name] :as acc}]
+  [{::keys [document provided-types] :as acc}]
   (let [reserved-clashes
         (seq
          (filter #(str/starts-with? % "__")
@@ -81,7 +81,7 @@
 (defn validate-types [{::keys [document] :as acc}]
   (reduce
    (fn [acc {::g/keys [name field-definitions] :as td}]
-     (cond-> (assoc-in acc [::types-by-name name] td)
+     (cond-> (assoc-in acc [::provided-types name] td)
        (= (::g/kind td) :object)
        (cond->
          ;; "1. An Object type must define one or more fields."
@@ -95,7 +95,7 @@
 
 (defn check-root-operation-type [acc]
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
-        query-root-op-type (get-in acc [::types-by-name query-root-op-type-name])]
+        query-root-op-type (get-in acc [::provided-types query-root-op-type-name])]
     (assert query-root-op-type-name)
     (cond
       (nil? query-root-op-type)
@@ -134,7 +134,7 @@
      (or (f acc) acc))
    {::errors []
     ::document document
-    ::types-by-name
+    ::provided-types
     {}
     ::built-in-types
     {"Int" {::g/name "Int"
@@ -162,7 +162,7 @@
 #_(defmethod extend-type :object-type-extension [schema definition]
   ;; "Object type extensions have the potential to be invalid if incorrectly defined."
 
-  (let [t (get-in schema [::types-by-name (::g/name definition)])]
+  (let [t (get-in schema [::provided-types (::g/name definition)])]
     ;; "1. The named type must already be defined and must be an Object type."
     (when-not t
       (throw (ex-info "Named type not already defined" {:type-name (::g/name definition)}))))

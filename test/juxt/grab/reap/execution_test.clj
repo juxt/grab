@@ -25,7 +25,7 @@
 (deftest coerce-argument-values-test
   (let [schema (->schema "type Root { user(id: Int): Person }")
         document (->document "query Test { user(id: 4) { name }}")
-        object-type (get-in schema [::schema/types-by-name "Root"])
+        object-type (get-in schema [::schema/provided-types "Root"])
         field (get-in document [::document/operations-by-name "Test" ::g/selection-set 0])
         variable-values {}]
     (is

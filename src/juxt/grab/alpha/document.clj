@@ -69,7 +69,8 @@
                                       (assoc ::g/operation-type :query)))
                                   %)))
 
-(defn scope-selection-set [selection-set scoped-type {::schema/keys [types-by-name] :as schema}]
+(defn scope-selection-set
+  [selection-set scoped-type {::schema/keys [provided-types] :as schema}]
   (->>
    selection-set
    (mapv
@@ -78,7 +79,7 @@
           :as selection}]
       (case selection-type
         :field
-        (let [return-type (some-> scoped-type types-by-name
+        (let [return-type (some-> scoped-type provided-types
                                   ::g/field-definitions (get field-name) ::g/type)]
           (-> selection
               (assoc ::scoped-type scoped-type)
@@ -141,7 +142,7 @@
 (defn validate-selection [{::g/keys [selection-type] :as selection}
                           ;; TODO: Do we still need to pass down parent-scoped-type?
                           parent-scoped-type
-                          {::schema/keys [types-by-name built-in-types] :as schema}
+                          {::schema/keys [provided-types built-in-types] :as schema}
                           path]
   ;; TODO: selection-type is mentioned in a GraphQL alog, so perhaps used a
   ;; different keyword.
@@ -150,9 +151,9 @@
     (let [scoped-type (::scoped-type selection)
           field-name (::g/name selection)
           path (conj path (::g/name selection))
-          field-def (some-> scoped-type types-by-name ::g/field-definitions (get field-name))
+          field-def (some-> scoped-type provided-types ::g/field-definitions (get field-name))
           selection-type (or
-                          (some-> field-def ::g/type types-by-name)
+                          (some-> field-def ::g/type provided-types)
                           (some-> field-def ::g/type built-in-types))
           subselection-set (::g/selection-set selection)]
 
@@ -219,11 +220,11 @@
                (or (get field ::g/alias) (get field ::g/name))))))
 
 (defn same-response-shape
-  [response-name fields {::schema/keys [types-by-name built-in-types] :as schema} path]
+  [response-name fields {::schema/keys [provided-types built-in-types] :as schema} path]
   ;; TODO: Non-null and lists
   ;;(throw (ex-info "Same response shape" {:fields fields}))
   (let [kinds (mapv #(or
-                      (some-> % ::return-type types-by-name ::g/kind)
+                      (some-> % ::return-type provided-types ::g/kind)
                       (some-> % ::return-type built-in-types ::g/kind)) fields)]
     (cond
       (some #{:scalar :enum} kinds)
@@ -234,7 +235,7 @@
          :fields fields}))))
 
 (defn fields-in-set-can-merge
-  [selection-set {::schema/keys [types-by-name built-in-types] :as schema}
+  [selection-set {::schema/keys [provided-types built-in-types] :as schema}
    parent-scoped-type path]
   (let [ ;; "1. Let fieldsForName be the set of selections with a given response
         ;; name in set including visiting fragments and inline fragments."
@@ -257,7 +258,7 @@
                      (apply =))
                 (->> fields
                      (map #(or
-                            (some-> % ::scoped-type types-by-name ::g/kind)
+                            (some-> % ::scoped-type provided-types ::g/kind)
                             (some-> % ::scoped-type built-in-types ::g/kind)))
                      (some #(not= % :object))))
            (cond
