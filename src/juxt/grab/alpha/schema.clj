@@ -34,12 +34,12 @@
   "'No provided type may have a name which conflicts
   with any built in types (including Scalar and Introspection
   types).' -- https://spec.graphql.org/June2018/#sec-Schema"
-  [{::keys [document types-by-name] :as acc}]
+  [{::keys [document] :as acc}]
   (let [conflicts
         (seq
          (set/intersection
           (set (map ::g/name (filter #(= (::g/definition-type %) :type-definition) document)))
-          (set (keys types-by-name))))]
+          (set #{"Int" "Float" "String" "Boolean" "ID"})))]
     (cond-> acc
       conflicts
       (update
@@ -135,6 +135,8 @@
    {::errors []
     ::document document
     ::types-by-name
+    {}
+    ::built-in-types
     {"Int" {::g/name "Int"
             ::g/kind :scalar}
      "Float" {::g/name "Float"

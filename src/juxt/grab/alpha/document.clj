@@ -69,7 +69,7 @@
                                       (assoc ::g/operation-type :query)))
                                   %)))
 
-(defn scope-selection-set [selection-set scoped-type schema]
+(defn scope-selection-set [selection-set scoped-type {::schema/keys [types-by-name] :as schema}]
   (->>
    selection-set
    (mapv
@@ -78,8 +78,7 @@
           :as selection}]
       (case selection-type
         :field
-        (let [lookup-type (::schema/types-by-name schema)
-              return-type (some-> scoped-type lookup-type
+        (let [return-type (some-> scoped-type types-by-name
                                   ::g/field-definitions (get field-name) ::g/type)]
           (-> selection
               (assoc ::scoped-type scoped-type)
@@ -141,44 +140,47 @@
 
 (defn validate-selection [{::g/keys [selection-type] :as selection}
                           ;; TODO: Do we still need to pass down parent-scoped-type?
-                          parent-scoped-type schema path]
-  (let [lookup-type (::schema/types-by-name schema)]
-    ;; TODO: selection-type is mentioned in a GraphQL alog, so perhaps used a
-    ;; different keyword.
-    (case selection-type
-      :field
-      (let [scoped-type (::scoped-type selection)
-            field-name (::g/name selection)
-            path (conj path (::g/name selection))
-            field-def (some-> scoped-type lookup-type ::g/field-definitions (get field-name))
-            selection-type (some-> field-def ::g/type lookup-type)
-            subselection-set (::g/selection-set selection)]
+                          parent-scoped-type
+                          {::schema/keys [types-by-name built-in-types] :as schema}
+                          path]
+  ;; TODO: selection-type is mentioned in a GraphQL alog, so perhaps used a
+  ;; different keyword.
+  (case selection-type
+    :field
+    (let [scoped-type (::scoped-type selection)
+          field-name (::g/name selection)
+          path (conj path (::g/name selection))
+          field-def (some-> scoped-type types-by-name ::g/field-definitions (get field-name))
+          selection-type (or
+                          (some-> field-def ::g/type types-by-name)
+                          (some-> field-def ::g/type built-in-types))
+          subselection-set (::g/selection-set selection)]
 
-        (cond
-          (nil? field-def)
-          [{:error (format
-                    "Field name '%s' not defined on type in scope '%s'"
-                    (::g/name selection)
-                    parent-scoped-type)
-            :selection selection
-            :scoped-type parent-scoped-type
-            :field-name (::g/name selection)
-            :path path}]
+      (cond
+        (nil? field-def)
+        [{:error (format
+                  "Field name '%s' not defined on type in scope '%s'"
+                  (::g/name selection)
+                  parent-scoped-type)
+          :selection selection
+          :scoped-type parent-scoped-type
+          :field-name (::g/name selection)
+          :path path}]
 
-          (and (#{:scalar :enum} (some-> selection-type ::g/kind)) subselection-set)
-          [{:error "The subselection set of a scalar or enum must be empty"}]
+        (and (#{:scalar :enum} (some-> selection-type ::g/kind)) subselection-set)
+        [{:error "The subselection set of a scalar or enum must be empty"}]
 
-          subselection-set
-          (mapcat #(validate-selection % scoped-type schema path) subselection-set)
+        subselection-set
+        (mapcat #(validate-selection % scoped-type schema path) subselection-set)
 
-          :else []))
+        :else []))
 
-      :fragment-spread []               ; Already covered
+    :fragment-spread []                 ; Already covered
 
-      :inline-fragment
-      (let [path (conj path (::scoped-type selection))]
-        (mapcat #(validate-selection % parent-scoped-type schema path)
-                (::g/selection-set selection))))))
+    :inline-fragment
+    (let [path (conj path (::scoped-type selection))]
+      (mapcat #(validate-selection % parent-scoped-type schema path)
+              (::g/selection-set selection)))))
 
 (defn validate-selection-sets [{::keys [schema] :as acc}]
   (update
@@ -216,11 +218,13 @@
    (group-by (fn [field]
                (or (get field ::g/alias) (get field ::g/name))))))
 
-(defn same-response-shape [response-name fields schema path]
+(defn same-response-shape
+  [response-name fields {::schema/keys [types-by-name built-in-types] :as schema} path]
   ;; TODO: Non-null and lists
   ;;(throw (ex-info "Same response shape" {:fields fields}))
-  (let [lookup-type (::schema/types-by-name schema)
-        kinds (mapv #(some-> % ::return-type lookup-type ::g/kind) fields)]
+  (let [kinds (mapv #(or
+                      (some-> % ::return-type types-by-name ::g/kind)
+                      (some-> % ::return-type built-in-types ::g/kind)) fields)]
     (cond
       (some #{:scalar :enum} kinds)
       (when (apply not= (map ::return-type fields))
@@ -229,12 +233,12 @@
          :response-name response-name
          :fields fields}))))
 
-(defn fields-in-set-can-merge [selection-set schema parent-scoped-type path]
+(defn fields-in-set-can-merge
+  [selection-set {::schema/keys [types-by-name built-in-types] :as schema}
+   parent-scoped-type path]
   (let [ ;; "1. Let fieldsForName be the set of selections with a given response
         ;; name in set including visiting fragments and inline fragments."
-        fields-for-name (fields-by-name selection-set schema)
-        lookup-type (::schema/types-by-name schema)]
-
+        fields-for-name (fields-by-name selection-set schema)]
     (->>
      fields-for-name
      (mapcat
@@ -252,7 +256,9 @@
                      (map ::scoped-type)
                      (apply =))
                 (->> fields
-                     (map #(some-> % ::scoped-type lookup-type ::g/kind))
+                     (map #(or
+                            (some-> % ::scoped-type types-by-name ::g/kind)
+                            (some-> % ::scoped-type built-in-types ::g/kind)))
                      (some #(not= % :object))))
            (cond
              ;; "i. fieldA and fieldB must have identical field names."

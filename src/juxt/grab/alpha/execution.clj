@@ -286,7 +286,9 @@
         ;; b. Let innerType be the inner type of fieldType.
         (let [inner-type (get field-type ::g/item-type)
               inner-type (if (string? inner-type)
-                           (get-in schema [::schema/types-by-name inner-type])
+                           (or
+                            (get-in schema [::schema/types-by-name inner-type])
+                            (get-in schema [::schema/built-in-types inner-type]))
                            inner-type)]
           ;; c. Return a list where each list item is the result of calling
           ;; CompleteValue(innerType, fields, resultItem, variableValues),
@@ -401,7 +403,9 @@
                  field-type
                  (let [ft (get-in object-type [::g/field-definitions field-name ::g/type])]
                    (if (string? ft)
-                     (get-in schema [::schema/types-by-name ft])
+                     (or
+                      (get-in schema [::schema/types-by-name ft])
+                      (get-in schema [::schema/built-in-types ft]))
                      ft))
 
                  #_(throw
