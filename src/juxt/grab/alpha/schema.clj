@@ -101,7 +101,7 @@
       (nil? query-root-op-type)
       (update acc
        ::errors conj
-       {:error "The query root operation type must be provided"})
+       {:error (format "The query root operation type must be provided: '%s'" query-root-op-type-name)})
 
       (not= :object (get query-root-op-type ::g/kind))
       (update acc

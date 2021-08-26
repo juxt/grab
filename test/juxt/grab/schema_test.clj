@@ -48,7 +48,7 @@
       parse
       compile-schema
       (expected-errors [#"All directives within a GraphQL schema must have unique names"
-                        #"The query root operation type must be provided"])))
+                        nil])))
 
 ;; "All types and directives defined within a schema must not have a name which
 ;; begins with '__' (two underscores), as this is used exclusively by GraphQL’s
@@ -59,7 +59,7 @@
       parse
       compile-schema
       (expected-errors [#"All types and directives defined within a schema must not have a name.+"
-                        #"The query root operation type must be provided"])))
+                        #"The query root operation type must be provided: '\p{Alpha}+'"])))
 
 ;; "The query root operation type must be provided and must be an Object type."
 
@@ -67,7 +67,7 @@
   (-> "schema { query: MyQueryRootType }"
       parse
       compile-schema
-      (expected-errors [#"The query root operation type must be provided"])))
+      (expected-errors [#"The query root operation type must be provided: '\p{Alpha}+'"])))
 
 (deftest query-root-type-not-object-type-test
   (-> "schema { query: MyQueryRootType } scalar MyQueryRootType"
