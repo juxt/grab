@@ -7,6 +7,8 @@
 
 (defonce parser (antlr/parser (slurp (io/resource "GraphQL.g4"))))
 
+;; TODO: Move entries produced by this ns from juxt.grab.alpha.graphql to
+;; juxt.grab.alpha.parser
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defmulti process
