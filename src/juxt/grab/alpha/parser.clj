@@ -94,9 +94,9 @@
 
 (defmethod process :fieldsDefinition [[_ & terms]]
   {::g/field-definitions
-   (into {}
-         (map (juxt ::g/name identity)
-              (keep process terms)))})
+   (->> terms
+        (keep process)
+        vec)})
 
 (defmethod process :argumentsDefinition [[_ & terms]]
   {::g/arguments-definition
@@ -166,6 +166,7 @@
   {::g/directives
    (->> directives
         (keep process)
+        ;; TODO: This is doing too much, just return a vector
         (map (juxt ::g/name identity))
         (into {}))})
 

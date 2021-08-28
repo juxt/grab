@@ -130,7 +130,7 @@
         field-name (::g/name field)
         ;; 4. Let argumentDefinitions be the arguments defined by objectType
         ;; for the field named fieldName.
-        argument-definitions (get-in object-type [::g/field-definitions field-name ::g/arguments-definition])]
+        argument-definitions (get-in object-type [::schema/fields-by-name field-name ::g/arguments-definition])]
 
     ;; 5. For each argumentDefinition in argumentDefinitions:
     (reduce
@@ -401,7 +401,7 @@
                  field-name (::g/name field)
                  ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
                  field-type
-                 (let [ft (get-in object-type [::g/field-definitions field-name ::g/type])]
+                 (let [ft (get-in object-type [::schema/fields-by-name field-name ::g/type])]
                    (if (string? ft)
                      (or
                       (get-in schema [::schema/provided-types ft])

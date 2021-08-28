@@ -80,7 +80,7 @@
       (case selection-type
         :field
         (let [return-type (some-> scoped-type provided-types
-                                  ::g/field-definitions (get field-name) ::g/type)]
+                                  ::schema/fields-by-name (get field-name) ::g/type)]
           (-> selection
               (assoc ::scoped-type scoped-type)
               (assoc ::return-type return-type)
@@ -151,7 +151,7 @@
     (let [scoped-type (::scoped-type selection)
           field-name (::g/name selection)
           path (conj path (::g/name selection))
-          field-def (some-> scoped-type provided-types ::g/field-definitions (get field-name))
+          field-def (some-> scoped-type provided-types ::schema/fields-by-name (get field-name))
           selection-type (or
                           (some-> field-def ::g/type provided-types)
                           (some-> field-def ::g/type built-in-types))

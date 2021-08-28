@@ -66,7 +66,7 @@
   "'All types and directives defined within a schema must not have a name which
   begins with \"__\" (two underscores), as this is used exclusively by GraphQL’s
   introspection system.' -- https://spec.graphql.org/June2018/#sec-Schema"
-  [{::keys [document provided-types] :as acc}]
+  [{::keys [document] :as acc}]
   (let [reserved-clashes
         (seq
          (filter #(str/starts-with? % "__")
@@ -78,22 +78,37 @@
        {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system"}))))
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
-(defn validate-types [{::keys [document] :as acc}]
+(defn check-types
+  "Creates the schema's 'provided-types' entry."
+  [{::keys [document] :as acc}]
   (reduce
    (fn [acc {::g/keys [name field-definitions] :as td}]
-     (cond-> (assoc-in acc [::provided-types name] td)
+     (cond-> acc
        (= (::g/kind td) :object)
        (cond->
-         ;; "1. An Object type must define one or more fields."
-         (or
-          (nil? field-definitions)
-          (zero? (count field-definitions)))
-         (update ::errors conj {:error "An Object type must define one or more fields"
-                                :type-definition td}))))
+           ;; "1. An Object type must define one or more fields."
+           (or
+            (nil? field-definitions)
+            (zero? (count field-definitions)))
+           (update ::errors conj {:error "An Object type must define one or more fields"
+                                  :type-definition td}))))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
-(defn check-root-operation-type [acc]
+(defn provide-types
+  "Creates the schema's 'provided-types' entry."
+  [{::keys [document] :as acc}]
+  (reduce
+   (fn [acc {::g/keys [name] :as td}]
+     (assoc-in
+      acc [::provided-types name]
+      (assoc td ::fields-by-name (into {} (map (juxt ::g/name identity) (::g/field-definitions td))))))
+   acc
+   (filter #(= (::g/definition-type %) :type-definition) document)))
+
+(defn check-root-operation-type
+  "Depends on validate-types."
+  [acc]
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
         query-root-op-type (get-in acc [::provided-types query-root-op-type-name])]
     (assert query-root-op-type-name)
@@ -151,7 +166,8 @@
     check-no-conflicts-with-built-in-types
     check-unique-directive-names
     check-reserved-names
-    validate-types
+    check-types
+    provide-types
     process-schema-definition
     check-schema-definition-count
     check-root-operation-type]))

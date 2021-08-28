@@ -5,7 +5,8 @@
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.schema :refer [compile-schema] :as s]
    [juxt.grab.alpha.parser :refer [parse parse*]]
-   [juxt.grab.validation-test :refer [example]]))
+   [juxt.grab.validation-test :refer [example]]
+   [clojure.java.io :as io]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -111,3 +112,25 @@
     (-> schema
         (s/extend-schema (parse "extend schema @foo"))
         (expected-errors [#"Any directives provided must not already apply to the original Schema"]))))
+
+
+(deftest example-40-test
+  (-> "juxt/grab/example-40.graphql"
+      io/resource
+      slurp
+      ;; To help this compile
+      (str " type Query { someField: String }")
+      parse
+      compile-schema
+      (expected-errors [])))
+
+;; We skip scalar extensions for now. See
+;; https://github.com/antlr/grammars-v4/pull/2299 (TODO)
+
+;; https://spec.graphql.org/June2018/#sec-Objects
+
+
+(-> (str "type Query { someField: String someField: String }")
+    parse
+;;    compile-schema
+    )
