@@ -130,7 +130,18 @@
 ;; https://spec.graphql.org/June2018/#sec-Objects
 
 
-(-> (str "type Query { someField: String someField: String }")
-    parse
-;;    compile-schema
-    )
+;; Should error because someField is here twice
+;; The field must have a unique name within that Object type; no two fields may share the same name.
+
+(deftest unique-field-names-test
+  (-> "type Query { someField: String someField: String }"
+      parse
+      compile-schema
+      (expected-errors [#"Each field must have a unique name within the '.+' Object type; no two fields may share the same name."])))
+
+(deftest reserved-field-names-test
+  (-> "type Query { __someField: String }"
+      parse
+      compile-schema
+      (expected-errors [#"Each field must not have a name which begins with two underscores."])
+      ))

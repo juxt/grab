@@ -77,6 +77,22 @@
        ::errors conj
        {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system"}))))
 
+(defn check-type-fields [acc td]
+  (let [field-definitions (::g/field-definitions td)
+        duplicates (duplicates-by ::g/name field-definitions)
+        reserved (seq (filter #(str/starts-with? (::g/name %) "__") field-definitions))]
+    (cond-> acc
+      duplicates
+      (update
+       ::errors conj
+       {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
+        :duplicates (vec duplicates)})
+      reserved
+      (update
+       ::errors conj
+       {:error (format "Each field must not have a name which begins with two underscores.")
+        :field-names (mapv ::g/name reserved)}))))
+
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
   "Creates the schema's 'provided-types' entry."
@@ -91,7 +107,9 @@
             (nil? field-definitions)
             (zero? (count field-definitions)))
            (update ::errors conj {:error "An Object type must define one or more fields"
-                                  :type-definition td}))))
+                                  :type-definition td})
+
+           true (check-type-fields td))))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
