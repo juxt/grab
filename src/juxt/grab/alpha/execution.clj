@@ -3,6 +3,7 @@
 (ns juxt.grab.alpha.execution
   (:require
    [juxt.grab.alpha.document :as document]
+   [juxt.grab.alpha.schema :as schema]
    [flatland.ordered.map :refer [ordered-map]]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
@@ -229,25 +230,31 @@
         :juxt.grab.alpha.spec-ref/section "6.4.3"
         :juxt.grab.alpha.spec-ref/algorithm "CompleteValue"}
   complete-value
-  [{:keys [field-type fields result variable-values field-resolver schema document] :as args}]
+  [{:keys [field-type-ref fields result variable-values field-resolver
+           schema document] :as args}]
 
-  (assert field-type)
+  (assert field-type-ref)
+  (assert (map? field-type-ref))
   (assert schema)
   (assert document)
 
-  (let [kind (::g/kind field-type)]
+  (let [{::schema/keys [provided-types built-in-types]} schema
+        field-type (or
+                    (some-> field-type-ref schema/unwrapped-type ::g/name provided-types)
+                    (some-> field-type-ref schema/unwrapped-type ::g/name built-in-types))
+        kind (::g/kind field-type)]
     (cond
       ;; 1. If the fieldType is a Non‐Null type:
-      (= kind :non-null)
+      (#{::g/non-null-type} field-type-ref)
       ;; a. Let innerType be the inner type of fieldType.
-      (let [inner-type (get field-type ::g/inner-type)
-            _ (assert inner-type (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type)))
+      (let [inner-type-ref (get field-type-ref ::g/non-null-type)
+            _ (assert inner-type-ref (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type-ref)))
             ;; b. Let completedResult be the result of calling
             ;; CompleteValue(…).
             completed-result
             (try
               (complete-value
-               {:field-type inner-type
+               {:field-type-ref inner-type-ref
                 :fields fields
                 :result result
                 :variable-values variable-values
@@ -258,8 +265,8 @@
                 (throw
                  (ex-info
                   "Error on complete-value"
-                  {:field-type field-type
-                   :inner-type inner-type}
+                  {:field-type-ref field-type-ref
+                   :inner-type-ref inner-type-ref}
                   e))
                 ))]
         ;; c. If completedResult is null, throw a field error.
@@ -267,7 +274,7 @@
           (throw
            (ex-info
             "Field error, NON_NULL type returned nil value for inner type"
-            {:inner-type inner-type
+            {:inner-type-ref inner-type-ref
              :result result})))
         ;; d. Return completedResult.
         completed-result)
@@ -277,19 +284,15 @@
       (nil? result) nil
 
       ;; 3. If fieldType is a List type:
-      (= kind :list)
+      (#{::g/list-type} field-type-ref)
       (do
         ;; a. If result is not a collection of values, throw a field error.
         (when-not (sequential? result)
-          (throw (ex-info "Resolver must return a collection" {:field-type field-type})))
+          (throw (ex-info "Resolver must return a collection" {:field-type-ref field-type-ref})))
 
         ;; b. Let innerType be the inner type of fieldType.
-        (let [inner-type (get field-type ::g/item-type)
-              inner-type (if (string? inner-type)
-                           (or
-                            (get-in schema [::schema/provided-types inner-type])
-                            (get-in schema [::schema/built-in-types inner-type]))
-                           inner-type)]
+        (let [inner-type-ref (get field-type-ref ::g/list-type)]
+
           ;; c. Return a list where each list item is the result of calling
           ;; CompleteValue(innerType, fields, resultItem, variableValues),
           ;; where resultItem is each item in result.
@@ -297,7 +300,7 @@
           (doall
            (for [result-item result]
              (complete-value
-              {:field-type inner-type
+              {:field-type-ref inner-type-ref
                :fields fields
                :result result-item
                :variable-values variable-values
@@ -334,7 +337,7 @@
     :juxt.grab.alpha.spec-ref/section "6.4"
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteField"}
   execute-field
-  [{:keys [object-type object-value field-type fields variable-values field-resolver schema document]}]
+  [{:keys [object-type object-value field-type-ref fields variable-values field-resolver schema document]}]
   (assert schema)
   (assert document)
 
@@ -361,7 +364,7 @@
 
     ;; 5. Return the result of CompleteValue(…).
     (complete-value
-     {:field-type field-type
+     {:field-type-ref field-type-ref
       :fields fields
       :result resolved-value
       :variable-values variable-values
@@ -400,13 +403,8 @@
            (let [field (first fields)
                  field-name (::g/name field)
                  ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-                 field-type
-                 (let [ft (get-in object-type [::schema/fields-by-name field-name ::g/type])]
-                   (if (string? ft)
-                     (or
-                      (get-in schema [::schema/provided-types ft])
-                      (get-in schema [::schema/built-in-types ft]))
-                     ft))
+                 field-type-ref
+                 (get-in object-type [::schema/fields-by-name field-name ::g/type-ref])
 
                  #_(throw
                     (ex-info
@@ -425,14 +423,14 @@
                                        :field-type field-type}))
 
              ;; c. If fieldType is defined:
-             (if field-type
+             (if field-type-ref
                ;; i. Let responseValue be ExecuteField(objectType, objectValue,
                ;; fields, fieldType, variableValues).
                (let [response-value
                      (execute-field
                       {:object-type object-type
                        :object-value object-value
-                       :field-type field-type
+                       :field-type-ref field-type-ref
                        :fields fields
                        :variable-values variable-values
                        :field-resolver field-resolver

@@ -135,7 +135,8 @@
 
     (-> (example "108")
         (compile (example-schema) compilers)
-        (expected-errors [#"Cannot merge since field names are not identical"]))
+        (expected-errors [#"Fields have conflicting return types"
+                          #"Cannot merge since field names are not identical"]))
 
     (-> (example "109")
         (compile (example-schema) compilers)
@@ -170,7 +171,8 @@
 
 #_(deftest example-115-test
   (-> (example-schema)
-      (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))))
+      (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))
+      (expected-errors [])))
 
 #_(deftest example-116-test
   (let [schema

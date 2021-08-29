@@ -77,12 +77,30 @@
        ::errors conj
        {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system"}))))
 
-(defn check-field-definition [acc tf]
-  (cond-> acc
-    (str/starts-with? (::g/name tf) "__")
-    (update ::errors conj
-            {:error "A field must not have a name which begins with two underscores."
-             :field-name (::g/name tf)})))
+(defn unwrapped-type [typ]
+  (cond
+    (::g/list-type typ) (unwrapped-type (::g/list-type typ))
+    (::g/non-null-type typ) (unwrapped-type (::g/non-null-type typ))
+    :else typ))
+
+(defn output-type? [typ]
+  (#{:scalar :object :interface :union :enum} (::g/kind (unwrapped-type typ))))
+
+(defn check-field-definition [{::keys [provided-types built-in-types] :as acc} tf]
+  (let [type-name (some-> tf ::g/type-ref unwrapped-type ::g/name)
+        typ (or (get provided-types type-name)
+                (get built-in-types type-name))]
+    (cond-> acc
+      (str/starts-with? (::g/name tf) "__")
+      (update ::errors conj
+              {:error "A field must not have a name which begins with two underscores."
+               :field-name (::g/name tf)})
+      (not (output-type? typ))
+      (update ::errors conj
+              {:error "A field must return a type that is an output type"
+               :field-name (::g/name tf)
+               :type typ
+               :tf tf}))))
 
 (defn check-duplicate-field-names [acc td]
   (let [duplicates (duplicates-by ::g/name (::g/field-definitions td))]

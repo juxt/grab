@@ -148,10 +148,10 @@
       (expected-errors [#"A field must not have a name which begins with two underscores."])
       ))
 
-#_(-> "type Query { __someField: String }"
+;; The field must return a type where IsOutputType(fieldType) returns true.
+
+#_(-> "type Query { someField: [[String!]!]! }"
       parse
-      compile-schema
+;;      compile-schema
 
       )
-
-;; The field must return a type where IsOutputType(fieldType) returns true.

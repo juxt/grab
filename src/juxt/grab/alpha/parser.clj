@@ -70,11 +70,14 @@
 (defmethod process :intValue [[_ val]]
   (Integer/parseInt val))
 
-(defmethod process :type_ [[_ val]]
-  {::g/type (process val)})
+(defmethod process :type_ [[_ val bang?]]
+  {::g/type-ref (if (= bang? "!") {::g/non-null-type (process val)} (process val))})
 
 (defmethod process :namedType [[_ val]]
-  {::g/named-type (process val)})
+  (process val))
+
+(defmethod process :listType [[_ _ inner-type _]]
+  {::g/list-type (::g/type-ref (process inner-type))})
 
 (defmethod process :arguments [[_ & terms]]
   {::g/arguments
@@ -90,9 +93,7 @@
   (-> terms
       (->>
        (keep process)
-       (apply merge))
-      ;; Update result to extract what we need
-      (update ::g/type get-in [::g/named-type ::g/name])))
+       (apply merge))))
 
 (defmethod process :fieldsDefinition [[_ & terms]]
   {::g/field-definitions
@@ -110,10 +111,11 @@
   (-> terms
       (->> (keep process)
            (apply merge))
-      (update ::g/type get-in [::g/named-type ::g/name])))
+      ;;(update ::g/type-ref get ::g/name)
+      ))
 
-(defmethod process :objectTypeDefinition [[_ & inner]]
-  (->> inner
+(defmethod process :objectTypeDefinition [[_ & terms]]
+  (->> terms
        (keep process)
        (apply merge)
        (into {::g/kind :object})))
@@ -132,7 +134,7 @@
 
 (defmethod process :unionMemberTypes [[_ & terms]]
   {::g/member-types
-   (mapv #(get-in % [::g/named-type ::g/name]) (keep process terms))})
+   (mapv #(get % ::g/name) (keep process terms))})
 
 (defmethod process :enumTypeDefinition [[_ & terms]]
   (->> terms
@@ -157,7 +159,7 @@
 
 (defmethod process :implementsInterfaces [[_ & terms]]
   {::g/interfaces
-   (mapv #(get-in % [::g/named-type ::g/name]) (keep process terms))})
+   (mapv #(get % ::g/name) (keep process terms))})
 
 (defmethod process :directive [[_ & terms]]
   (->> terms
@@ -185,7 +187,7 @@
   {::g/fragment-definition (apply merge (keep process terms))})
 
 (defmethod process :typeCondition [[_ _ named-type]]
-  {::g/type-condition (get-in (process named-type) [::g/named-type ::g/name])})
+  {::g/type-condition (::g/name (process named-type))})
 
 (defmethod process :fragmentSpread [[_ & terms]]
   (into
@@ -243,11 +245,11 @@
 
 (defmethod process :rootOperationTypeDefinition [[_ operation-type _ named-type]]
   {(::g/operation-type (process operation-type))
-   (get-in (process named-type) [::g/named-type ::g/name])})
+   (get-in (process named-type) [::g/name])})
 
 (defmethod process :operationTypeDefinition [[_ operation-type _ named-type]]
   {(::g/operation-type (process operation-type))
-   (get-in (process named-type) [::g/named-type ::g/name])})
+   (get-in (process named-type) [::g/name])})
 
 (defn parse* [s]
   (-> s parser))
