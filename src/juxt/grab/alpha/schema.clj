@@ -195,24 +195,6 @@
     check-schema-definition-count
     check-root-operation-type]))
 
-;; TODO: This conflicts with clojure.core/extend-type, consider renaming.
-#_(defmulti extend-type (fn [schema definition] (::g/type-extension-type definition)))
-
-#_(defmethod extend-type :object-type-extension [schema definition]
-  ;; "Object type extensions have the potential to be invalid if incorrectly defined."
-
-  (let [t (get-in schema [::provided-types (::g/name definition)])]
-    ;; "1. The named type must already be defined and must be an Object type."
-    (when-not t
-      (throw (ex-info "Named type not already defined" {:type-name (::g/name definition)}))))
-
-  ;; "2. The fields of an Object type extension must have unique names; no two fields may share the same name."
-  ;; "3. Any fields of an Object type extension must not be already defined on the original Object type."
-  ;; "4. Any directives provided must not already apply to the original Object type."
-  ;; "5. Any interfaces provided must not be already implemented by the original Object type."
-  ;; "6. The resulting extended object type must be a super‐set of all interfaces it implements."
-  (throw (ex-info "todo" {:definition definition})))
-
 (defn process-schema-extension [schema {::g/keys [directives operation-types]}]
   (let [add-directives
         (fn [schema directives]

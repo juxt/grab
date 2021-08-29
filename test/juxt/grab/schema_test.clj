@@ -154,5 +154,4 @@
 
       )
 
-
 ;; The field must return a type where IsOutputType(fieldType) returns true.
