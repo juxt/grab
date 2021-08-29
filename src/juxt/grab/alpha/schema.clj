@@ -184,12 +184,12 @@
                 ::g/kind :scalar}
      "ID" {::g/name "ID"
            ::g/kind :scalar}}}
-   [check-unique-type-names
+   [provide-types
+    check-unique-type-names
     check-no-conflicts-with-built-in-types
     check-unique-directive-names
     check-reserved-names
     check-types
-    provide-types
     process-schema-definition
     check-schema-definition-count
     check-root-operation-type]))
