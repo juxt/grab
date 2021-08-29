@@ -100,7 +100,6 @@
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
-  "Creates the schema's 'provided-types' entry."
   [{::keys [document] :as acc}]
   (reduce
    (fn [acc {::g/keys [name field-definitions] :as td}]
