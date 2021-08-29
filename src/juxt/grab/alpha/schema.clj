@@ -86,10 +86,34 @@
 (defn output-type? [typ]
   (#{:scalar :object :interface :union :enum} (::g/kind (unwrapped-type typ))))
 
+(defn input-type? [typ]
+  (#{:scalar :enum :input-object} (::g/kind (unwrapped-type typ))))
+
+(defn check-field-argument-definition [{::keys [provided-types built-in-types] :as acc} arg-def tf]
+  (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
+        typ (or (get provided-types type-name)
+                (get built-in-types type-name))]
+    (cond-> acc
+      (str/starts-with? (::g/name arg-def) "__")
+      (update ::errors conj
+              {:error "A field argument must not have a name which begins with two underscores."
+               :arg-name (::g/name arg-def)
+               :field-name (::g/name tf)})
+      (not (input-type? typ))
+      (update ::errors conj
+              {:error "A field argument must accept a type that is an input type"
+               :field-name (::g/name tf)
+               :type typ
+               :argument-definition arg-def}))))
+
+(defn check-field-argument-definitions [acc arg-defs tf]
+  (reduce #(check-field-argument-definition %1 %2 tf) acc arg-defs))
+
 (defn check-field-definition [{::keys [provided-types built-in-types] :as acc} tf]
   (let [type-name (some-> tf ::g/type-ref unwrapped-type ::g/name)
         typ (or (get provided-types type-name)
-                (get built-in-types type-name))]
+                (get built-in-types type-name))
+        arg-defs (::g/arguments-definition tf)]
     (cond-> acc
       (str/starts-with? (::g/name tf) "__")
       (update ::errors conj
@@ -100,7 +124,9 @@
               {:error "A field must return a type that is an output type"
                :field-name (::g/name tf)
                :type typ
-               :tf tf}))))
+               :tf tf})
+      arg-defs
+      (check-field-argument-definitions arg-defs tf))))
 
 (defn check-duplicate-field-names [acc td]
   (let [duplicates (duplicates-by ::g/name (::g/field-definitions td))]

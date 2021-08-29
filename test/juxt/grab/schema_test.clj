@@ -171,3 +171,29 @@
       parse
       compile-schema
       (expected-errors [#"A field must return a type that is an output type"])))
+
+
+;; For each argument of the field:
+;; The argument must not have a name which begins with the characters "__" (two underscores).
+;; The argument must accept a type where IsInputType(argumentType) returns true.
+
+(deftest field-arguments-test
+  (-> "type Query { someField(x: Int y: Int): String } "
+      parse
+      compile-schema
+      (expected-errors []))
+
+  (-> "type Query { someField(__x: Int y: Int): String } "
+      parse
+      compile-schema
+      (expected-errors [#"A field argument must not have a name which begins with two underscores."]))
+
+  (-> "type Query { someField(p: Point2D): String } input Point2D { x: Float y: Float }"
+      parse
+      compile-schema
+      (expected-errors []))
+
+  (-> "type Query { someField(p: Point2D): String } type Point2D { x: Float y: Float }"
+      parse
+      compile-schema
+      (expected-errors [#"A field argument must accept a type that is an input type"])))
