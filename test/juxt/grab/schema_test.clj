@@ -139,9 +139,20 @@
       compile-schema
       (expected-errors [#"Each field must have a unique name within the '.+' Object type; no two fields may share the same name."])))
 
+;; The field must not have a name which begins with the characters "__" (two underscores).
+
 (deftest reserved-field-names-test
   (-> "type Query { __someField: String }"
       parse
       compile-schema
-      (expected-errors [#"Each field must not have a name which begins with two underscores."])
+      (expected-errors [#"A field must not have a name which begins with two underscores."])
       ))
+
+#_(-> "type Query { __someField: String }"
+      parse
+      compile-schema
+
+      )
+
+
+;; The field must return a type where IsOutputType(fieldType) returns true.

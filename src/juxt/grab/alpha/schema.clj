@@ -77,21 +77,26 @@
        ::errors conj
        {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system"}))))
 
-(defn check-type-fields [acc td]
-  (let [field-definitions (::g/field-definitions td)
-        duplicates (duplicates-by ::g/name field-definitions)
-        reserved (seq (filter #(str/starts-with? (::g/name %) "__") field-definitions))]
+(defn check-field-definition [acc tf]
+  (cond-> acc
+    (str/starts-with? (::g/name tf) "__")
+    (update ::errors conj
+            {:error "A field must not have a name which begins with two underscores."
+             :field-name (::g/name tf)})))
+
+(defn check-duplicate-field-names [acc td]
+  (let [duplicates (duplicates-by ::g/name (::g/field-definitions td))]
     (cond-> acc
       duplicates
       (update
        ::errors conj
        {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
-        :duplicates (vec duplicates)})
-      reserved
-      (update
-       ::errors conj
-       {:error (format "Each field must not have a name which begins with two underscores.")
-        :field-names (mapv ::g/name reserved)}))))
+        :duplicates (vec duplicates)}))))
+
+(defn check-type-fields [acc td]
+  (as-> acc %
+    (check-duplicate-field-names % td)
+    (reduce check-field-definition % (::g/field-definitions td))))
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
