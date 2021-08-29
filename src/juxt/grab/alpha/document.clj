@@ -1,11 +1,9 @@
 ;; Copyright © 2021, JUXT LTD.
 
 (ns juxt.grab.alpha.document
-  (:refer-clojure :exclude [compile])
   (:require [juxt.grab.alpha.schema :as schema]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
-(alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (defn
   ^{:graphql/name "GetOperation"}
@@ -222,7 +220,7 @@
                (or (get field ::g/alias) (get field ::g/name))))))
 
 (defn same-response-shape
-  [response-name fields {::schema/keys [provided-types built-in-types] :as schema} path]
+  [response-name fields {::schema/keys [provided-types built-in-types]} path]
   ;; TODO: Non-null and lists
   ;;(throw (ex-info "Same response shape" {:fields fields}))
   (let [kinds (mapv #(or
@@ -308,24 +306,25 @@
           :when error]
       error))))
 
-(defn compile
+(defn compile-document
   "Compile a document with respect to the given schema, returning a structure that
   can be provided to the execution functions."
   ([document schema]
-   (compile document schema
-            [validate-executable-definitions
-             add-operations
-             add-default-operation-type
-             add-fragments
+   (compile-document
+    document schema
+    [validate-executable-definitions
+     add-operations
+     add-default-operation-type
+     add-fragments
 
-             add-scoped-types-to-operations
-             add-scoped-types-to-fragments
-             validate-selection-sets
+     add-scoped-types-to-operations
+     add-scoped-types-to-fragments
+     validate-selection-sets
 
-             group-operations-by-name
-             validate-anonymous
-             validate-operation-uniqueness
-             validate-fields-in-set-can-merge]))
+     group-operations-by-name
+     validate-anonymous
+     validate-operation-uniqueness
+     validate-fields-in-set-can-merge]))
 
   ([document schema compilers]
    (reduce

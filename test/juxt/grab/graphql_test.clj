@@ -2,7 +2,7 @@
 
 (ns juxt.grab.graphql-test
   (:require
-   [clojure.test :refer [deftest is are testing]]
+   [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.execution :refer [execute-request]]
    [juxt.grab.alpha.parser :as parser]
    [clojure.java.io :as io]
@@ -20,7 +20,7 @@
        :errors []}
       (let [schema (schema/compile-schema
                     (parser/parse (slurp (io/resource "juxt/grab/schema-3.graphql"))))
-            document (document/compile
+            document (document/compile-document
                       (parser/parse (slurp (io/resource "juxt/grab/query-3.graphql")))
                       schema)]
 

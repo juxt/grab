@@ -7,7 +7,6 @@
    [flatland.ordered.map :refer [ordered-map]]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
-(alias 'schema (create-ns 'juxt.grab.alpha.schema))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"

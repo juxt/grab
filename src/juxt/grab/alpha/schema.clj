@@ -120,7 +120,7 @@
 (defn check-types
   [{::keys [document] :as acc}]
   (reduce
-   (fn [acc {::g/keys [name field-definitions] :as td}]
+   (fn [acc {::g/keys [field-definitions] :as td}]
      (cond-> acc
        (= (::g/kind td) :object)
        (cond->
