@@ -150,8 +150,24 @@
 
 ;; The field must return a type where IsOutputType(fieldType) returns true.
 
-#_(-> "type Query { someField: [[String!]!]! }"
-      parse
-;;      compile-schema
+(deftest output-type-field-test
 
-      )
+  (-> "type Query { someField: Int }"
+      parse
+      compile-schema
+      (expected-errors []))
+
+  (-> "type Query { someField: [Int]! }"
+      parse
+      compile-schema
+      (expected-errors []))
+
+  (-> "type Query { someField: [Int]! }"
+      parse
+      compile-schema
+      (expected-errors []))
+
+  (-> "type Query { someField: Point2D } input Point2D { x: Float y: Float }"
+      parse
+      compile-schema
+      (expected-errors [#"A field must return a type that is an output type"])))

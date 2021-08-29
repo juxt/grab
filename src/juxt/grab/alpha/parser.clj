@@ -251,6 +251,18 @@
   {(::g/operation-type (process operation-type))
    (get-in (process named-type) [::g/name])})
 
+(defmethod process :inputObjectTypeDefinition [[_ & terms]]
+  (->> terms
+       (keep process)
+       (apply merge)
+       (into {::g/kind :input-object})))
+
+(defmethod process :inputFieldsDefinition [[_ & terms]]
+  (into {::g/input-values
+         (->> terms
+              (keep process)
+              vec)}))
+
 (defn parse* [s]
   (-> s parser))
 
