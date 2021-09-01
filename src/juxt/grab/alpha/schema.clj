@@ -142,22 +142,25 @@
     (check-duplicate-field-names % td)
     (reduce check-field-definition % (::g/field-definitions td))))
 
+(defn check-object-type [acc {::g/keys [field-definitions] :as td}]
+  (cond-> acc
+    ;; "1. An Object type must define one or more fields."
+    (or
+     (nil? field-definitions)
+     (zero? (count field-definitions)))
+    (update ::errors conj {:error "An Object type must define one or more fields"
+                           :type-definition td})
+
+    true (check-type-fields td)))
+
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
   [{::keys [document] :as acc}]
   (reduce
-   (fn [acc {::g/keys [field-definitions] :as td}]
+   (fn [acc td]
      (cond-> acc
        (= (::g/kind td) :object)
-       (cond->
-           ;; "1. An Object type must define one or more fields."
-           (or
-            (nil? field-definitions)
-            (zero? (count field-definitions)))
-           (update ::errors conj {:error "An Object type must define one or more fields"
-                                  :type-definition td})
-
-           true (check-type-fields td))))
+       (check-type-fields td)))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
