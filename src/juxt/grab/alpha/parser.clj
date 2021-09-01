@@ -115,10 +115,20 @@
       ))
 
 (defmethod process :objectTypeDefinition [[_ & terms]]
-  (->> terms
-       (keep process)
-       (apply merge)
-       (into {::g/kind :object})))
+  (let [res
+        (->> terms
+             (keep process)
+             (apply merge)
+             (into {::g/kind :object}))]
+    (cond-> res
+      (::g/interfaces res)
+      (assoc ::g/interfaces
+             (mapv second
+     (filter
+      (fn [pair] (and (vector? pair) (= (first pair) ::g/name)))
+      (tree-seq coll? seq
+                (::g/interfaces res))))))))
+
 
 (defmethod process :scalarTypeDefinition [[_ & inner]]
   (->> inner
@@ -134,7 +144,7 @@
 
 (defmethod process :unionMemberTypes [[_ & terms]]
   {::g/member-types
-   (mapv #(get % ::g/name) (keep process terms))})
+   (mapv ::g/name (keep process terms))})
 
 (defmethod process :enumTypeDefinition [[_ & terms]]
   (->> terms
@@ -159,7 +169,7 @@
 
 (defmethod process :implementsInterfaces [[_ & terms]]
   {::g/interfaces
-   (mapv #(get % ::g/name) (keep process terms))})
+   (keep process terms)})
 
 (defmethod process :directive [[_ & terms]]
   (->> terms
