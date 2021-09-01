@@ -137,12 +137,18 @@
        {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
         :duplicates (vec duplicates)}))))
 
-(defn check-type-fields [acc td]
+(defn check-type-fields [acc {::g/keys [field-definitions] :as td}]
   (as-> acc %
     (check-duplicate-field-names % td)
-    (reduce check-field-definition % (::g/field-definitions td))))
+    (reduce check-field-definition % field-definitions)))
 
-(defn check-object-type [acc {::g/keys [field-definitions] :as td}]
+(defn check-object-interfaces [acc {::g/keys [interfaces] :as td}]
+  (cond-> acc
+    (not (apply distinct? interfaces))
+    (update ::errors conj {:error "An object type may declare that it implements one or more unique interfaces. Declared interfaces contain duplicates."
+                          :type-definition td})))
+
+(defn check-object-type [acc {::g/keys [field-definitions interfaces] :as td}]
   (cond-> acc
     ;; "1. An Object type must define one or more fields."
     (or
@@ -150,8 +156,8 @@
      (zero? (count field-definitions)))
     (update ::errors conj {:error "An Object type must define one or more fields"
                            :type-definition td})
-
-    true (check-type-fields td)))
+    true (check-type-fields td)
+    interfaces (check-object-interfaces td)))
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
@@ -160,7 +166,7 @@
    (fn [acc td]
      (cond-> acc
        (= (::g/kind td) :object)
-       (check-type-fields td)))
+       (check-object-type td)))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 

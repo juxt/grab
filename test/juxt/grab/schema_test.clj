@@ -197,3 +197,9 @@
       parse
       compile-schema
       (expected-errors [#"A field argument must accept a type that is an input type"])))
+
+(deftest unique-interfaces-test
+  (-> "type Query implements Foo & Foo { a: String }"
+      parse
+      compile-schema
+      (expected-errors [#"An object type may declare that it implements one or more unique interfaces. Declared interfaces contain duplicates."])))
