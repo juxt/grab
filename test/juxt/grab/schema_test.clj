@@ -129,9 +129,9 @@
 
 ;; https://spec.graphql.org/June2018/#sec-Objects
 
+;; 2.1. The field must have a unique name within that Object type; no two fields may share the same name.
 
 ;; Should error because someField is here twice
-;; The field must have a unique name within that Object type; no two fields may share the same name.
 
 (deftest unique-field-names-test
   (-> "type Query { someField: String someField: String }"
@@ -139,16 +139,15 @@
       compile-schema
       (expected-errors [#"Each field must have a unique name within the '.+' Object type; no two fields may share the same name."])))
 
-;; The field must not have a name which begins with the characters "__" (two underscores).
+;; 2.2. The field must not have a name which begins with the characters "__" (two underscores).
 
 (deftest reserved-field-names-test
   (-> "type Query { __someField: String }"
       parse
       compile-schema
-      (expected-errors [#"A field must not have a name which begins with two underscores."])
-      ))
+      (expected-errors [#"A field must not have a name which begins with two underscores."])))
 
-;; The field must return a type where IsOutputType(fieldType) returns true.
+;; 2.3. The field must return a type where IsOutputType(fieldType) returns true.
 
 (deftest output-type-field-test
 
@@ -172,16 +171,15 @@
       compile-schema
       (expected-errors [#"A field must return a type that is an output type"])))
 
-
-;; For each argument of the field:
-;; The argument must not have a name which begins with the characters "__" (two underscores).
-;; The argument must accept a type where IsInputType(argumentType) returns true.
+;; 2.4. For each argument of the field:
 
 (deftest field-arguments-test
   (-> "type Query { someField(x: Int y: Int): String } "
       parse
       compile-schema
       (expected-errors []))
+
+  ;; 2.4.1. The argument must not have a name which begins with the characters "__" (two underscores).
 
   (-> "type Query { someField(__x: Int y: Int): String } "
       parse
@@ -193,10 +191,14 @@
       compile-schema
       (expected-errors []))
 
+  ;; 2.4.2. The argument must accept a type where IsInputType(argumentType) returns true.
+
   (-> "type Query { someField(p: Point2D): String } type Point2D { x: Float y: Float }"
       parse
       compile-schema
       (expected-errors [#"A field argument must accept a type that is an input type"])))
+
+;; 3. An object type may declare that it implements one or more unique interfaces.
 
 (deftest unique-interfaces-test
   (-> "type Query implements Foo & Foo { a: String }"
