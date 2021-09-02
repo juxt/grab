@@ -273,3 +273,16 @@
       parse
       compile-schema
       (expected-errors [])))
+
+
+;; TODO: Implement remaining schema object type validation
+
+;; 4.1.2. The object field must include an argument of the same name for every argument
+;; defined in the interface field.
+
+;; 4.1.2.1. The object field argument must accept the same type (invariant) as the
+;; interface field argument.
+
+;; 4.1.3. The object field may include additional arguments not defined in the
+;; interface field, but any additional argument must not be required, e.g. must
+;; not be of a non‐nullable type.
