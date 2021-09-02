@@ -142,11 +142,47 @@
     (check-duplicate-field-names % td)
     (reduce check-field-definition % field-definitions)))
 
+(defn check-object-interfaces-exist [{::keys [provided-types] :as acc}
+                                     {::g/keys [interfaces] :as td}]
+  (reduce
+   (fn [acc decl]
+     (let [ifc (get provided-types decl)]
+       (cond-> acc
+         (nil? ifc) (update ::errors conj {:error "Interface is declared but not provided." :interface decl}))))
+   acc
+   ;; We already check that interfaces are distinct, but if they're not we don't
+   ;; want to produce identical errors.
+   (distinct interfaces)))
+
+(defn check-object-interface-fields
+  [{::keys [provided-types] :as acc}
+   {::g/keys [interfaces field-definitions] :as td}]
+
+  (let [object-field-names (set (map ::g/name field-definitions))
+        interfaces (keep provided-types interfaces)
+        interface-fields
+        (for [i interfaces
+              f (::g/field-definitions i)]
+          (assoc f ::interface (::g/name i)))]
+
+    (reduce (fn [acc field]
+              ;; The object type must include a field of the same name for every field
+              ;; defined in an interface.
+              (cond-> acc
+                (not (contains? object-field-names (::g/name field)))
+                (update ::errors conj {:error "The object type must include a field of the same name for every field defined in an interface."
+                                       :interface (::interface field)
+                                       :missing-field-name (::g/name field)})))
+            acc interface-fields)))
+
+
 (defn check-object-interfaces [acc {::g/keys [interfaces] :as td}]
   (cond-> acc
     (not (apply distinct? interfaces))
-    (update ::errors conj {:error "An object type may declare that it implements one or more unique interfaces. Declared interfaces contain duplicates."
-                          :type-definition td})))
+    (update ::errors conj {:error "An object type may declare that it implements one or more unique interfaces. Interfaces declaration contains duplicates."
+                           :type-definition td})
+    interfaces (-> (check-object-interfaces-exist td)
+                   (check-object-interface-fields td))))
 
 (defn check-object-type [acc {::g/keys [field-definitions interfaces] :as td}]
   (cond-> acc

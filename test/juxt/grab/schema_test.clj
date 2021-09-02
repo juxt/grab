@@ -6,7 +6,8 @@
    [juxt.grab.alpha.schema :refer [compile-schema] :as s]
    [juxt.grab.alpha.parser :refer [parse parse*]]
    [juxt.grab.validation-test :refer [example]]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [juxt.grab.alpha.schema :as schema]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -204,4 +205,30 @@
   (-> "type Query implements Foo & Foo { a: String }"
       parse
       compile-schema
-      (expected-errors [#"An object type may declare that it implements one or more unique interfaces. Declared interfaces contain duplicates."])))
+      (expected-errors [#"An object type may declare that it implements one or more unique interfaces. Interfaces declaration contains duplicates." nil])))
+
+;; 4. An object type must be a super‐set of all interfaces it implements:
+
+;; 4.1. The object type must include a field of the same name for every field defined in an interface.
+
+(deftest interface-fields-inclusion-test
+  (-> "juxt/grab/example-62.graphql"
+      (io/resource)
+      (slurp)
+      (str " type BadBusiness implements NamedEntity & ValuedEntity { foo: String }")
+      (str " type Query { business: Business }")
+      parse
+      compile-schema
+      (expected-errors
+       [#"The object type must include a field of the same name for every field defined in an interface."
+        #"The object type must include a field of the same name for every field defined in an interface."])))
+
+#_(-> "juxt/grab/example-62.graphql"
+    parse
+    compile-schema
+    (expected-errors []))
+
+
+#_(compile-schema (example "62"))
+
+#_(parse (slurp (io/resource "juxt/grab/example-62.graphql")))
