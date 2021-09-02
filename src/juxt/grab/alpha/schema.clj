@@ -177,16 +177,16 @@
 
 (defn check-sub-type-covariance [acc object-field-type-ref interface-field-type-ref]
 
-  (let [oft (when (some-> object-field-type-ref ::g/name)
+  (let [oft (when (::g/name object-field-type-ref)
               (resolve-named-type-ref acc object-field-type-ref))
-        ift (when (some-> interface-field-type-ref ::g/name)
+        ift (when (::g/name interface-field-type-ref)
               (resolve-named-type-ref acc interface-field-type-ref))]
     (cond
       ;; 4.1.1.1. An object field type is a valid sub‐type if it is equal to
       ;; (the same type as) the interface field type.
       (and
-       (some-> object-field-type-ref ::g/name)
-       (some-> interface-field-type-ref ::g/name)
+       (::g/name object-field-type-ref)
+       (::g/name interface-field-type-ref)
        (= (resolve-named-type-ref acc object-field-type-ref)
           (resolve-named-type-ref acc interface-field-type-ref)))
       acc
@@ -196,8 +196,8 @@
       ;; Union type and the object field type is a possible type of the
       ;; interface field type.
       (and
-       (some-> object-field-type-ref ::g/name)
-       (some-> interface-field-type-ref ::g/name)
+       (::g/name object-field-type-ref)
+       (::g/name interface-field-type-ref)
        (and
         (= (::g/kind oft) :object)
         (or
@@ -211,16 +211,16 @@
       ;; of the object field type is a valid sub‐type of the list‐item type of
       ;; the interface field type.
       (and
-       (some-> object-field-type-ref ::g/list-type)
-       (some-> interface-field-type-ref ::g/list-type))
+       (::g/list-type object-field-type-ref)
+       (::g/list-type interface-field-type-ref))
       (check-sub-type-covariance
        acc
-       (-> object-field-type-ref ::g/list-type)
-       (-> interface-field-type-ref ::g/list-type))
+       (::g/list-type object-field-type-ref)
+       (::g/list-type interface-field-type-ref))
 
       ;; 4.1.1.4. An object field type is a valid sub‐type if it is a Non‐Null
       ;; variant of a valid sub‐type of the interface field type.
-      (some-> object-field-type-ref ::g/non-null-type)
+      (::g/non-null-type object-field-type-ref)
       (check-sub-type-covariance
        acc
        (::g/non-null-type object-field-type-ref)
