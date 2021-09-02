@@ -218,16 +218,20 @@
        (-> object-field-type-ref ::g/list-type)
        (-> interface-field-type-ref ::g/list-type))
 
+      ;; 4.1.1.4. An object field type is a valid sub‐type if it is a Non‐Null
+      ;; variant of a valid sub‐type of the interface field type.
+      (some-> object-field-type-ref ::g/non-null-type)
+      (check-sub-type-covariance
+       acc
+       (::g/non-null-type object-field-type-ref)
+       interface-field-type-ref)
+
       :else
       (update acc
               ::errors conj
               {:error "The object field must be of a type which is equal to or a sub‐type of the interface field (covariant)."
                :object-field-type-ref object-field-type-ref
-               :interface-field-type-ref interface-field-type-ref})))
-
-  ;;acc
-  )
-
+               :interface-field-type-ref interface-field-type-ref}))))
 
 ;; TODO: Put these in a separate function
 
