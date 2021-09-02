@@ -274,7 +274,7 @@
               vec)}))
 
 (defn parse* [s]
-  (-> s parser))
+  (some-> s parser))
 
 (defn parse [s]
-  (-> s parser process))
+  (some-> s parser process))
