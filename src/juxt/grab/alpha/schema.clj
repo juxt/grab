@@ -27,7 +27,7 @@
       duplicates
       (update
        ::errors conj
-       {:error "All types within a GraphQL schema must have unique names"
+       {:error "All types within a GraphQL schema must have unique names."
         :duplicates duplicates}))))
 
 (defn check-no-conflicts-with-built-in-types
@@ -44,7 +44,7 @@
       conflicts
       (update
        ::errors conj
-       {:error "No provided type may have a name which conflicts with any built in types"
+       {:error "No provided type may have a name which conflicts with any built in types."
         :conflicts (set conflicts)}))))
 
 (defn check-unique-directive-names
@@ -59,7 +59,7 @@
       duplicates
       (update
        ::errors conj
-       {:error "All directives within a GraphQL schema must have unique names"
+       {:error "All directives within a GraphQL schema must have unique names."
         :duplicates duplicates}))))
 
 (defn check-reserved-names
@@ -75,7 +75,7 @@
       reserved-clashes
       (update
        ::errors conj
-       {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system"}))))
+       {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system."}))))
 
 (defn unwrapped-type [typ]
   (cond
@@ -99,29 +99,50 @@
               {:error "A field argument must not have a name which begins with two underscores."
                :arg-name (::g/name arg-def)
                :field-name (::g/name tf)})
-      (not (input-type? typ))
+
+      (nil? typ)
       (update ::errors conj
-              {:error "A field argument must accept a type that is an input type"
+              {:error "A field argument must accept a type that is known."
                :field-name (::g/name tf)
                :type typ
+               :argument-definition arg-def})
+
+      (and typ (not (input-type? typ)))
+      (update ::errors conj
+              {:error "A field argument must accept a type that is an input type."
+               :field-name (::g/name tf)
                :argument-definition arg-def}))))
 
 (defn check-field-argument-definitions [acc arg-defs tf]
   (reduce #(check-field-argument-definition %1 %2 tf) acc arg-defs))
 
-(defn check-field-definition [{::keys [provided-types built-in-types] :as acc} tf]
-  (let [type-name (some-> tf ::g/type-ref unwrapped-type ::g/name)
-        typ (or (get provided-types type-name)
-                (get built-in-types type-name))
+(defn resolve-named-type-ref [{::keys [built-in-types provided-types] :as acc} type-ref]
+  (assert type-ref)
+  (assert (::g/name type-ref) (pr-str type-ref))
+  (or
+   (get built-in-types (::g/name type-ref))
+   (get provided-types (::g/name type-ref))
+   (throw (ex-info "Cannot resolve type-ref" {:type-ref type-ref}))))
+
+(defn check-field-definition [acc tf]
+  (let [type-ref (some-> tf ::g/type-ref unwrapped-type)
+        typ (resolve-named-type-ref acc type-ref)
         arg-defs (::g/arguments-definition tf)]
     (cond-> acc
       (str/starts-with? (::g/name tf) "__")
       (update ::errors conj
               {:error "A field must not have a name which begins with two underscores."
                :field-name (::g/name tf)})
-      (not (output-type? typ))
+
+      (nil? typ)
       (update ::errors conj
-              {:error "A field must return a type that is an output type"
+              {:error "A field must return a type that is known."
+               :field-name (::g/name tf)
+               :field-type-name (::g/name type-ref)})
+
+      (and typ (not (output-type? typ)))
+      (update ::errors conj
+              {:error "A field must return a type that is an output type."
                :field-name (::g/name tf)
                :type typ
                :tf tf})
@@ -154,10 +175,63 @@
    ;; want to produce identical errors.
    (distinct interfaces)))
 
-(defn sub-type? [object-field interface-field]
-  ;; TODO
-  (throw (ex-info "" {}))
+(defn check-sub-type [acc object-field interface-field]
+
+  (let [oft (when (some-> object-field ::g/type-ref ::g/name)
+              (resolve-named-type-ref acc (::g/type-ref object-field)))
+        ift (when (some-> interface-field ::g/type-ref ::g/name)
+              (resolve-named-type-ref acc (::g/type-ref interface-field)))]
+    (cond
+      ;; An object field type is a valid sub‐type if it is equal to (the same type
+      ;; as) the interface field type.
+      (and
+       (some-> object-field ::g/type-ref ::g/name)
+       (some-> interface-field ::g/type-ref ::g/name)
+       (= (resolve-named-type-ref acc (::g/type-ref object-field))
+          (resolve-named-type-ref acc (::g/type-ref interface-field))))
+      acc
+
+      ;; An object field type is a valid sub‐type if it is an Object type and the
+      ;; interface field type is either an Interface type or a Union type and the
+      ;; object field type is a possible type of the interface field type.
+      (and
+       (some-> object-field ::g/type-ref ::g/name)
+       (some-> interface-field ::g/type-ref ::g/name)
+       (and
+        (= (::g/kind oft) :object)
+        (or
+         (= (::g/kind ift) :interface)
+         (= (::g/kind ift) :union))
+        (contains? (set (::g/interfaces oft)) (::g/name ift))))
+      acc
+
+      ;; An object field type is a valid sub‐type if it is a List type and the
+      ;; interface field type is also a List type and the list‐item type of the
+      ;; object field type is a valid sub‐type of the list‐item type of the
+      ;; interface field type.
+
+      :else
+      (update acc
+              ::errors conj
+              {:error "The object field must be of a type which is equal to or a sub‐type of the interface field (covariant)."
+               :object-field object-field
+               :interface-field interface-field})))
+
+  ;;acc
   )
+
+
+;; TODO: Put these in a separate function
+
+
+;; An object field type is a valid sub‐type if it is equal to (the
+;; same type as) the interface field type.
+
+;; An object field type is a valid sub‐type if it is an Object type
+;; and the interface field type is either an Interface type or a
+;; Union type and the object field type is a possible type of the
+;; interface field type.
+
 
 (defn check-object-interface-fields
   [{::keys [provided-types] :as acc}
@@ -172,30 +246,16 @@
     (reduce
      (fn [acc interface-field]
        (let [field-name (::g/name interface-field)
-             object-field (get object-fields-by-name field-name)]
-         (cond-> acc
+             object-field (first (get object-fields-by-name field-name))]
+         (if-not object-field
            ;; The object type must include a field of the same name for every field
            ;; defined in an interface.
-           (nil? object-field)
-           (update ::errors conj {:error "The object type must include a field of the same name for every field defined in an interface."
-                                  :interface (::interface interface-field)
-                                  :missing-field-name field-name})
+           (update acc ::errors conj {:error "The object type must include a field of the same name for every field defined in an interface."
+                                      :interface (::interface interface-field)
+                                      :missing-field-name field-name})
 
-           ;; TODO: Put these in a separate function
+           (check-sub-type acc object-field interface-field))))
 
-           ;; The object field must be of a type which is equal to or a sub‐type
-           ;; of the interface field (covariant).
-
-           ;; An object field type is a valid sub‐type if it is equal to (the
-           ;; same type as) the interface field type.
-
-           ;; An object field type is a valid sub‐type if it is an Object type
-           ;; and the interface field type is either an Interface type or a
-           ;; Union type and the object field type is a possible type of the
-           ;; interface field type.
-
-
-           )))
      acc interface-fields)))
 
 (defn check-object-interfaces [acc {::g/keys [interfaces] :as td}]

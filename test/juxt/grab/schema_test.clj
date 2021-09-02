@@ -11,6 +11,8 @@
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
+(set! clojure.core/*print-namespace-maps* false)
+
 (defn expected-errors [{::s/keys [errors]} regexes]
   (assert errors)
   (is
@@ -32,7 +34,7 @@
   (-> "type Query { name: String } type Query { name: String }"
       parse
       compile-schema
-      (expected-errors [#"All types within a GraphQL schema must have unique names"])))
+      (expected-errors [#"All types within a GraphQL schema must have unique names."])))
 
 ;; "No provided type may have a name which conflicts with any built in types
 ;; (including Scalar and Introspection types)."
@@ -41,7 +43,7 @@
   (-> "type String { length: Int }"
       parse
       compile-schema
-      (expected-errors [#"No provided type may have a name which conflicts with any built in types" nil])))
+      (expected-errors [#"No provided type may have a name which conflicts with any built in types." nil])))
 
 ;; "All directives within a GraphQL schema must have unique names."
 
@@ -49,7 +51,7 @@
   (-> "directive @foo on FIELD directive @foo on OBJECT"
       parse
       compile-schema
-      (expected-errors [#"All directives within a GraphQL schema must have unique names"
+      (expected-errors [#"All directives within a GraphQL schema must have unique names."
                         nil])))
 
 ;; "All types and directives defined within a schema must not have a name which
@@ -170,7 +172,7 @@
   (-> "type Query { someField: Point2D } input Point2D { x: Float y: Float }"
       parse
       compile-schema
-      (expected-errors [#"A field must return a type that is an output type"])))
+      (expected-errors [#"A field must return a type that is an output type."])))
 
 ;; 2.4. For each argument of the field:
 
@@ -197,7 +199,7 @@
   (-> "type Query { someField(p: Point2D): String } type Point2D { x: Float y: Float }"
       parse
       compile-schema
-      (expected-errors [#"A field argument must accept a type that is an input type"])))
+      (expected-errors [#"A field argument must accept a type that is an input type."])))
 
 ;; 3. An object type may declare that it implements one or more unique interfaces.
 
@@ -223,6 +225,32 @@
        [#"The object type must include a field of the same name for every field defined in an interface."
         #"The object type must include a field of the same name for every field defined in an interface."])))
 
+
+
+;; 4.1.1.2. An object field type is a valid sub‐type if it is an Object type and
+;; the interface field type is either an Interface type or a Union type and the
+;; object field type is a possible type of the interface field type.
+
+(deftest covariant-interface-or-union-test
+  (-> (str " interface Address { postcode: String }")
+      (str " type BusinessAddress implements Address { postcode: String }")
+      (str " interface NamedEntity { address: Address }")
+      (str " type Business implements NamedEntity { address: BusinessAddress }")
+      (str " type Query { business: Business }")
+      parse
+      compile-schema
+      (expected-errors [])))
+
+
+#_(-> "juxt/grab/example-62.graphql"
+      (io/resource)
+      (slurp)
+      (str " type BadBusiness implements NamedEntity & ValuedEntity { name: String }")
+      (str " type Query { business: Business }")
+      parse
+      compile-schema
+      )
+
 #_(-> "juxt/grab/example-62.graphql"
     parse
     compile-schema
@@ -232,3 +260,12 @@
 #_(compile-schema (example "62"))
 
 #_(parse (slurp (io/resource "juxt/grab/example-62.graphql")))
+
+(-> "juxt/grab/example-62.graphql"
+    (io/resource)
+    (slurp)
+    (str " type BadBusiness implements NamedEntity { name: String value: String }")
+    (str " type Query { business: Business }")
+    parse
+    compile-schema
+    )
