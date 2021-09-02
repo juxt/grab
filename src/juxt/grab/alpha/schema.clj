@@ -175,28 +175,29 @@
    ;; want to produce identical errors.
    (distinct interfaces)))
 
-(defn check-sub-type [acc object-field interface-field]
+(defn check-sub-type-covariance [acc object-field-type-ref interface-field-type-ref]
 
-  (let [oft (when (some-> object-field ::g/type-ref ::g/name)
-              (resolve-named-type-ref acc (::g/type-ref object-field)))
-        ift (when (some-> interface-field ::g/type-ref ::g/name)
-              (resolve-named-type-ref acc (::g/type-ref interface-field)))]
+  (let [oft (when (some-> object-field-type-ref ::g/name)
+              (resolve-named-type-ref acc object-field-type-ref))
+        ift (when (some-> interface-field-type-ref ::g/name)
+              (resolve-named-type-ref acc interface-field-type-ref))]
     (cond
-      ;; An object field type is a valid sub‐type if it is equal to (the same type
-      ;; as) the interface field type.
+      ;; 4.1.1.1. An object field type is a valid sub‐type if it is equal to
+      ;; (the same type as) the interface field type.
       (and
-       (some-> object-field ::g/type-ref ::g/name)
-       (some-> interface-field ::g/type-ref ::g/name)
-       (= (resolve-named-type-ref acc (::g/type-ref object-field))
-          (resolve-named-type-ref acc (::g/type-ref interface-field))))
+       (some-> object-field-type-ref ::g/name)
+       (some-> interface-field-type-ref ::g/name)
+       (= (resolve-named-type-ref acc object-field-type-ref)
+          (resolve-named-type-ref acc interface-field-type-ref)))
       acc
 
-      ;; An object field type is a valid sub‐type if it is an Object type and the
-      ;; interface field type is either an Interface type or a Union type and the
-      ;; object field type is a possible type of the interface field type.
+      ;; 4.1.1.2. An object field type is a valid sub‐type if it is an Object
+      ;; type and the interface field type is either an Interface type or a
+      ;; Union type and the object field type is a possible type of the
+      ;; interface field type.
       (and
-       (some-> object-field ::g/type-ref ::g/name)
-       (some-> interface-field ::g/type-ref ::g/name)
+       (some-> object-field-type-ref ::g/name)
+       (some-> interface-field-type-ref ::g/name)
        (and
         (= (::g/kind oft) :object)
         (or
@@ -205,17 +206,24 @@
         (contains? (set (::g/interfaces oft)) (::g/name ift))))
       acc
 
-      ;; An object field type is a valid sub‐type if it is a List type and the
-      ;; interface field type is also a List type and the list‐item type of the
-      ;; object field type is a valid sub‐type of the list‐item type of the
-      ;; interface field type.
+      ;; 4.1.1.3. An object field type is a valid sub‐type if it is a List type
+      ;; and the interface field type is also a List type and the list‐item type
+      ;; of the object field type is a valid sub‐type of the list‐item type of
+      ;; the interface field type.
+      (and
+       (some-> object-field-type-ref ::g/list-type)
+       (some-> interface-field-type-ref ::g/list-type))
+      (check-sub-type-covariance
+       acc
+       (-> object-field-type-ref ::g/list-type)
+       (-> interface-field-type-ref ::g/list-type))
 
       :else
       (update acc
               ::errors conj
               {:error "The object field must be of a type which is equal to or a sub‐type of the interface field (covariant)."
-               :object-field object-field
-               :interface-field interface-field})))
+               :object-field-type-ref object-field-type-ref
+               :interface-field-type-ref interface-field-type-ref})))
 
   ;;acc
   )
@@ -254,7 +262,7 @@
                                       :interface (::interface interface-field)
                                       :missing-field-name field-name})
 
-           (check-sub-type acc object-field interface-field))))
+           (check-sub-type-covariance acc (::g/type-ref object-field) (::g/type-ref interface-field)))))
 
      acc interface-fields)))
 

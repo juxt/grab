@@ -246,6 +246,15 @@
       compile-schema
       (expected-errors [])))
 
+(deftest covariant-interface-or-union-list-test
+  (-> (str " interface Address { postcode: String }")
+      (str " type BusinessAddress implements Address { postcode: String }")
+      (str " interface NamedEntity { address: [Address] }")
+      (str " type Business implements NamedEntity { address: [BusinessAddress] }")
+      (str " type Query { business: Business }")
+      parse
+      compile-schema
+      (expected-errors [])))
 
 #_(-> "juxt/grab/example-62.graphql"
       (io/resource)
@@ -261,16 +270,13 @@
     compile-schema
     (expected-errors []))
 
-
 #_(compile-schema (example "62"))
 
 #_(parse (slurp (io/resource "juxt/grab/example-62.graphql")))
 
-(-> "juxt/grab/example-62.graphql"
-    (io/resource)
-    (slurp)
-    (str " type BadBusiness implements NamedEntity { name: String value: String }")
-    (str " type Query { business: Business }")
-    parse
-    compile-schema
-    )
+
+
+;; An object field type is a valid sub‐type if it is a List type and the
+;; interface field type is also a List type and the list‐item type of the object
+;; field type is a valid sub‐type of the list‐item type of the interface field
+;; type.
