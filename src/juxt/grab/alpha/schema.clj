@@ -233,18 +233,6 @@
                :object-field-type-ref object-field-type-ref
                :interface-field-type-ref interface-field-type-ref}))))
 
-;; TODO: Put these in a separate function
-
-
-;; An object field type is a valid sub‐type if it is equal to (the
-;; same type as) the interface field type.
-
-;; An object field type is a valid sub‐type if it is an Object type
-;; and the interface field type is either an Interface type or a
-;; Union type and the object field type is a possible type of the
-;; interface field type.
-
-
 (defn check-object-interface-fields
   [{::keys [provided-types] :as acc}
    {::g/keys [interfaces field-definitions] :as td}]

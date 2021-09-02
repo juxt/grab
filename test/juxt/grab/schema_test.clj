@@ -261,6 +261,9 @@
       compile-schema
       (expected-errors [])))
 
+;; 4.1.1.4. An object field type is a valid sub‐type if it is a Non‐Null variant
+;; of a valid sub‐type of the interface field type.
+
 (deftest covariant-non-null-variant-test
   (-> (str " interface Address { postcode: String }")
       (str " type BusinessAddress implements Address { postcode: String }")
