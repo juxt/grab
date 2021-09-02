@@ -211,7 +211,14 @@
 
 ;; 4. An object type must be a super‐set of all interfaces it implements:
 
-;; 4.1. The object type must include a field of the same name for every field defined in an interface.
+;; 4.1. The object type must include a field of the same name for every field
+;; defined in an interface.
+
+;; 4.1.1. The object field must be of a type which is equal to or a sub‐type of
+;; the interface field (covariant).
+
+;; 4.1.1.1. An object field type is a valid sub‐type if it is equal to (the same
+;; type as) the interface field type.
 
 (deftest interface-fields-inclusion-test
   (-> "juxt/grab/example-62.graphql"
@@ -224,8 +231,6 @@
       (expected-errors
        [#"The object type must include a field of the same name for every field defined in an interface."
         #"The object type must include a field of the same name for every field defined in an interface."])))
-
-
 
 ;; 4.1.1.2. An object field type is a valid sub‐type if it is an Object type and
 ;; the interface field type is either an Interface type or a Union type and the
