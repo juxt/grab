@@ -154,27 +154,49 @@
    ;; want to produce identical errors.
    (distinct interfaces)))
 
+(defn sub-type? [object-field interface-field]
+  ;; TODO
+  (throw (ex-info "" {}))
+  )
+
 (defn check-object-interface-fields
   [{::keys [provided-types] :as acc}
    {::g/keys [interfaces field-definitions] :as td}]
 
-  (let [object-field-names (set (map ::g/name field-definitions))
+  (let [object-fields-by-name (group-by ::g/name field-definitions)
         interfaces (keep provided-types interfaces)
         interface-fields
-        (for [i interfaces
-              f (::g/field-definitions i)]
+        (for [i interfaces f (::g/field-definitions i)]
           (assoc f ::interface (::g/name i)))]
 
-    (reduce (fn [acc field]
-              ;; The object type must include a field of the same name for every field
-              ;; defined in an interface.
-              (cond-> acc
-                (not (contains? object-field-names (::g/name field)))
-                (update ::errors conj {:error "The object type must include a field of the same name for every field defined in an interface."
-                                       :interface (::interface field)
-                                       :missing-field-name (::g/name field)})))
-            acc interface-fields)))
+    (reduce
+     (fn [acc interface-field]
+       (let [field-name (::g/name interface-field)
+             object-field (get object-fields-by-name field-name)]
+         (cond-> acc
+           ;; The object type must include a field of the same name for every field
+           ;; defined in an interface.
+           (nil? object-field)
+           (update ::errors conj {:error "The object type must include a field of the same name for every field defined in an interface."
+                                  :interface (::interface interface-field)
+                                  :missing-field-name field-name})
 
+           ;; TODO: Put these in a separate function
+
+           ;; The object field must be of a type which is equal to or a sub‐type
+           ;; of the interface field (covariant).
+
+           ;; An object field type is a valid sub‐type if it is equal to (the
+           ;; same type as) the interface field type.
+
+           ;; An object field type is a valid sub‐type if it is an Object type
+           ;; and the interface field type is either an Interface type or a
+           ;; Union type and the object field type is a possible type of the
+           ;; interface field type.
+
+
+           )))
+     acc interface-fields)))
 
 (defn check-object-interfaces [acc {::g/keys [interfaces] :as td}]
   (cond-> acc
