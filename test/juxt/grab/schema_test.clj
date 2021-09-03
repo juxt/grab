@@ -286,3 +286,24 @@
 ;; 4.1.3. The object field may include additional arguments not defined in the
 ;; interface field, but any additional argument must not be required, e.g. must
 ;; not be of a non‐nullable type.
+
+
+;; OK
+#_(-> (str " interface NamedEntity { address(t: String): String }")
+    (str " type Business implements NamedEntity { address(t: String): String }")
+    (str " type Query { business: Business }")
+    parse
+    compile-schema
+    )
+
+
+;; The object field must include an argument of the same name for every argument
+;; defined in the interface field
+(deftest object-interface-arguments-test
+  (-> (str " interface NamedEntity { address(t: String): String }")
+      (str " type Business implements NamedEntity { address: String }")
+      (str " type Query { business: Business }")
+      parse
+      compile-schema
+      (expected-errors [#"The object field must include an argument of the same name for every argument defined in the interface field."])
+      ))

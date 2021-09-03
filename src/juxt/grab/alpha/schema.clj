@@ -233,6 +233,18 @@
                :object-field-type-ref object-field-type-ref
                :interface-field-type-ref interface-field-type-ref}))))
 
+(defn check-object-field-arguments [acc object-field interface-field]
+  (reduce
+   (fn [acc {::g/keys [name type-ref]}]
+     (cond-> acc
+       (not (some #(= name (::g/name %)) (::g/arguments-definition object-field)))
+       (update ::errors conj {:error "The object field must include an argument of the same name for every argument defined in the interface field."
+                              :argument-name name
+                              :field-name (::g/name interface-field)
+                              :interface (-> interface-field ::interface)})))
+   acc
+   (::g/arguments-definition interface-field)))
+
 (defn check-object-interface-fields
   [{::keys [provided-types] :as acc}
    {::g/keys [interfaces field-definitions] :as td}]
@@ -254,7 +266,17 @@
                                       :interface (::interface interface-field)
                                       :missing-field-name field-name})
 
-           (check-sub-type-covariance acc (::g/type-ref object-field) (::g/type-ref interface-field)))))
+           (-> acc
+               ;; 4.1.1. The object field must be of a type which is equal to or a sub‐type of the interface field (covariant).
+               (check-sub-type-covariance
+                (::g/type-ref object-field)
+                (::g/type-ref interface-field))
+
+               ;; 4.1.2. The object field must include an argument of the same
+               ;; name for every argument defined in the interface field.
+               (check-object-field-arguments
+                object-field
+                interface-field)))))
 
      acc interface-fields)))
 
