@@ -236,12 +236,27 @@
 (defn check-object-field-arguments [acc object-field interface-field]
   (reduce
    (fn [acc {::g/keys [name type-ref]}]
-     (cond-> acc
-       (not (some #(= name (::g/name %)) (::g/arguments-definition object-field)))
-       (update ::errors conj {:error "The object field must include an argument of the same name for every argument defined in the interface field."
-                              :argument-name name
-                              :field-name (::g/name interface-field)
-                              :interface (-> interface-field ::interface)})))
+     (let [object-arg-def (some #(when (= name (::g/name %)) %) (::g/arguments-definition object-field))
+           object-arg-def-type-ref (::g/type-ref object-arg-def)]
+       (cond-> acc
+         (nil? object-arg-def)
+         (update
+          ::errors conj
+          {:error "The object field must include an argument of the same name for every argument defined in the interface field."
+           :argument-name name
+           :field-name (::g/name interface-field)
+           :interface (-> interface-field ::interface)})
+
+         (and object-arg-def (not= type-ref object-arg-def-type-ref))
+         (update
+          ::errors conj
+          {:error "The object field argument must accept the same type (invariant) as the interface field argument."
+           :argument-name name
+           :field-name (::g/name interface-field)
+           :interface (-> interface-field ::interface)
+           :interface-field-arg-type type-ref
+           :object-field-arg-type object-arg-def-type-ref}))))
+
    acc
    (::g/arguments-definition interface-field)))
 

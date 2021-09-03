@@ -305,5 +305,10 @@
       (str " type Query { business: Business }")
       parse
       compile-schema
-      (expected-errors [#"The object field must include an argument of the same name for every argument defined in the interface field."])
-      ))
+      (expected-errors [#"The object field must include an argument of the same name for every argument defined in the interface field."]))
+  (-> (str " interface NamedEntity { address(f: [Int]): String }")
+      (str " type Business implements NamedEntity { address(f: [String], g: Int): String }")
+      (str " type Query { business: Business }")
+      parse
+      compile-schema
+      (expected-errors [#"The object field argument must accept the same type \(invariant\) as the interface field argument."])))
