@@ -132,7 +132,7 @@
 
 ;; https://spec.graphql.org/June2018/#sec-Objects
 
-;; 2.1. The field must have a unique name within that Object type; no two fields may share the same name.
+;; 2.1  The field must have a unique name within that Object type; no two fields may share the same name.
 
 ;; Should error because someField is here twice
 
@@ -142,7 +142,7 @@
       compile-schema
       (expected-errors [#"Each field must have a unique name within the '.+' Object type; no two fields may share the same name."])))
 
-;; 2.2. The field must not have a name which begins with the characters "__" (two underscores).
+;; 2.2  The field must not have a name which begins with the characters "__" (two underscores).
 
 (deftest reserved-field-names-test
   (-> "type Query { __someField: String }"
@@ -150,7 +150,7 @@
       compile-schema
       (expected-errors [#"A field must not have a name which begins with two underscores."])))
 
-;; 2.3. The field must return a type where IsOutputType(fieldType) returns true.
+;; 2.3  The field must return a type where IsOutputType(fieldType) returns true.
 
 (deftest output-type-field-test
 
@@ -174,7 +174,7 @@
       compile-schema
       (expected-errors [#"A field must return a type that is an output type."])))
 
-;; 2.4. For each argument of the field:
+;; 2.4  For each argument of the field:
 
 (deftest field-arguments-test
   (-> "type Query { someField(x: Int y: Int): String } "
@@ -182,7 +182,7 @@
       compile-schema
       (expected-errors []))
 
-  ;; 2.4.1. The argument must not have a name which begins with the characters "__" (two underscores).
+  ;; 2.4.1  The argument must not have a name which begins with the characters "__" (two underscores).
 
   (-> "type Query { someField(__x: Int y: Int): String } "
       parse
@@ -194,14 +194,14 @@
       compile-schema
       (expected-errors []))
 
-  ;; 2.4.2. The argument must accept a type where IsInputType(argumentType) returns true.
+  ;; 2.4.2  The argument must accept a type where IsInputType(argumentType) returns true.
 
   (-> "type Query { someField(p: Point2D): String } type Point2D { x: Float y: Float }"
       parse
       compile-schema
       (expected-errors [#"A field argument must accept a type that is an input type."])))
 
-;; 3. An object type may declare that it implements one or more unique interfaces.
+;; 3  An object type may declare that it implements one or more unique interfaces.
 
 (deftest unique-interfaces-test
   (-> "type Query implements Foo & Foo { a: String }"
@@ -209,15 +209,15 @@
       compile-schema
       (expected-errors [#"An object type may declare that it implements one or more unique interfaces. Interfaces declaration contains duplicates." nil])))
 
-;; 4. An object type must be a super‐set of all interfaces it implements:
+;; 4  An object type must be a super‐set of all interfaces it implements:
 
-;; 4.1. The object type must include a field of the same name for every field
+;; 4.1  The object type must include a field of the same name for every field
 ;; defined in an interface.
 
-;; 4.1.1. The object field must be of a type which is equal to or a sub‐type of
+;; 4.1.1  The object field must be of a type which is equal to or a sub‐type of
 ;; the interface field (covariant).
 
-;; 4.1.1.1. An object field type is a valid sub‐type if it is equal to (the same
+;; 4.1.1.1  An object field type is a valid sub‐type if it is equal to (the same
 ;; type as) the interface field type.
 
 (deftest interface-fields-inclusion-test
@@ -232,7 +232,7 @@
        [#"The object type must include a field of the same name for every field defined in an interface."
         #"The object type must include a field of the same name for every field defined in an interface."])))
 
-;; 4.1.1.2. An object field type is a valid sub‐type if it is an Object type and
+;; 4.1.1.2  An object field type is a valid sub‐type if it is an Object type and
 ;; the interface field type is either an Interface type or a Union type and the
 ;; object field type is a possible type of the interface field type.
 
@@ -246,7 +246,7 @@
       compile-schema
       (expected-errors [])))
 
-;; 4.1.1.3. An object field type is a valid sub‐type if it is a List type and
+;; 4.1.1.3  An object field type is a valid sub‐type if it is a List type and
 ;; the interface field type is also a List type and the list‐item type of the
 ;; object field type is a valid sub‐type of the list‐item type of the interface
 ;; field type.
@@ -261,7 +261,7 @@
       compile-schema
       (expected-errors [])))
 
-;; 4.1.1.4. An object field type is a valid sub‐type if it is a Non‐Null variant
+;; 4.1.1.4  An object field type is a valid sub‐type if it is a Non‐Null variant
 ;; of a valid sub‐type of the interface field type.
 
 (deftest covariant-non-null-variant-test
@@ -274,7 +274,7 @@
       compile-schema
       (expected-errors [])))
 
-;; 4.1.2. The object field must include an argument of the same name for every argument
+;; 4.1.2  The object field must include an argument of the same name for every argument
 ;; defined in the interface field
 (deftest object-interface-arguments-test
   (-> (str " interface NamedEntity { address(t: String): String }")
@@ -284,7 +284,7 @@
       compile-schema
       (expected-errors [#"The object field must include an argument of the same name for every argument defined in the interface field."]))
 
-  ;; 4.1.2.1. The object field argument must accept the same type (invariant) as the
+  ;; 4.1.2.1  The object field argument must accept the same type (invariant) as the
   ;; interface field argument.
   (-> (str " interface NamedEntity { address(f: [Int]): String }")
       (str " type Business implements NamedEntity { address(f: [String], g: Int): String }")
@@ -293,7 +293,7 @@
       compile-schema
       (expected-errors [#"The object field argument must accept the same type \(invariant\) as the interface field argument."]))
 
-  ;; 4.1.3. The object field may include additional arguments not defined in the
+  ;; 4.1.3  The object field may include additional arguments not defined in the
   ;; interface field, but any additional argument must not be required, e.g. must
   ;; not be of a non‐nullable type. (TODO)
   (-> (str " interface NamedEntity { address(f: [Int]): String }")
@@ -302,3 +302,7 @@
       parse
       compile-schema
       (expected-errors [#"The object field may include additional arguments not defined in the interface field, but any additional argument must not be required, e.g. must not be of a non‐nullable type."])))
+
+;; 3.6.3  Object Extensions (TODO)
+
+;; 3.7  Interfaces
