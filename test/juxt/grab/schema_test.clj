@@ -274,30 +274,7 @@
       compile-schema
       (expected-errors [])))
 
-
-;; TODO: Implement remaining schema object type validation
-
 ;; 4.1.2. The object field must include an argument of the same name for every argument
-;; defined in the interface field.
-
-;; 4.1.2.1. The object field argument must accept the same type (invariant) as the
-;; interface field argument.
-
-;; 4.1.3. The object field may include additional arguments not defined in the
-;; interface field, but any additional argument must not be required, e.g. must
-;; not be of a non‐nullable type.
-
-
-;; OK
-#_(-> (str " interface NamedEntity { address(t: String): String }")
-    (str " type Business implements NamedEntity { address(t: String): String }")
-    (str " type Query { business: Business }")
-    parse
-    compile-schema
-    )
-
-
-;; The object field must include an argument of the same name for every argument
 ;; defined in the interface field
 (deftest object-interface-arguments-test
   (-> (str " interface NamedEntity { address(t: String): String }")
@@ -306,9 +283,22 @@
       parse
       compile-schema
       (expected-errors [#"The object field must include an argument of the same name for every argument defined in the interface field."]))
+
+  ;; 4.1.2.1. The object field argument must accept the same type (invariant) as the
+  ;; interface field argument.
   (-> (str " interface NamedEntity { address(f: [Int]): String }")
       (str " type Business implements NamedEntity { address(f: [String], g: Int): String }")
       (str " type Query { business: Business }")
       parse
       compile-schema
-      (expected-errors [#"The object field argument must accept the same type \(invariant\) as the interface field argument."])))
+      (expected-errors [#"The object field argument must accept the same type \(invariant\) as the interface field argument."]))
+
+  ;; 4.1.3. The object field may include additional arguments not defined in the
+  ;; interface field, but any additional argument must not be required, e.g. must
+  ;; not be of a non‐nullable type. (TODO)
+  (-> (str " interface NamedEntity { address(f: [Int]): String }")
+      (str " type Business implements NamedEntity { address(f: [Int], g: Int!): String }")
+      (str " type Query { business: Business }")
+      parse
+      compile-schema
+      (expected-errors [#"The object field may include additional arguments not defined in the interface field, but any additional argument must not be required, e.g. must not be of a non‐nullable type."])))

@@ -260,6 +260,21 @@
    acc
    (::g/arguments-definition interface-field)))
 
+(defn check-additional-object-field-arguments [acc object-field interface-field]
+  (reduce
+   (fn [acc {::g/keys [name type-ref]}]
+     (let [interface-arg-def (some #(when (= name (::g/name %)) %) (::g/arguments-definition interface-field))]
+       (cond-> acc
+         (and (nil? interface-arg-def)
+              (some-> type-ref ::g/non-null-type))
+         (update
+          ::errors conj
+          {:error "The object field may include additional arguments not defined in the interface field, but any additional argument must not be required, e.g. must not be of a non‐nullable type."
+           :argument-name name
+           :field-name (::g/name object-field)}))))
+   acc
+   (::g/arguments-definition object-field)))
+
 (defn check-object-interface-fields
   [{::keys [provided-types] :as acc}
    {::g/keys [interfaces field-definitions] :as td}]
@@ -290,6 +305,14 @@
                ;; 4.1.2. The object field must include an argument of the same
                ;; name for every argument defined in the interface field.
                (check-object-field-arguments
+                object-field
+                interface-field)
+
+               ;; 4.1.3. The object field may include additional arguments not
+               ;; defined in the interface field, but any additional argument
+               ;; must not be required, e.g. must not be of a non‐nullable
+               ;; type. (TODO)
+               (check-additional-object-field-arguments
                 object-field
                 interface-field)))))
 
