@@ -158,7 +158,7 @@
        {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
         :duplicates (vec duplicates)}))))
 
-(defn check-type-fields [acc {::g/keys [field-definitions] :as td}]
+(defn check-object-type-fields [acc {::g/keys [field-definitions] :as td}]
   (as-> acc %
     (check-duplicate-field-names % td)
     (reduce check-field-definition % field-definitions)))
@@ -334,7 +334,7 @@
      (zero? (count field-definitions)))
     (update ::errors conj {:error "An Object type must define one or more fields"
                            :type-definition td})
-    true (check-type-fields td)
+    true (check-object-type-fields td)
     interfaces (check-object-interfaces td)))
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
