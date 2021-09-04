@@ -122,13 +122,16 @@
              (into {::g/kind :object}))]
     (cond-> res
       (::g/interfaces res)
-      (assoc ::g/interfaces
-             (mapv second
-     (filter
-      (fn [pair] (and (vector? pair) (= (first pair) ::g/name)))
-      (tree-seq coll? seq
-                (::g/interfaces res))))))))
-
+      (assoc
+       ::g/interfaces
+       (->> res
+            ::g/interfaces
+            (tree-seq coll? seq)
+            (filter (fn [pair]
+                      (and
+                       (vector? pair)
+                       (= (first pair) ::g/name))))
+            (mapv second))))))
 
 (defmethod process :scalarTypeDefinition [[_ & inner]]
   (->> inner
