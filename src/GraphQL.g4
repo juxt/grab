@@ -287,7 +287,40 @@ typeSystemDirectiveLocation:
     | 'INPUT_FIELD_DEFINITION'
     ;
 
-name: NAME;
+// TODO: Contribute back to https://github.com/antlr/grammars-v4/blob/master/graphql/GraphQL.g4
+name: NAME
+      | 'query'
+      | 'mutation'
+      | 'subscription'
+      | 'schema'
+      | 'extend'
+      | 'scalar'
+      | 'type'
+      | 'implements'
+      | 'interface'
+      | 'union'
+      | 'enum'
+      | 'input'
+      | 'directive'
+      | 'QUERY'
+      | 'MUTATION'
+      | 'SUBSCRIPTION'
+      | 'FIELD'
+      | 'FRAGMENT_DEFINITION'
+      | 'FRAGMENT_SPREAD'
+      | 'INLINE_FRAGMENT'
+      | 'SCHEMA'
+      | 'SCALAR'
+      | 'OBJECT'
+      | 'FIELD_DEFINITION'
+      | 'ARGUMENT_DEFINITION'
+      | 'INTERFACE'
+      | 'UNION'
+      | 'ENUM'
+      | 'ENUM_VALUE'
+      | 'INPUT_OBJECT'
+      | 'INPUT_FIELD_DEFINITION'
+      ;
 
 //Start lexer
 NAME: [_A-Za-z] [_0-9A-Za-z]*;
