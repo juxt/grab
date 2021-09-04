@@ -89,7 +89,7 @@
 (defn input-type? [typ]
   (#{:scalar :enum :input-object} (::g/kind (unwrapped-type typ))))
 
-(defn check-field-argument-definition [{::keys [provided-types built-in-types] :as acc} arg-def tf]
+(defn check-object-field-argument-definition [{::keys [provided-types built-in-types] :as acc} arg-def tf]
   (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
         typ (or (get provided-types type-name)
                 (get built-in-types type-name))]
@@ -113,8 +113,8 @@
                :field-name (::g/name tf)
                :argument-definition arg-def}))))
 
-(defn check-field-argument-definitions [acc arg-defs tf]
-  (reduce #(check-field-argument-definition %1 %2 tf) acc arg-defs))
+(defn check-object-field-argument-definitions [acc arg-defs tf]
+  (reduce #(check-object-field-argument-definition %1 %2 tf) acc arg-defs))
 
 (defn resolve-named-type-ref [{::keys [built-in-types provided-types] :as acc} type-ref]
   (assert type-ref)
@@ -124,7 +124,7 @@
    (get provided-types (::g/name type-ref))
    (throw (ex-info "Cannot resolve type-ref" {:type-ref type-ref}))))
 
-(defn check-field-definition [acc tf]
+(defn check-object-field-definition [acc tf]
   (let [type-ref (some-> tf ::g/type-ref unwrapped-type)
         typ (resolve-named-type-ref acc type-ref)
         arg-defs (::g/arguments-definition tf)]
@@ -147,9 +147,9 @@
                :type typ
                :tf tf})
       arg-defs
-      (check-field-argument-definitions arg-defs tf))))
+      (check-object-field-argument-definitions arg-defs tf))))
 
-(defn check-duplicate-field-names [acc td]
+(defn check-duplicate-object-field-names [acc td]
   (let [duplicates (duplicates-by ::g/name (::g/field-definitions td))]
     (cond-> acc
       duplicates
@@ -160,8 +160,8 @@
 
 (defn check-object-type-fields [acc {::g/keys [field-definitions] :as td}]
   (as-> acc %
-    (check-duplicate-field-names % td)
-    (reduce check-field-definition % field-definitions)))
+    (check-duplicate-object-field-names % td)
+    (reduce check-object-field-definition % field-definitions)))
 
 (defn check-object-interfaces-exist [{::keys [provided-types] :as acc}
                                      {::g/keys [interfaces] :as td}]
@@ -337,6 +337,76 @@
     true (check-object-type-fields td)
     interfaces (check-object-interfaces td)))
 
+(defn check-interface-duplicate-field-names [acc td]
+  (let [duplicates (duplicates-by ::g/name (::g/field-definitions td))]
+    (cond-> acc
+      duplicates
+      (update
+       ::errors conj
+       {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
+        :duplicates (vec duplicates)}))))
+
+(defn check-interface-field-argument-definition [{::keys [provided-types built-in-types] :as acc} arg-def tf]
+  (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
+        typ (or (get provided-types type-name)
+                (get built-in-types type-name))]
+    (cond-> acc
+      (str/starts-with? (::g/name arg-def) "__")
+      (update ::errors conj
+              {:error "A field argument must not have a name which begins with two underscores."
+               :arg-name (::g/name arg-def)
+               :field-name (::g/name tf)})
+
+      (nil? typ)
+      (update ::errors conj
+              {:error "A field argument must accept a type that is known."
+               :field-name (::g/name tf)
+               :type typ
+               :argument-definition arg-def})
+
+      (and typ (not (input-type? typ)))
+      (update ::errors conj
+              {:error "A field argument must accept a type that is an input type."
+               :field-name (::g/name tf)
+               :argument-definition arg-def}))))
+
+(defn check-interface-field-argument-definitions [acc arg-defs tf]
+  (reduce #(check-interface-field-argument-definition %1 %2 tf) acc arg-defs))
+
+(defn check-interface-field-definition [acc tf]
+  (let [type-ref (some-> tf ::g/type-ref unwrapped-type)
+        typ (resolve-named-type-ref acc type-ref)
+        arg-defs (::g/arguments-definition tf)]
+    (cond-> acc
+      (str/starts-with? (::g/name tf) "__")
+      (update ::errors conj
+              {:error "A field must not have a name which begins with two underscores."
+               :field-name (::g/name tf)})
+
+      (nil? typ)
+      (update ::errors conj
+              {:error "A field must return a type that is known."
+               :field-name (::g/name tf)
+               :field-type-name (::g/name type-ref)})
+
+      (and typ (not (output-type? typ)))
+      (update ::errors conj
+              {:error "A field must return a type that is an output type."
+               :field-name (::g/name tf)
+               :type typ
+               :tf tf})
+      arg-defs
+      (check-interface-field-argument-definitions arg-defs tf))))
+
+(defn check-interface-type-fields [acc {::g/keys [field-definitions] :as td}]
+  (as-> acc %
+    (check-interface-duplicate-field-names % td)
+    (reduce check-interface-field-definition % field-definitions)))
+
+(defn check-interface-type [acc td]
+  (cond-> acc
+    true (check-interface-type-fields td)))
+
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
   [{::keys [document] :as acc}]
@@ -344,7 +414,10 @@
    (fn [acc td]
      (cond-> acc
        (= (::g/kind td) :object)
-       (check-object-type td)))
+       (check-object-type td)
+
+       (= (::g/kind td) :interface)
+       (check-interface-type td)))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 

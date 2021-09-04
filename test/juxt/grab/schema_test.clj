@@ -295,7 +295,7 @@
 
   ;; 4.1.3  The object field may include additional arguments not defined in the
   ;; interface field, but any additional argument must not be required, e.g. must
-  ;; not be of a non‐nullable type. (TODO)
+  ;; not be of a non‐nullable type.
   (-> (str " interface NamedEntity { address(f: [Int]): String }")
       (str " type Business implements NamedEntity { address(f: [Int], g: Int!): String }")
       (str " type Query { business: Business }")
@@ -306,3 +306,48 @@
 ;; 3.6.3  Object Extensions (TODO)
 
 ;; 3.7  Interfaces
+
+
+;; Type validation
+
+;; 1  An Interface type must define one or more fields.
+
+(deftest interface-type-validate-test
+  ;; 2  For each field of an Interface type:
+  ;; 2.1  The field must have a unique name within that Interface type; no two fields may share the same name.
+  (-> (str " interface NamedEntity { address: String address: String postcode: String }")
+      (str " type Query { business: NamedEntity }")
+      parse
+      compile-schema
+      (expected-errors [#"Each field must have a unique name within the 'NamedEntity' Object type; no two fields may share the same name."]))
+
+  ;; 2.2  The field must not have a name which begins with the characters "__" (two underscores).
+  (-> (str " interface NamedEntity { __address: String postcode: String }")
+      (str " type Query { business: NamedEntity }")
+      parse
+      compile-schema
+      (expected-errors [#"A field must not have a name which begins with two underscores."]))
+
+  ;; 2.3  The field must return a type where IsOutputType(fieldType) returns true.
+  (-> (str " input Point2D { x: Float y: Float }")
+      (str " interface NamedEntity { location: Point2D }")
+      (str " type Query { business: NamedEntity }")
+      parse
+      compile-schema
+      (expected-errors [#"A field must return a type that is an output type."]))
+
+  ;; 2.4  For each argument of the field:
+  ;; 2.4.1  The argument must not have a name which begins with the characters "__" (two underscores).
+  (-> (str " interface NamedEntity { address(__t: String): String }")
+      (str " type Query { business: NamedEntity }")
+      parse
+      compile-schema
+      (expected-errors [#"A field argument must not have a name which begins with two underscores."]))
+
+  ;; 2.4.2  The argument must accept a type where IsInputType(argumentType) returns true.
+  (-> (str " type Point2D { x: Float y: Float }")
+      (str " interface NamedEntity { address(t: Point2D): String }")
+      (str " type Query { business: NamedEntity }")
+      parse
+      compile-schema
+      (expected-errors [#"A field argument must accept a type that is an input type."])))
