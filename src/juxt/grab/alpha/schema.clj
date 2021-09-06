@@ -18,7 +18,7 @@
 (defn check-unique-type-names
   "'All types within a GraphQL schema must have unique names. No two provided
   types may have the same name.' -- https://spec.graphql.org/June2018/#sec-Schema"
-  [{::keys [document] :as acc}]
+  [acc document]
   (let [duplicates
         (->> document
              (filter #(= (::g/definition-type %) :type-definition))
@@ -34,7 +34,7 @@
   "'No provided type may have a name which conflicts
   with any built in types (including Scalar and Introspection
   types).' -- https://spec.graphql.org/June2018/#sec-Schema"
-  [{::keys [document] :as acc}]
+  [acc document]
   (let [conflicts
         (seq
          (set/intersection
@@ -50,7 +50,7 @@
 (defn check-unique-directive-names
   "'All directives within a GraphQL schema must have unique names.' --
   https://spec.graphql.org/June2018/#sec-Schema"
-  [{::keys [document] :as acc}]
+  [acc document]
   (let [duplicates
         (->> document
              (filter #(= (::g/definition-type %) :directive-definition))
@@ -66,7 +66,7 @@
   "'All types and directives defined within a schema must not have a name which
   begins with \"__\" (two underscores), as this is used exclusively by GraphQL’s
   introspection system.' -- https://spec.graphql.org/June2018/#sec-Schema"
-  [{::keys [document] :as acc}]
+  [acc document]
   (let [reserved-clashes
         (seq
          (filter #(str/starts-with? % "__")
@@ -409,7 +409,7 @@
 
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
-  [{::keys [document] :as acc}]
+  [acc document]
   (reduce
    (fn [acc td]
      (cond-> acc
@@ -423,7 +423,7 @@
 
 (defn provide-types
   "Creates the schema's 'provided-types' entry."
-  [{::keys [document] :as acc}]
+  [acc document]
   (reduce
    (fn [acc {::g/keys [name] :as td}]
      (assoc-in
@@ -434,7 +434,7 @@
 
 (defn check-root-operation-type
   "Depends on validate-types."
-  [acc]
+  [acc _]
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
         query-root-op-type (get-in acc [::provided-types query-root-op-type-name])]
     (assert query-root-op-type-name)
@@ -451,11 +451,12 @@
 
       :else acc)))
 
-(defn check-schema-definition-count [{::keys [document] :as acc}]
+(defn check-schema-definition-count
+  [acc document]
   (when (pos? (dec (count (filter #(= (::g/definition-type %) :schema-definition) document))))
     (update acc ::errors conj {:error "A document must include at most one schema definition"})))
 
-(defn process-schema-definition [{::keys [document] :as acc}]
+(defn process-schema-definition [acc document]
   (let [schema-def (first (filter #(= (::g/definition-type %) :schema-definition) document))]
     (cond-> acc
       true
@@ -472,9 +473,8 @@
   [document]
   (reduce
    (fn [acc f]
-     (or (f acc) acc))
+     (or (f acc document) acc))
    {::errors []
-    ::document document
     ::provided-types
     {}
     ::built-in-types
