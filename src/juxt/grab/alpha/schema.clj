@@ -30,7 +30,7 @@
        {:error "All types within a GraphQL schema must have unique names."
         :duplicates duplicates}))))
 
-(defn check-no-conflicts-with-built-in-types
+(defn check-no-conflicts-with-existing-types
   "'No provided type may have a name which conflicts
   with any built in types (including Scalar and Introspection
   types).' -- https://spec.graphql.org/June2018/#sec-Schema"
@@ -89,10 +89,9 @@
 (defn input-type? [typ]
   (#{:scalar :enum :input-object} (::g/kind (unwrapped-type typ))))
 
-(defn check-object-field-argument-definition [{::keys [provided-types built-in-types] :as acc} arg-def tf]
+(defn check-object-field-argument-definition [{::keys [provided-types] :as acc} arg-def tf]
   (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
-        typ (or (get provided-types type-name)
-                (get built-in-types type-name))]
+        typ (get provided-types type-name)]
     (cond-> acc
       (str/starts-with? (::g/name arg-def) "__")
       (update ::errors conj
@@ -116,11 +115,10 @@
 (defn check-object-field-argument-definitions [acc arg-defs tf]
   (reduce #(check-object-field-argument-definition %1 %2 tf) acc arg-defs))
 
-(defn resolve-named-type-ref [{::keys [built-in-types provided-types] :as acc} type-ref]
+(defn resolve-named-type-ref [{::keys [provided-types] :as acc} type-ref]
   (assert type-ref)
   (assert (::g/name type-ref) (pr-str type-ref))
   (or
-   (get built-in-types (::g/name type-ref))
    (get provided-types (::g/name type-ref))
    (throw (ex-info "Cannot resolve type-ref" {:type-ref type-ref}))))
 
@@ -346,10 +344,9 @@
        {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
         :duplicates (vec duplicates)}))))
 
-(defn check-interface-field-argument-definition [{::keys [provided-types built-in-types] :as acc} arg-def tf]
+(defn check-interface-field-argument-definition [{::keys [provided-types] :as acc} arg-def tf]
   (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
-        typ (or (get provided-types type-name)
-                (get built-in-types type-name))]
+        typ (get provided-types type-name)]
     (cond-> acc
       (str/starts-with? (::g/name arg-def) "__")
       (update ::errors conj
@@ -476,8 +473,6 @@
      (or (f acc document) acc))
    {::errors []
     ::provided-types
-    {}
-    ::built-in-types
     {"Int" {::g/name "Int"
             ::g/kind :scalar}
      "Float" {::g/name "Float"
@@ -490,7 +485,7 @@
            ::g/kind :scalar}}}
    [provide-types
     check-unique-type-names
-    check-no-conflicts-with-built-in-types
+    check-no-conflicts-with-existing-types
     check-unique-directive-names
     check-reserved-names
     check-types
