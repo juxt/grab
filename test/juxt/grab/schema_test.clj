@@ -3,7 +3,7 @@
 (ns juxt.grab.schema-test
   (:require
    [clojure.test :refer [deftest is are testing]]
-   [juxt.grab.alpha.schema :refer [compile-schema] :as s]
+   [juxt.grab.alpha.schema :refer [compile-base-schema compile-schema] :as s]
    [juxt.grab.alpha.parser :refer [parse parse*]]
    [juxt.grab.validation-test :refer [example]]
    [clojure.java.io :as io]

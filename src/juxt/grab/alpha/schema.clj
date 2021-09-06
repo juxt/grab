@@ -1,8 +1,11 @@
 ;; Copyright © 2021, JUXT LTD.
 
 (ns juxt.grab.alpha.schema
-  (:require [clojure.set :as set]
-            [clojure.string :as str]))
+  (:require
+   [clojure.java.io :as io]
+   [clojure.set :as set]
+   [clojure.string :as str]
+   [juxt.grab.alpha.parser :refer [parse]]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -30,7 +33,7 @@
        {:error "All types within a GraphQL schema must have unique names."
         :duplicates duplicates}))))
 
-(defn check-no-conflicts-with-existing-types
+(defn check-no-conflicts-with-built-in-types
   "'No provided type may have a name which conflicts
   with any built in types (including Scalar and Introspection
   types).' -- https://spec.graphql.org/June2018/#sec-Schema"
@@ -465,33 +468,41 @@
       (::g/directives schema-def)
       (assoc ::g/directives (::g/directives schema-def)))))
 
-(defn compile-schema
-  "Create a schema from the parsed document."
-  [document]
+(defn compile-base-schema [document]
   (reduce
    (fn [acc f]
      (or (f acc document) acc))
    {::errors []
-    ::provided-types
-    {"Int" {::g/name "Int"
-            ::g/kind :scalar}
-     "Float" {::g/name "Float"
-              ::g/kind :scalar}
-     "String" {::g/name "String"
-               ::g/kind :scalar}
-     "Boolean" {::g/name "Boolean"
-                ::g/kind :scalar}
-     "ID" {::g/name "ID"
-           ::g/kind :scalar}}}
+    ::provided-types {}}
    [provide-types
     check-unique-type-names
-    check-no-conflicts-with-existing-types
     check-unique-directive-names
-    check-reserved-names
     check-types
     process-schema-definition
-    check-schema-definition-count
-    check-root-operation-type]))
+    check-schema-definition-count]))
+
+(defn schema-base []
+  (compile-base-schema
+   (parse (slurp (io/resource "juxt/grab/alpha/meta-schema.graphql")))))
+
+(defn compile-schema
+  "Create a schema from the parsed document."
+  ([document base]
+   (reduce
+    (fn [acc f]
+      (or (f acc document) acc))
+    base
+    [provide-types
+     check-unique-type-names
+     check-no-conflicts-with-built-in-types
+     check-unique-directive-names
+     check-reserved-names
+     check-types
+     process-schema-definition
+     check-schema-definition-count
+     check-root-operation-type]))
+  ([document]
+   (compile-schema document (schema-base))))
 
 (defn process-schema-extension [schema {::g/keys [directives operation-types]}]
   (let [add-directives
