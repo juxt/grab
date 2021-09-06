@@ -4,7 +4,7 @@
   (:require
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.parser :refer [parse]]
-   [juxt.grab.alpha.document :as doc :refer [compile-document]]
+   [juxt.grab.alpha.document :as doc :refer [compile-document*]]
    [juxt.grab.alpha.schema :refer [compile-schema extend-schema]]
    [clojure.java.io :as io]))
 
@@ -41,50 +41,50 @@
   illegal-type-system-definition-test
   (-> "scalar Illegal"
       parse
-      (compile-document {})
+      (compile-document* {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution"])))
 
 (deftest example-91-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   (-> (example "91")
-      (compile-document {})
+      (compile-document* {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution" nil])))
 
 (deftest example-93-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
-   (compile-document
+   (compile-document*
     (parse (slurp (io/resource "juxt/grab/example-92.graphql")))
     {}))
   (-> (example "93")
-      (compile-document {})
+      (compile-document* {})
       (expected-errors [nil nil #"Operation name '.+' is not unique"])))
 
 (deftest example-94-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
-   (compile-document
+   (compile-document*
     (parse (slurp (io/resource "juxt/grab/example-92.graphql")))
     {}))
   (-> (example "94")
-      (compile-document {})
+      (compile-document* {})
       (expected-errors [nil nil #"Operation name '.+' is not unique"])))
 
 (deftest
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
   example-95-test
-  (is (compile-document (example "95") {})))
+  (is (compile-document* (example "95") {})))
 
 (deftest
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
   example-96-test
   (-> (example "96")
-      (compile-document {})
+      (compile-document* {})
       (expected-errors [nil nil #"When there are multiple operations in the document, none can be anonymous"])))
 
 ;; TODO: 5.2.3 Subscription Operation Definitions
@@ -95,29 +95,29 @@
 (deftest field-name-not-defined-test
   (-> "query { dog { none }}"
       parse
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [#"Field name '.+' not defined on type in scope '.+'"])))
 
 (deftest example-102-test
   (-> (example "102")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors (repeat 2 #"Field name '.+' not defined on type in scope '.+'"))))
 
 (deftest example-103-test
   (-> (example "103")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [])))
 
 (deftest example-104-test
   (-> (example "104")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [#"Field name 'nickname' not defined on type in scope 'Pet'"])))
 
 ;; TODO: Add test for example-105 when introspection is added
 
 (deftest example-106-test
   (-> (example "106")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [#"Field name 'name' not defined on type in scope 'CatOrDog'"
                         #"Field name 'barkVolume' not defined on type in scope 'CatOrDog'"])))
 
@@ -130,43 +130,43 @@
                     doc/validate-fields-in-set-can-merge]}]
 
     (-> (example "102")
-        (compile-document (example-schema) compilers)
+        (compile-document* (example-schema) compilers)
         (expected-errors []))
 
     (-> (example "108")
-        (compile-document (example-schema) compilers)
+        (compile-document* (example-schema) compilers)
         (expected-errors [#"Fields have conflicting return types"
                           #"Cannot merge since field names are not identical"]))
 
     (-> (example "109")
-        (compile-document (example-schema) compilers)
+        (compile-document* (example-schema) compilers)
         (expected-errors []))
 
     (->
      (example "110")
-     (compile-document (example-schema) compilers)
+     (compile-document* (example-schema) compilers)
      (expected-errors (repeat 4 #"Cannot merge since field arguments are not identical")))))
 
 (deftest example-111-test
   (-> (example "111")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [])))
 
 (deftest example-112-test
   (-> (example "112")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [#"Fields have conflicting return types"])))
 
 ;; 5.3.3 Leaf Field Selections
 
 (deftest example-113-test
   (-> (example "113")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [])))
 
 (deftest example-114-test
   (-> (example "114")
-      (compile-document (example-schema))
+      (compile-document* (example-schema))
       (expected-errors [#"The subselection set of a scalar or enum must be empty"])))
 
 #_(deftest example-115-test
@@ -179,7 +179,7 @@
         (-> (example-schema)
             (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql")))))]
     (->(example "116")
-       (compile-document schema)
+       (compile-document* schema)
        (expected-errors [#"error"]))))
 
 

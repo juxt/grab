@@ -306,11 +306,11 @@
           :when error]
       error))))
 
-(defn compile-document
+(defn compile-document*
   "Compile a document with respect to the given schema, returning a structure that
   can be provided to the execution functions."
   ([document schema]
-   (compile-document
+   (compile-document*
     document schema
     {:compilers
      [validate-executable-definitions
@@ -338,3 +338,12 @@
      ::schema schema}
 
     compilers)))
+
+(defn compile-document [document schema]
+  (let [acc (compile-document* document schema)]
+    (when (seq (::errors acc))
+      (throw
+       (ex-info
+        "Failed to compile document due to errors"
+        {:errors (::errors acc)})))
+    acc))
