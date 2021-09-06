@@ -176,7 +176,8 @@
    ;; want to produce identical errors.
    (distinct interfaces)))
 
-(defn check-sub-type-covariance [acc object-field-type-ref interface-field-type-ref]
+(defn check-sub-type-covariance
+  [acc type-definition object-field object-field-type-ref interface-field interface-field-type-ref]
 
   (let [oft (when (::g/name object-field-type-ref)
               (resolve-named-type-ref acc object-field-type-ref))
@@ -185,11 +186,13 @@
     (cond
       ;; 4.1.1.1. An object field type is a valid sub‐type if it is equal to
       ;; (the same type as) the interface field type.
-      (and
+      #_(and
        (::g/name object-field-type-ref)
        (::g/name interface-field-type-ref)
        (= (resolve-named-type-ref acc object-field-type-ref)
           (resolve-named-type-ref acc interface-field-type-ref)))
+      (and
+       (= object-field-type-ref interface-field-type-ref))
       acc
 
       ;; 4.1.1.2. An object field type is a valid sub‐type if it is an Object
@@ -216,7 +219,10 @@
        (::g/list-type interface-field-type-ref))
       (check-sub-type-covariance
        acc
+       type-definition
+       object-field
        (::g/list-type object-field-type-ref)
+       interface-field
        (::g/list-type interface-field-type-ref))
 
       ;; 4.1.1.4. An object field type is a valid sub‐type if it is a Non‐Null
@@ -224,14 +230,20 @@
       (::g/non-null-type object-field-type-ref)
       (check-sub-type-covariance
        acc
+       type-definition
+       object-field
        (::g/non-null-type object-field-type-ref)
+       interface-field
        interface-field-type-ref)
 
       :else
       (update acc
               ::errors conj
               {:error "The object field must be of a type which is equal to or a sub‐type of the interface field (covariant)."
+               :type-definition type-definition
+               :object-field object-field
                :object-field-type-ref object-field-type-ref
+               :interface-field interface-field
                :interface-field-type-ref interface-field-type-ref}))))
 
 (defn check-object-field-arguments [acc object-field interface-field]
@@ -298,9 +310,13 @@
                                       :missing-field-name field-name})
 
            (-> acc
-               ;; 4.1.1. The object field must be of a type which is equal to or a sub‐type of the interface field (covariant).
+               ;; 4.1.1. The object field must be of a type which is equal to or
+               ;; a sub‐type of the interface field (covariant).
                (check-sub-type-covariance
+                td
+                object-field
                 (::g/type-ref object-field)
+                interface-field
                 (::g/type-ref interface-field))
 
                ;; 4.1.2. The object field must include an argument of the same
@@ -485,7 +501,7 @@
   (compile-base-schema
    (parse (slurp (io/resource "juxt/grab/alpha/meta-schema.graphql")))))
 
-(defn compile-schema
+(defn compile-schema*
   "Create a schema from the parsed document."
   ([document base]
    (reduce
@@ -502,7 +518,16 @@
      check-schema-definition-count
      check-root-operation-type]))
   ([document]
-   (compile-schema document (schema-base))))
+   (compile-schema* document (schema-base))))
+
+(defn compile-schema [document]
+  (let [result (compile-schema* document)]
+    (when (seq (::errors result))
+      (throw
+       (ex-info
+        "Failed to compile schema due to errors"
+        {:errors (::errors result)})))
+    result))
 
 (defn process-schema-extension [schema {::g/keys [directives operation-types]}]
   (let [add-directives
