@@ -467,6 +467,22 @@
 
       :else acc)))
 
+(defn inject-introspection-fields [acc _]
+  (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])]
+    (->
+     acc
+     (assoc-in
+      [::provided-types query-root-op-type-name ::fields-by-name "__schema"]
+      {::g/name "__schema"
+       ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}})
+     (assoc-in
+      [::provided-types query-root-op-type-name ::fields-by-name "__type"]
+      {::g/name "__type"
+       ::g/type-ref {::g/name "__Type"}
+       ::g/arguments-definition
+       [{::g/name "name"
+         ::g/type-ref {::g/non-null-type {::g/name "String"}}}]}))))
+
 (defn check-schema-definition-count
   [acc document]
   (when (pos? (dec (count (filter #(= (::g/definition-type %) :schema-definition) document))))
@@ -516,7 +532,8 @@
      check-types
      process-schema-definition
      check-schema-definition-count
-     check-root-operation-type]))
+     check-root-operation-type
+     inject-introspection-fields]))
   ([document]
    (compile-schema* document (schema-base))))
 
