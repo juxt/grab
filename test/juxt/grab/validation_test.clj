@@ -124,9 +124,10 @@
 ;; 5.3.2 Field Selection Merging
 
 (deftest field-merging-test
-  (let [compilers [doc/add-fragments
-                   doc/add-scoped-types-to-fragments
-                   doc/validate-fields-in-set-can-merge]]
+  (let [compilers {:compilers
+                   [doc/add-fragments
+                    doc/add-scoped-types-to-fragments
+                    doc/validate-fields-in-set-can-merge]}]
 
     (-> (example "102")
         (compile-document (example-schema) compilers)

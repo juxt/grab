@@ -312,21 +312,22 @@
   ([document schema]
    (compile-document
     document schema
-    [validate-executable-definitions
-     add-operations
-     add-default-operation-type
-     add-fragments
+    {:compilers
+     [validate-executable-definitions
+      add-operations
+      add-default-operation-type
+      add-fragments
 
-     add-scoped-types-to-operations
-     add-scoped-types-to-fragments
-     validate-selection-sets
+      add-scoped-types-to-operations
+      add-scoped-types-to-fragments
+      validate-selection-sets
 
-     group-operations-by-name
-     validate-anonymous
-     validate-operation-uniqueness
-     validate-fields-in-set-can-merge]))
+      group-operations-by-name
+      validate-anonymous
+      validate-operation-uniqueness
+      validate-fields-in-set-can-merge]}))
 
-  ([document schema compilers]
+  ([document schema {:keys [compilers]}]
    (reduce
     (fn [acc f]
       ;; Allow compilers to return nil (e.g. applicability guards)
