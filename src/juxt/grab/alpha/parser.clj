@@ -3,7 +3,8 @@
 (ns juxt.grab.alpha.parser
   (:require
    [clj-antlr.core :as antlr]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [clojure.string :as str]))
 
 (defonce parser (antlr/parser (slurp (io/resource "GraphQL.g4"))))
 
@@ -55,8 +56,15 @@
    {::g/definition-type :type-definition}
    (process inner)))
 
+(defn trim-quotes [s]
+  (cond
+    (.startsWith s "\"\"\"")
+    (subs s 3 (- (count s) 3))
+    (.startsWith s "\"")
+    (subs s 1 (- (count s) 1))))
+
 (defmethod process :stringValue [[_ val]]
-  val)
+  (trim-quotes val))
 
 (defmethod process :description [[_ inner]]
   {::g/description (process inner)})
