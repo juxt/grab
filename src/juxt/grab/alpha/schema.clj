@@ -471,17 +471,22 @@
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])]
     (->
      acc
-     (assoc-in
-      [::provided-types query-root-op-type-name ::fields-by-name "__schema"]
+     (update-in
+      [::provided-types query-root-op-type-name ::g/field-definitions]
+      (fnil conj [])
+
       {::g/name "__schema"
-       ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}})
-     (assoc-in
-      [::provided-types query-root-op-type-name ::fields-by-name "__type"]
+       ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}}
+
       {::g/name "__type"
        ::g/type-ref {::g/name "__Type"}
        ::g/arguments-definition
        [{::g/name "name"
-         ::g/type-ref {::g/non-null-type {::g/name "String"}}}]}))))
+         ::g/type-ref {::g/non-null-type {::g/name "String"}}}]})
+
+     (update-in
+      [::provided-types query-root-op-type-name]
+      #(assoc % ::fields-by-name (into {} (map (juxt ::g/name identity) (::g/field-definitions %))))))))
 
 (defn check-schema-definition-count
   [acc document]
@@ -525,6 +530,7 @@
       (or (f acc document) acc))
     base
     [provide-types
+     inject-introspection-fields
      check-unique-type-names
      check-no-conflicts-with-built-in-types
      check-unique-directive-names
@@ -533,7 +539,7 @@
      process-schema-definition
      check-schema-definition-count
      check-root-operation-type
-     inject-introspection-fields]))
+     ]))
   ([document]
    (compile-schema* document (schema-base))))
 
