@@ -468,25 +468,27 @@
       :else acc)))
 
 (defn inject-introspection-fields [acc _]
-  (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])]
-    (->
-     acc
-     (update-in
-      [::provided-types query-root-op-type-name ::g/field-definitions]
-      (fnil conj [])
+  (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
+        query (get-in acc [::provided-types query-root-op-type-name])]
+    (cond-> acc
+      query
+      (update-in
+       [::provided-types query-root-op-type-name ::g/field-definitions]
+       (fnil conj [])
 
-      {::g/name "__schema"
-       ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}}
+       {::g/name "__schema"
+        ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}}
 
-      {::g/name "__type"
-       ::g/type-ref {::g/name "__Type"}
-       ::g/arguments-definition
-       [{::g/name "name"
-         ::g/type-ref {::g/non-null-type {::g/name "String"}}}]})
+       {::g/name "__type"
+        ::g/type-ref {::g/name "__Type"}
+        ::g/arguments-definition
+        [{::g/name "name"
+          ::g/type-ref {::g/non-null-type {::g/name "String"}}}]})
 
-     (update-in
-      [::provided-types query-root-op-type-name]
-      #(assoc % ::fields-by-name (into {} (map (juxt ::g/name identity) (::g/field-definitions %))))))))
+      query
+      (update-in
+       [::provided-types query-root-op-type-name]
+       #(assoc % ::fields-by-name (into {} (map (juxt ::g/name identity) (::g/field-definitions %))))))))
 
 (defn check-schema-definition-count
   [acc document]
