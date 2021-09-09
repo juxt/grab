@@ -11,12 +11,28 @@
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
-;; More ANTLR issues (sigh)
-;; https://stackoverflow.com/questions/14504726/antlr-parsing-literals-and-quoted-ids
-;; https://github.com/walmartlabs/lacinia/issues/259
+(defn example [n]
+  (-> (format "juxt/grab/example-%s.graphql" n)
+      io/resource
+      slurp
+      parser/parse))
 
-#_(schema/compile-schema
-              (parser/parse "
+(deftest example-87-test
+  (is
+   (= {:data
+       {"__type"
+        {"name" "User",
+         "fields"
+         [{"name" "id", "type" {"name" "String"}}
+          {"name" "name", "type" {"name" "String"}}
+          {"name" "birthday", "type" {"name" "Date"}}]}},
+       :errors []}
+
+      (let [schema (schema/compile-schema
+                    (parser/parse
+;; We prepare schema which is a super-set of the schema in the text, because we
+;; need to declare the scalar 'Date' and the Query type.
+                     "
 scalar Date
 
 type User {
@@ -29,132 +45,55 @@ type Query {
   user: User
 }
 "))
+            document
+            (document/compile-document (example "87") schema)]
 
+        (is (empty? (::schema/errors schema)))
+        (is (empty? (::schema/errors document)))
 
-#_(let [schema (schema/compile-schema
-              (parser/parse "
-scalar Date
+        (execute-request
+         {:schema schema
+          :document document
+          :field-resolver
+          (fn [args]
+            (let [provided-types (::schema/provided-types schema)]
+              (condp =
+                  [(get-in args [:object-type ::g/name])
+                   (get-in args [:field-name])]
+                  ["Root" "user"]
+                  {:name "Isaac Newton"}
 
-type User {
-  id: String
-  name: String
-  birthday: Date
-}
+                  ["Person" "name"]
+                  (get-in args [:object-value :name])
 
-type Query {
-  user: User
-}
-"))
-      document (document/compile-document
-                (parser/parse "
-{
-  __type(name: \"User\") {
-    name
-    fields {
-      name
-    }
-  }
-}
+                  ["Person" "profilePic"]
+                  (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
 
-")
-                schema)]
+                  ["Query" "__type"]
+                  (get-in schema [:juxt.grab.alpha.schema/provided-types (get-in args [:argument-values "name"])])
 
-  (assert (empty? (::schema/errors schema))  (::schema/errors schema))
+                  ["__Type" "name"]
+                  (get-in args [:object-value ::g/name])
 
-  ;;document
+                  ["__Type" "fields"]
+                  (get-in args [:object-value ::g/field-definitions])
 
-  (execute-request
-   {:schema schema
-    :document document
-    :field-resolver
-    (fn [{:keys [object-value object-type field-name] :as args}]
-      (condp = [(::g/name object-type) field-name]
-        ["Root" "user"]
-        {:name "Isaac Newton"}
+                  ["__Field" "name"]
+                  (get-in args [:object-value ::g/name])
 
-        ["Person" "name"]
-        (get-in args [:object-value :name])
+                  ["__Field" "type"]
+                  (let [type-ref (get-in args [:object-value ::g/type-ref])
+                        typ (some-> type-ref ::g/name provided-types)]
+                    {::g/name (::g/name (schema/unwrapped-type type-ref))}
+                    #_(cond-> {:kind (cond
+                                       (::g/list-type type-ref) :list
+                                       (::g/non-null-type type-ref) :non-null
+                                       (::g/name type-ref) (::g/kind typ))
 
-        ["Person" "profilePic"]
-        (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
+                               :name (::g/name (schema/unwrapped-type type-ref))}))
 
-        ["Query" "__type"]
-        (let [type-name (get-in args [:argument-values "name"])]
-          (get-in schema [::schema/provided-types type-name]))
-
-        ["__Type" "name"]
-        (::g/name object-value)
-
-        ["__Type" "fields"]
-        (::g/field-definitions object-value)
-
-        #_["__Field" "name"]
-        #_(throw (ex-info "TODO" {:object-value object-value}))
-
-        (throw (ex-info "TODO: Resolve yet unsupported field" (assoc args :case [(get-in args [:object-type ::g/name])
-                                                                                 (get-in args [:field-name])])))))}))
-
-(let [schema (schema/compile-schema
-              (parser/parse "
-scalar Date
-
-type User {
-  id: String
-  name: String
-  birthday: Date
-}
-
-type Query {
-  user: User
-}
-"))
-      document (document/compile-document
-                (parser/parse "
-{
-  __type(name: \"User\") {
-    name
-    fields {
-      name
-      type {
-        name
-      }
-    }
-  }
-}
-
-")
-                schema)]
-
-  (assert (empty? (::schema/errors schema))  (::schema/errors schema))
-
-  #_document
-
-  (execute-request
-   {:schema schema
-    :document document
-    :field-resolver
-    (fn [args]
-      (condp =
-          [(get-in args [:object-type ::g/name])
-           (get-in args [:field-name])]
-          ["Root" "user"]
-          {:name "Isaac Newton"}
-
-          ["Person" "name"]
-          (get-in args [:object-value :name])
-
-          ["Person" "profilePic"]
-          (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
-
-          ["Query" "__type"]
-          (get-in schema [:juxt.grab.alpha.schema/provided-types "User"])
-
-          ["__Type" "name"]
-          (get-in args [:juxt.grab.alpha.schema/provided-types "User"])
-
-
-          (throw (ex-info "TODO"
-                          (assoc args
-                                 :case [(get-in args [:object-type ::g/name])
-                                        (get-in args [:field-name])]
-                                 :schema schema)))))}))
+                  (throw
+                   (ex-info
+                    (str "TODO: " (pr-str [(get-in args [:object-type ::g/name])
+                                           (get-in args [:field-name])]))
+                    args)))))})))))
