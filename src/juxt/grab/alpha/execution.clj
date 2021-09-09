@@ -237,10 +237,8 @@
   (assert schema)
   (assert document)
 
-  (let [{::schema/keys [provided-types built-in-types]} schema
-        field-type (or
-                    (some-> field-type-ref schema/unwrapped-type ::g/name provided-types)
-                    (some-> field-type-ref schema/unwrapped-type ::g/name built-in-types))
+  (let [{::schema/keys [provided-types]} schema
+        field-type (some-> field-type-ref schema/unwrapped-type ::g/name provided-types)
         kind (::g/kind field-type)]
     (cond
       ;; 1. If the fieldType is a Non‐Null type:
