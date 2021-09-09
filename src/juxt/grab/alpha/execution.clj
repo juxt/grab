@@ -208,12 +208,15 @@
    (list)
    fields))
 
-(defn introspection-field-resolver [schema {:keys [object-type field-name object-value argument-values]}]
+(defn introspection-field-resolver [delegate schema {:keys [object-type field-name object-value argument-values] :as args}]
   (let [provided-types (::schema/provided-types schema)]
     (condp = [(::g/name object-type) field-name]
 
       ["Query" "__type"]
       (get-in schema [::schema/provided-types (get argument-values "name")])
+
+      ["__Type" "kind"]
+      (some-> object-value ::g/kind)
 
       ["__Type" "name"]
       (some-> object-value ::g/name)
@@ -221,22 +224,31 @@
       ["__Type" "fields"]
       (some-> object-value ::g/field-definitions)
 
+      ["__Type" "ofType"]
+      (some-> object-value :of-type)
+
       ["__Field" "name"]
       (some-> object-value ::g/name)
 
       ["__Field" "type"]
       (let [type-ref (some-> object-value ::g/type-ref)
             typ (some-> type-ref ::g/name provided-types)]
-        {::g/name (::g/name (schema/unwrapped-type type-ref))}
-        #_(cond-> {:kind (cond
-                           (::g/list-type type-ref) :list
-                           (::g/non-null-type type-ref) :non-null
-                           (::g/name type-ref) (::g/kind typ))
-
-                   :name (::g/name (schema/unwrapped-type type-ref))}))
+        (cond-> {::g/name (::g/name (schema/unwrapped-type type-ref))
+                 ::g/kind (cond
+                            (::g/list-type type-ref) :list
+                            (::g/non-null-type type-ref) :non-null
+                            (::g/name type-ref) (::g/kind typ))}
+          (or (::g/list-type type-ref) (::g/non-null-type type-ref))
+          (assoc :of-type (or (::g/list-type type-ref) (::g/non-null-type type-ref)))))
 
       ;; Forward to next resolver
-      nil)))
+      (or
+       (delegate args)
+       (throw
+        (ex-info
+         "Failed to resolve field"
+         {:args args
+          :pair [(::g/name object-type) field-name]}))))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -247,14 +259,13 @@
   (assert field-name)
   (assert field-resolver)
 
-  (let [args {:object-type object-type
-              :field-name field-name
-              :object-value object-value
-              :argument-values argument-values}]
-    (or
-     (introspection-field-resolver schema args)
-     (field-resolver args)
-     (throw (ex-info "Failed to resolve field" {:args args})))))
+  (introspection-field-resolver
+   field-resolver
+   schema
+   {:object-type object-type
+    :field-name field-name
+    :object-value object-value
+    :argument-values argument-values}))
 
 (declare execute-selection-set-normally)
 
