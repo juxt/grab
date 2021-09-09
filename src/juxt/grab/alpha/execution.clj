@@ -240,9 +240,10 @@
   (let [{::schema/keys [provided-types]} schema
         field-type (some-> field-type-ref schema/unwrapped-type ::g/name provided-types)
         kind (::g/kind field-type)]
+
     (cond
       ;; 1. If the fieldType is a Non‐Null type:
-      (#{::g/non-null-type} field-type-ref)
+      (::g/non-null-type field-type-ref)
       ;; a. Let innerType be the inner type of fieldType.
       (let [inner-type-ref (get field-type-ref ::g/non-null-type)
             _ (assert inner-type-ref (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type-ref)))
@@ -264,8 +265,8 @@
                   "Error on complete-value"
                   {:field-type-ref field-type-ref
                    :inner-type-ref inner-type-ref}
-                  e))
-                ))]
+                  e))))]
+
         ;; c. If completedResult is null, throw a field error.
         (when (nil? completed-result)
           (throw
@@ -281,7 +282,7 @@
       (nil? result) nil
 
       ;; 3. If fieldType is a List type:
-      (#{::g/list-type} field-type-ref)
+      (::g/list-type field-type-ref)
       (do
         ;; a. If result is not a collection of values, throw a field error.
         (when-not (sequential? result)
