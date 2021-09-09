@@ -208,20 +208,53 @@
    (list)
    fields))
 
+(defn introspection-field-resolver [schema {:keys [object-type field-name object-value argument-values]}]
+  (let [provided-types (::schema/provided-types schema)]
+    (condp = [(::g/name object-type) field-name]
+
+      ["Query" "__type"]
+      (get-in schema [::schema/provided-types (get argument-values "name")])
+
+      ["__Type" "name"]
+      (some-> object-value ::g/name)
+
+      ["__Type" "fields"]
+      (some-> object-value ::g/field-definitions)
+
+      ["__Field" "name"]
+      (some-> object-value ::g/name)
+
+      ["__Field" "type"]
+      (let [type-ref (some-> object-value ::g/type-ref)
+            typ (some-> type-ref ::g/name provided-types)]
+        {::g/name (::g/name (schema/unwrapped-type type-ref))}
+        #_(cond-> {:kind (cond
+                           (::g/list-type type-ref) :list
+                           (::g/non-null-type type-ref) :non-null
+                           (::g/name type-ref) (::g/kind typ))
+
+                   :name (::g/name (schema/unwrapped-type type-ref))}))
+
+      ;; Forward to next resolver
+      nil)))
+
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.4.2"
     :juxt.grab.alpha.spec-ref/algorithm "ResolveFieldValue"}
   resolve-field-value
-  [{:keys [object-type object-value field-name argument-values field-resolver] :as args}]
+  [{:keys [object-type object-value field-name argument-values field-resolver schema] :as args}]
   (assert field-name)
   (assert field-resolver)
 
-  (field-resolver
-   {:object-type object-type
-    :field-name field-name
-    :object-value object-value
-    :argument-values argument-values}))
+  (let [args {:object-type object-type
+              :field-name field-name
+              :object-value object-value
+              :argument-values argument-values}]
+    (or
+     (introspection-field-resolver schema args)
+     (field-resolver args)
+     (throw (ex-info "Failed to resolve field" {:args args})))))
 
 (declare execute-selection-set-normally)
 
@@ -358,7 +391,8 @@
           :object-value object-value
           :field-name field-name
           :argument-values argument-values
-          :field-resolver field-resolver})]
+          :field-resolver field-resolver
+          :schema schema})]
 
     ;; 5. Return the result of CompleteValue(…).
     (complete-value

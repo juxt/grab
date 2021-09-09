@@ -69,29 +69,6 @@ type Query {
                   ["Person" "profilePic"]
                   (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
 
-                  ["Query" "__type"]
-                  (get-in schema [:juxt.grab.alpha.schema/provided-types (get-in args [:argument-values "name"])])
-
-                  ["__Type" "name"]
-                  (get-in args [:object-value ::g/name])
-
-                  ["__Type" "fields"]
-                  (get-in args [:object-value ::g/field-definitions])
-
-                  ["__Field" "name"]
-                  (get-in args [:object-value ::g/name])
-
-                  ["__Field" "type"]
-                  (let [type-ref (get-in args [:object-value ::g/type-ref])
-                        typ (some-> type-ref ::g/name provided-types)]
-                    {::g/name (::g/name (schema/unwrapped-type type-ref))}
-                    #_(cond-> {:kind (cond
-                                       (::g/list-type type-ref) :list
-                                       (::g/non-null-type type-ref) :non-null
-                                       (::g/name type-ref) (::g/kind typ))
-
-                               :name (::g/name (schema/unwrapped-type type-ref))}))
-
                   (throw
                    (ex-info
                     (str "TODO: " (pr-str [(get-in args [:object-type ::g/name])
