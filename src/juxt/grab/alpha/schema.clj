@@ -137,9 +137,11 @@
 
       (nil? typ)
       (update ::errors conj
-              {:error "A field must return a type that is known."
+              {:error (str "A field must return a type that is known.")
                :field-name (::g/name tf)
-               :field-type-name (::g/name type-ref)})
+               :field-type-name (::g/name type-ref)
+               ;;:location (::g/location tf)
+               })
 
       (and typ (not (output-type? typ)))
       (update ::errors conj
