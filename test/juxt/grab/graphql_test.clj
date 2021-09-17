@@ -16,8 +16,7 @@
    (= {:data
        {"user"
         {"name" "Isaac Newton",
-         "profilePic" "https://profile.juxt.site/pic-100.png"}},
-       :errors []}
+         "profilePic" "https://profile.juxt.site/pic-100.png"}}}
       (let [schema (schema/compile-schema
                     (parser/parse (slurp (io/resource "juxt/grab/schema-3.graphql"))))
             document (document/compile-document
