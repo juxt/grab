@@ -118,12 +118,12 @@
 (defn check-object-field-argument-definitions [acc arg-defs tf]
   (reduce #(check-object-field-argument-definition %1 %2 tf) acc arg-defs))
 
-(defn resolve-named-type-ref [{::keys [provided-types] :as acc} type-ref]
+(defn resolve-named-type-ref
+  "Return nil if no type found"
+  [{::keys [provided-types] :as acc} type-ref]
   (assert type-ref)
   (assert (::g/name type-ref) (pr-str type-ref))
-  (or
-   (get provided-types (::g/name type-ref))
-   (throw (ex-info "Cannot resolve type-ref" {:type-ref type-ref}))))
+  (get provided-types (::g/name type-ref)))
 
 (defn check-object-field-definition [acc tf]
   (let [type-ref (some-> tf ::g/type-ref unwrapped-type)
