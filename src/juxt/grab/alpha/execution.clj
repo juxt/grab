@@ -241,14 +241,8 @@
           (or (::g/list-type type-ref) (::g/non-null-type type-ref))
           (assoc :of-type (or (::g/list-type type-ref) (::g/non-null-type type-ref)))))
 
-      ;; Forward to next resolver
-      (or
-       (delegate args)
-       (throw
-        (ex-info
-         "Failed to resolve field"
-         {:args args
-          :pair [(::g/name object-type) field-name]}))))))
+      ;; Forward to resolver
+      (delegate args))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -532,7 +526,7 @@
       ;; TODO: catch and collect FieldErrors
 
       ;; 6. Return an unordered map containing data and errors.
-      {:data data :errors []})))
+      {:data data})))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
