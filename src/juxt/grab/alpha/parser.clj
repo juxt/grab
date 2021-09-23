@@ -294,6 +294,14 @@
               (keep process-child)
               vec)}))
 
+(defmethod process :defaultValue [[_ _ value]]
+  {::g/default-value (process-child value)})
+
+(defmethod process :booleanValue [[_ value]]
+  (when-not (#{"true" "false"} value)
+    (throw (ex-info "Boolean value must be true or false" {})))
+  (Boolean/valueOf value))
+
 (defn parse* [s]
   (some-> s parser))
 
