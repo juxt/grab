@@ -2,10 +2,10 @@
 
 (ns juxt.grab.alpha.schema
   (:require
+   [juxt.grab.alpha.parser :refer [parse]]
    [clojure.java.io :as io]
    [clojure.set :as set]
-   [clojure.string :as str]
-   [juxt.grab.alpha.parser :refer [parse]]))
+   [clojure.string :as str]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -467,6 +467,7 @@
 (defn inject-introspection-fields [acc _]
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
         query (get-in acc [::provided-types query-root-op-type-name])]
+
     (cond-> acc
       query
       (update-in
@@ -530,14 +531,14 @@
     (fn [acc f]
       (or (f acc document) acc))
     base
-    [provide-types
+    [process-schema-definition
+     provide-types
      inject-introspection-fields
      check-unique-type-names
      check-no-conflicts-with-built-in-types
      check-unique-directive-names
      check-reserved-names
      check-types
-     process-schema-definition
      check-schema-definition-count
      check-root-operation-type
      ]))
@@ -582,6 +583,56 @@
       directives (add-directives directives)
       operation-types (add-operation-types operation-types))))
 
+(defn process-object-type-extension [schema {::g/keys [name field-definitions directives interfaces]}]
+  (def directives directives)
+  (let [existing-type (get (::provided-types schema) name)
+        duplicates (duplicates-by ::g/name field-definitions)
+        pre-existing-fields
+        (seq
+         (for [i (->> existing-type ::g/field-definitions (map ::g/name))
+               j (->> field-definitions (map ::g/name))
+               :when (= i j)] i))
+        pre-existing-directives
+        (seq
+         (for [i (->> existing-type ::g/directives (map ::g/name))
+               j (map ::g/name directives)
+               :when (= i j)] i))]
+
+    (def existing-type existing-type)
+
+    (cond-> schema
+      ;; 1. The named type must already be defined and must be an Object type.
+      (nil? existing-type)
+      (add-error
+       {:error "The named type must already be defined and must be an Object type"
+        :name name})
+
+      ;; 2. The fields of an Object type extension must have unique names; no
+      ;; two fields may share the same name.
+      duplicates
+      (add-error
+       {:error "The fields of an Object type extension must have unique names; no two fields may share the same name."
+        :duplicates duplicates})
+
+      ;; 3. Any fields of an Object type extension must not be already defined on the original Object type.
+      pre-existing-fields
+      (add-error
+       {:error "Any fields of an Object type extension must not be already defined on the original Object type."
+        :pre-existing-fields pre-existing-fields})
+
+      ;; 4. Any directives provided must not already apply to the original Object type.
+      pre-existing-directives
+      (add-error
+       {:error "Any directives provided must not already apply to the original Object type."
+        :pre-existing-directives pre-existing-directives})
+
+      ;; 5. Any interfaces provided must not be already implemented by the original Object type
+      ;; TODO
+
+      ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
+      ;; TODO
+      )))
+
 (defn extend-schema
   "Extend a schema"
   [schema document]
@@ -590,6 +641,9 @@
    (fn [schema definition]
      (cond-> schema
        (= (::g/definition-type definition) :schema-extension)
-       (process-schema-extension definition)))
+       (process-schema-extension definition)
+       (= (::g/type-extension-type definition) :object-type-extension)
+       (process-object-type-extension definition)
+       ))
    schema
    document))

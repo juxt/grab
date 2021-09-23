@@ -5,7 +5,7 @@
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.schema :refer [compile-schema*] :as s]
    [juxt.grab.alpha.parser :refer [parse parse*]]
-   [juxt.grab.validation-test :refer [example]]
+   [juxt.grab.validation-test :refer [example example-schema]]
    [clojure.java.io :as io]
    [juxt.grab.alpha.schema :as schema]))
 
@@ -115,7 +115,6 @@
     (-> schema
         (s/extend-schema (parse "extend schema @foo"))
         (expected-errors [#"Any directives provided must not already apply to the original Schema"]))))
-
 
 (deftest example-40-test
   (-> "juxt/grab/example-40.graphql"
@@ -303,10 +302,30 @@
       compile-schema*
       (expected-errors [#"The object field may include additional arguments not defined in the interface field, but any additional argument must not be required, e.g. must not be of a non‐nullable type."])))
 
-;; 3.6.3  Object Extensions (TODO)
+;; 3.6.3  Object Extensions
+(deftest object-extension-test
+  (-> (example-schema)
+      (schema/extend-schema
+       (parse "extend type Goat { eats: String! }"))
+      (expected-errors [#"The named type must already be defined and must be an Object type"]))
+  (-> (example-schema)
+      (schema/extend-schema
+       (parse "extend type Dog { eats: String eats: Int }"))
+      (expected-errors [#"The fields of an Object type extension must have unique names; no two fields may share the same name."]))
+  (-> (example-schema)
+      (schema/extend-schema
+       (parse "extend type Dog { name: String }"))
+      (expected-errors [#"Any fields of an Object type extension must not be already defined on the original Object type."]))
+  (->
+   (parse "type Query @foo { name: String }")
+   (compile-schema*)
+   (schema/extend-schema (parse "extend type Query @foo"))
+   (expected-errors [#"Any directives provided must not already apply to the original Object type."]))
+  ;; 5. Any interfaces provided must not be already implemented by the original Object type. (TODO)
+  ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements. (TODO)
+  )
 
 ;; 3.7  Interfaces
-
 
 ;; Type validation
 
