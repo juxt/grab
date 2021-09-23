@@ -4,7 +4,8 @@
   (:require
    [juxt.grab.alpha.document :as document]
    [juxt.grab.alpha.schema :as schema]
-   [flatland.ordered.map :refer [ordered-map]]))
+   [flatland.ordered.map :refer [ordered-map]]
+   [clojure.string :as str]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -46,9 +47,11 @@
        :fragment-spread
        ;; d. If selection is a FragmentSpread:
        ;; i. Let fragmentSpreadName be the name of selection.
+
        (let [fragment-spread-name (::g/fragment-name selection)]
          ;; ii. If fragmentSpreadName is in visitedFragments, continue with
          ;; the next selection in selectionSet.
+
 
          (if (contains? visited-fragments fragment-spread-name)
            grouped-fields
@@ -59,7 +62,7 @@
                  ;; whose name is fragmentSpreadName.
 
                  ;; TODO: Create fragment index
-                 fragment (get-in document [::g/fragments-by-name fragment-spread-name])]
+                 fragment (get-in document [::document/fragments-by-name fragment-spread-name])]
 
              ;; v. If no such fragment exists, continue with the next
              ;; selection in selectionSet.
@@ -67,9 +70,9 @@
                grouped-fields
 
                ;; vi. Let fragmentType be the type condition on fragment.
-               (let [fragment-type (::g/named-type fragment)]
+               (let [fragment-type (::g/type-condition fragment)]
 
-                 (assert fragment-type)
+                 (assert fragment-type (pr-str fragment))
 
                  ;; vii. If DoesFragmentTypeApply(objectType, fragmentType) is
                  ;; false, continue with the next selection in selectionSet. (TODO)
@@ -96,15 +99,15 @@
                     fragment-group-field-set)
 
                    #_(throw
-                      (ex-info
-                       "TODO: fragment-spread"
-                       {:selection selection
-                        :fragment-spread-name fragment-spread-name
-                        :visited-fragments visited-fragments
-                        :fragment fragment
-                        :fragment-group-field-set fragment-group-field-set
-                        ;;:document document
-                        }))))))))
+                    (ex-info
+                     "TODO: fragment-spread"
+                     {:selection selection
+                      :fragment-spread-name fragment-spread-name
+                      :visited-fragments visited-fragments
+                      :fragment fragment
+                      :fragment-group-field-set fragment-group-field-set
+                      ;;:document document
+                      }))))))))
 
        :inline-fragment
        (throw (ex-info "TODO: inline-fragment" {:selection selection}))))
@@ -208,15 +211,42 @@
    (list)
    fields))
 
-(defn introspection-field-resolver [delegate schema {:keys [object-type field-name object-value argument-values] :as args}]
-  (let [provided-types (::schema/provided-types schema)]
+(defn introspection-field-resolver
+  [delegate schema {:keys [object-type field-name object-value argument-values path] :as args}]
+
+  (let [root-query-name (get-in schema [::schema/root-operation-type-names :query])
+        provided-types (::schema/provided-types schema)]
     (condp = [(::g/name object-type) field-name]
 
-      ["Query" "__type"]
+      [root-query-name "__type"]
       (get-in schema [::schema/provided-types (get argument-values "name")])
 
+      [root-query-name "__schema"]
+      schema
+
+      ["__Schema" "types"]
+      (sort-by ::g/name (vals (::schema/provided-types schema)))
+
+      ["__Schema" "queryType"]
+      (some-> root-query-name provided-types)
+
+      ["__Schema" "mutationType"]
+      nil
+
+      ["__Schema" "subscriptionType"]
+      nil
+
+      ["__Schema" "directives"]
+      []
+
       ["__Type" "kind"]
-      (some-> object-value ::g/kind)
+      (or
+       (some-> object-value ::g/kind)
+       (throw
+        (ex-info
+         "Type kind is nil!"
+         {:object-value object-value
+          :path path})))
 
       ["__Type" "name"]
       (some-> object-value ::g/name)
@@ -225,31 +255,66 @@
       (some-> object-value ::g/field-definitions)
 
       ["__Type" "ofType"]
-      (some-> object-value :of-type)
+      ;; TODO: Resolve type-ref
+      (when-let [type-ref (::of-type-ref object-value)]
+        (cond
+          (::g/list-type type-ref) {::g/kind :list
+                                    ::of-type-ref (::g/list-type type-ref)}
+          (::g/non-null-type type-ref) {::g/kind :non-null
+                                        ::of-type-ref (::g/non-null-type type-ref)}
+          :else
+          (let [typ (some-> type-ref ::g/name provided-types)]
+            (when (nil? typ)
+              (throw (ex-info "ofType is nil" {:object-value object-value}))
+              )
+
+            {::g/kind (::g/kind typ)
+             ::g/name (::g/name typ)})))
 
       ["__Field" "name"]
       (some-> object-value ::g/name)
 
       ["__Field" "type"]
-      (let [type-ref (some-> object-value ::g/type-ref)
-            typ (some-> type-ref ::g/name provided-types)]
-        (cond-> {::g/name (::g/name (schema/unwrapped-type type-ref))
-                 ::g/kind (cond
-                            (::g/list-type type-ref) :list
-                            (::g/non-null-type type-ref) :non-null
-                            (::g/name type-ref) (::g/kind typ))}
-          (or (::g/list-type type-ref) (::g/non-null-type type-ref))
-          (assoc :of-type (or (::g/list-type type-ref) (::g/non-null-type type-ref)))))
+      (let [type-ref (some-> object-value ::g/type-ref)]
+        (cond
+          (::g/list-type type-ref) {::g/kind :list
+                                    ::of-type-ref (::g/list-type type-ref)}
+          (::g/non-null-type type-ref) {::g/kind :non-null
+                                        ::of-type-ref (::g/non-null-type type-ref)}
+          :else
+          (let [typ (some-> type-ref ::g/name provided-types)]
+            (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
+            {::g/name (::g/name typ)
+             ::g/kind (::g/kind typ)})))
 
+      ["__Type" "description"] (some-> object-value ::g/description)
+      ["__Type" "interfaces"] []    ;; TODO
+      ["__Type" "inputFields"] []   ;; TODO
+      ["__Type" "enumValues"] []    ;; TODO
+      ["__Type" "possibleTypes"] [] ;; TODO
+      ["__Field" "description"] (some-> object-value ::g/description)
+      ["__Field" "args"] []               ;; TODO
+      ["__Field" "isDeprecated"] false    ;; TODO
+      ["__Field" "deprecationReason"] nil ;; TODO
+
+      #_(throw (ex-info "Unhandled introspection" {:case [(::g/name object-type) field-name]
+                                                   :object-value object-value
+                                                   :field-name field-name}))
       ;; Forward to resolver
-      (delegate args))))
+      (if (some-> object-value ::g/name (str/starts-with? "__"))
+        (throw
+         (ex-info
+          "Unhandled introspection"
+          {:object-value object-value
+           :field-name field-name}))
+        (delegate args)))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.4.2"
     :juxt.grab.alpha.spec-ref/algorithm "ResolveFieldValue"}
   resolve-field-value
-  [{:keys [object-type object-value field-name argument-values field-resolver schema] :as args}]
+  [{:keys [object-type object-value field-name argument-values field-resolver schema path] :as args}]
   (assert field-name)
   (assert field-resolver)
 
@@ -259,7 +324,8 @@
    {:object-type object-type
     :field-name field-name
     :object-value object-value
-    :argument-values argument-values}))
+    :argument-values argument-values
+    :path path}))
 
 (declare execute-selection-set-normally)
 
@@ -268,7 +334,9 @@
         :juxt.grab.alpha.spec-ref/algorithm "CompleteValue"}
   complete-value
   [{:keys [field-type-ref fields result variable-values field-resolver
-           schema document] :as args}]
+           schema document path] :as args}]
+
+  (assert path)
 
   (assert field-type-ref)
   (assert (map? field-type-ref))
@@ -287,6 +355,9 @@
             _ (assert inner-type-ref (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type-ref)))
             ;; b. Let completedResult be the result of calling
             ;; CompleteValue(…).
+
+            path (conj path :non-null-type)
+
             completed-result
             (try
               (complete-value
@@ -296,7 +367,8 @@
                 :variable-values variable-values
                 :field-resolver field-resolver
                 :schema schema
-                :document document})
+                :document document
+                :path path})
               (catch Throwable e
                 (throw
                  (ex-info
@@ -310,8 +382,12 @@
           (throw
            (ex-info
             "Field error, NON_NULL type returned nil value for inner type"
-            {:inner-type-ref inner-type-ref
-             :result result})))
+            {:field-type-ref inner-type-ref
+             :fields fields
+             :result result
+             :variable-values variable-values
+             :field-resolver field-resolver
+             :path path})))
         ;; d. Return completedResult.
         completed-result)
 
@@ -342,7 +418,8 @@
                :variable-values variable-values
                :field-resolver field-resolver
                :schema schema
-               :document document})))))
+               :document document
+               :path (conj path :list-type)})))))
 
       ;; 4. If fieldType is a Scalar or Enum type:
       (#{:scalar :enum} kind)
@@ -366,16 +443,18 @@
           :variable-values variable-values
           :field-resolver field-resolver
           :schema schema
-          :document document})))))
+          :document document
+          :path (conj path (::g/name field-type))})))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.4"
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteField"}
   execute-field
-  [{:keys [object-type object-value field-type-ref fields variable-values field-resolver schema document]}]
+  [{:keys [object-type object-value field-type-ref fields variable-values field-resolver schema document path]}]
   (assert schema)
   (assert document)
+  (assert path)
 
   ;; 1. Let field be the first entry in fields.
   (let [field (first fields)
@@ -397,7 +476,8 @@
           :field-name field-name
           :argument-values argument-values
           :field-resolver field-resolver
-          :schema schema})]
+          :schema schema
+          :path path})]
 
     ;; 5. Return the result of CompleteValue(…).
     (complete-value
@@ -407,7 +487,8 @@
       :variable-values variable-values
       :field-resolver field-resolver
       :schema schema
-      :document document})))
+      :document document
+      :path path})))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -415,10 +496,11 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteSelectionSet"}
   execute-selection-set-normally
   "Return a map with :data and :errors."
-  [{:keys [selection-set object-type object-value variable-values field-resolver schema document]}]
+  [{:keys [selection-set object-type object-value variable-values field-resolver schema document path]}]
 
   (assert schema)
   (assert document)
+  (assert path)
 
   ;; 1. Let groupedFieldSet be the result of CollectFields
   (let [grouped-field-set
@@ -472,7 +554,8 @@
                        :variable-values variable-values
                        :field-resolver field-resolver
                        :schema schema
-                       :document document})]
+                       :document document
+                       :path (conj path field-name)})]
                  ;; ii. Set responseValue as the value for responseKey in resultMap.
                  (conj result-map [response-key response-value]))
                ;; Otherwise return the accumulator
@@ -521,7 +604,8 @@
             :variable-values variable-values
             :schema schema
             :field-resolver field-resolver
-            :document document})]
+            :document document
+            :path []})]
 
       ;; TODO: catch and collect FieldErrors
 

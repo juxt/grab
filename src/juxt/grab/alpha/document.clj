@@ -47,6 +47,9 @@
 (defn group-operations-by-name [{::keys [operations] :as acc}]
   (assoc acc ::operations-grouped-by-name (group-by ::g/name operations)))
 
+(defn group-fragments-by-name [{::keys [fragments] :as acc}]
+  (assoc acc ::fragments-grouped-by-name (group-by ::g/fragment-name fragments)))
+
 (defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
   validate-anonymous
   [{::keys [operations operations-grouped-by-name] :as acc}]
@@ -63,6 +66,15 @@
        (assoc-in acc [::operations-by-name n] (first ops))))
    acc
    operations-grouped-by-name))
+
+(defn validate-fragment-uniqueness [{::keys [fragments-grouped-by-name] :as acc}]
+  (reduce-kv
+   (fn [acc n ops]
+     (if (> (count ops) 1)
+       (add-error acc {:error (format "Fragment name '%s' is not unique" n) :name n})
+       (assoc-in acc [::fragments-by-name n] (first ops))))
+   acc
+   fragments-grouped-by-name))
 
 (defn add-default-operation-type [acc]
   (update acc ::operations #(mapv (fn [op]
@@ -320,8 +332,10 @@
       validate-selection-sets
 
       group-operations-by-name
+      group-fragments-by-name
       validate-anonymous
       validate-operation-uniqueness
+      validate-fragment-uniqueness
       validate-fields-in-set-can-merge]}))
 
   ([document schema {:keys [compilers]}]
