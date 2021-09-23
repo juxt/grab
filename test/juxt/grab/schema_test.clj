@@ -54,6 +54,15 @@
       (expected-errors [#"All directives within a GraphQL schema must have unique names."
                         nil])))
 
+;; Ensure that directives are properly indexed
+(deftest directives-indexed-test
+  (is
+   (-> "type Query { foo: String @x }"
+       parse
+       compile-schema*
+       (get-in [::schema/provided-types "Query" ::schema/fields-by-name "foo" ::schema/directives-by-name "x"])
+       )))
+
 ;; "All types and directives defined within a schema must not have a name which
 ;; begins with '__' (two underscores), as this is used exclusively by GraphQL’s
 ;; introspection system."

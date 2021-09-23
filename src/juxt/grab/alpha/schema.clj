@@ -436,6 +436,10 @@
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
+(defn compile-field-definition [field-def]
+  (-> field-def
+      (assoc ::directives-by-name (into {} (map (juxt ::g/name identity) (::g/directives field-def))))))
+
 (defn provide-types
   "Creates the schema's 'provided-types' entry."
   [acc document]
@@ -443,7 +447,8 @@
    (fn [acc {::g/keys [name] :as td}]
      (assoc-in
       acc [::provided-types name]
-      (assoc td ::fields-by-name (into {} (map (juxt ::g/name identity) (::g/field-definitions td))))))
+      (assoc td ::fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td))))))
+
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
@@ -466,27 +471,21 @@
 
 (defn inject-introspection-fields [acc _]
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
-        query (get-in acc [::provided-types query-root-op-type-name])]
-
+        query (get-in acc [::provided-types query-root-op-type-name])
+        __schema {::g/name "__schema"
+                  ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}}
+        __type {::g/name "__type"
+                ::g/type-ref {::g/name "__Type"}
+                ::g/arguments-definition
+                [{::g/name "name"
+                  ::g/type-ref {::g/non-null-type {::g/name "String"}}}]}]
     (cond-> acc
       query
-      (update-in
-       [::provided-types query-root-op-type-name ::g/field-definitions]
-       (fnil conj [])
-
-       {::g/name "__schema"
-        ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}}
-
-       {::g/name "__type"
-        ::g/type-ref {::g/name "__Type"}
-        ::g/arguments-definition
-        [{::g/name "name"
-          ::g/type-ref {::g/non-null-type {::g/name "String"}}}]})
-
-      query
-      (update-in
-       [::provided-types query-root-op-type-name]
-       #(assoc % ::fields-by-name (into {} (map (juxt ::g/name identity) (::g/field-definitions %))))))))
+      (->
+       (assoc-in
+        [::provided-types query-root-op-type-name ::fields-by-name "__type"] __type)
+       (assoc-in
+        [::provided-types query-root-op-type-name ::fields-by-name "__schema"] __schema)))))
 
 (defn check-schema-definition-count
   [acc document]
