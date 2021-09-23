@@ -40,15 +40,15 @@
   types).' -- https://spec.graphql.org/June2018/#sec-Schema"
   [acc document]
   (let [conflicts
-        (seq
-         (set/intersection
-          (set (map ::g/name (filter #(= (::g/definition-type %) :type-definition) document)))
-          (set #{"Int" "Float" "String" "Boolean" "ID"})))]
+        (for [type-def (map ::g/name (filter #(= (::g/definition-type %) :type-definition) document))
+              existing #{"Int" "Float" "String" "Boolean" "ID"}
+              :when (= type-def existing)]
+          type-def)]
     (cond-> acc
-      conflicts
+      (seq conflicts)
       (add-error
        {:error "No provided type may have a name which conflicts with any built in types."
-        :conflicts (set conflicts)}))))
+        :conflicts conflicts}))))
 
 (defn check-unique-directive-names
   "'All directives within a GraphQL schema must have unique names.' --
