@@ -198,12 +198,7 @@
        (apply merge)))
 
 (defmethod process :directives [[_ & directives]]
-  {::g/directives
-   (->> directives
-        (keep process-child)
-        ;; TODO: This is doing too much, just return a vector
-        (map (juxt ::g/name identity))
-        (into {}))})
+  {::g/directives (keep process-child directives)})
 
 (defmethod process :operationDefinition [[_ & terms]]
   {::g/operation-definition (apply merge (keep process-child terms))})

@@ -505,7 +505,7 @@
         (when schema-def (::g/operation-types schema-def))
         {:query "Query" :mutation "Mutation" :subscription "Subscription"}))
       (::g/directives schema-def)
-      (assoc ::g/directives (::g/directives schema-def)))))
+      (assoc ::directives (into {} (map (juxt ::g/name identity) (::g/directives schema-def)))))))
 
 (defn compile-base-schema [document]
   (reduce
@@ -558,15 +558,16 @@
   (let [add-directives
         (fn [schema directives]
           (let [existing-directives
-                (set/intersection
-                 (some-> schema ::g/directives keys set)
-                 (some-> directives keys set))]
+                (for [existing (some->> schema ::directives keys)
+                      dir (map ::g/name directives)
+                      :when (= existing dir)]
+                  existing)]
             (if (seq existing-directives)
               (add-error
                schema
                {:error "Any directives provided must not already apply to the original Schema"
                 :existing-directives existing-directives})
-              (update schema ::g/directives merge directives))))
+              (update schema ::directives merge (into {} (map (juxt ::g/name identity) directives))))))
         add-operation-types
         (fn [schema operation-types]
           (let [duplicates
