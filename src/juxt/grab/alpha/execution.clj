@@ -371,8 +371,6 @@
             ;; b. Let completedResult be the result of calling
             ;; CompleteValue(…).
 
-            path (conj path :non-null-type)
-
             {completed-result :data
              errors :errors}
             (complete-value
