@@ -373,7 +373,8 @@
 
             path (conj path :non-null-type)
 
-            completed-result
+            {completed-result :data
+             errors :errors}
             (complete-value
              {:field-type-ref inner-type-ref
               :fields fields
@@ -391,7 +392,8 @@
              :path path}]})
 
         ;; d. Return completedResult.
-        {:data completed-result})
+        (cond-> {:data completed-result}
+          (seq errors) (assoc :errors errors)))
 
       ;; 2. If result is null (or another internal value similar to null such
       ;; as undefined or NaN), return null.
@@ -413,9 +415,9 @@
 
           (reduce
            (fn [acc {:keys [data errors]}]
-             (-> acc
-                 (update :data conj data)
-                 (update :errors concat errors)))
+             (cond-> acc
+               data (update :data conj data)
+               (seq errors) (update :errors concat errors)))
            {:data []}
            (map-indexed
             (fn [ix result-item]
@@ -542,7 +544,7 @@
          (if field-type-ref
            ;; i. Let responseValue be ExecuteField(objectType, objectValue,
            ;; fields, fieldType, variableValues).
-           (let [{:keys [data errors]}
+           (let [{:keys [data errors] :as field-result}
                  (execute-field
                   {:object-type object-type
                    :object-value object-value
@@ -558,9 +560,9 @@
                    ;; -- GraphQL Spec. June 2018, 7.1.2
                    :path (conj path response-key)})]
              ;; ii. Set responseValue as the value for responseKey in resultMap.
-             (-> acc
-                 (update :data conj [response-key data])
-                 (update :errors concat errors)))
+             (cond-> acc
+               data (update :data conj [response-key data])
+               (seq errors) (update :errors concat errors)))
            ;; Otherwise return the accumulator
            acc)))
      ;; 2. Initialize resultMap to an empty ordered map.
