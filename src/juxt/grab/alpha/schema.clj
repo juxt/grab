@@ -31,7 +31,7 @@
              (duplicates-by ::g/name))]
     (cond-> acc
       duplicates
-      (add-error {:error "All types within a GraphQL schema must have unique names."
+      (add-error {:message "All types within a GraphQL schema must have unique names."
                   :duplicates duplicates}))))
 
 (defn check-no-conflicts-with-built-in-types
@@ -47,7 +47,7 @@
     (cond-> acc
       (seq conflicts)
       (add-error
-       {:error "No provided type may have a name which conflicts with any built in types."
+       {:message "No provided type may have a name which conflicts with any built in types."
         :conflicts conflicts}))))
 
 (defn check-unique-directive-names
@@ -61,7 +61,7 @@
     (cond-> acc
       duplicates
       (add-error
-       {:error "All directives within a GraphQL schema must have unique names."
+       {:message "All directives within a GraphQL schema must have unique names."
         :duplicates duplicates}))))
 
 (defn check-reserved-names
@@ -76,7 +76,7 @@
     (cond-> acc
       reserved-clashes
       (add-error
-       {:error "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system."}))))
+       {:message "All types and directives defined within a schema must not have a name which begins with '__' (two underscores), as this is used exclusively by GraphQL's introspection system."}))))
 
 (defn unwrapped-type [typ]
   (cond
@@ -96,20 +96,20 @@
     (cond-> acc
       (str/starts-with? (::g/name arg-def) "__")
       (add-error
-       {:error "A field argument must not have a name which begins with two underscores."
+       {:message "A field argument must not have a name which begins with two underscores."
         :arg-name (::g/name arg-def)
         :field-name (::g/name tf)})
 
       (nil? typ)
       (add-error
-       {:error "A field argument must accept a type that is known."
+       {:message "A field argument must accept a type that is known."
         :field-name (::g/name tf)
         :type typ
         :argument-definition arg-def})
 
       (and typ (not (input-type? typ)))
       (add-error
-       {:error "A field argument must accept a type that is an input type."
+       {:message "A field argument must accept a type that is an input type."
         :field-name (::g/name tf)
         :argument-definition arg-def}))))
 
@@ -130,12 +130,12 @@
     (cond-> acc
       (str/starts-with? (::g/name tf) "__")
       (add-error
-       {:error "A field must not have a name which begins with two underscores."
+       {:message "A field must not have a name which begins with two underscores."
         :field-name (::g/name tf)})
 
       (nil? typ)
       (add-error
-       {:error (str "A field must return a type that is known.")
+       {:message (str "A field must return a type that is known.")
         :field-name (::g/name tf)
         :field-type-name (::g/name type-ref)
         ;;:location (::g/location tf)
@@ -143,7 +143,7 @@
 
       (and typ (not (output-type? typ)))
       (add-error
-       {:error "A field must return a type that is an output type."
+       {:message "A field must return a type that is an output type."
         :field-name (::g/name tf)
         :type typ
         :tf tf})
@@ -155,7 +155,7 @@
     (cond-> acc
       duplicates
       (add-error
-       {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
+       {:message (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
         :duplicates (vec duplicates)}))))
 
 (defn check-object-type-fields [acc {::g/keys [field-definitions] :as td}]
@@ -169,7 +169,7 @@
    (fn [acc decl]
      (let [ifc (get provided-types decl)]
        (cond-> acc
-         (nil? ifc) (add-error {:error "Interface is declared but not provided." :interface decl}))))
+         (nil? ifc) (add-error {:message "Interface is declared but not provided." :interface decl}))))
    acc
    ;; We already check that interfaces are distinct, but if they're not we don't
    ;; want to produce identical errors.
@@ -238,7 +238,7 @@
       :else
       (add-error
        acc
-       {:error "The object field must be of a type which is equal to or a sub‐type of the interface field (covariant)."
+       {:message "The object field must be of a type which is equal to or a sub‐type of the interface field (covariant)."
         :type-definition type-definition
         :object-field object-field
         :object-field-type-ref object-field-type-ref
@@ -253,14 +253,14 @@
        (cond-> acc
          (nil? object-arg-def)
          (add-error
-          {:error "The object field must include an argument of the same name for every argument defined in the interface field."
+          {:message "The object field must include an argument of the same name for every argument defined in the interface field."
            :argument-name name
            :field-name (::g/name interface-field)
            :interface (-> interface-field ::interface)})
 
          (and object-arg-def (not= type-ref object-arg-def-type-ref))
          (add-error
-          {:error "The object field argument must accept the same type (invariant) as the interface field argument."
+          {:message "The object field argument must accept the same type (invariant) as the interface field argument."
            :argument-name name
            :field-name (::g/name interface-field)
            :interface (-> interface-field ::interface)
@@ -278,7 +278,7 @@
          (and (nil? interface-arg-def)
               (some-> type-ref ::g/non-null-type))
          (add-error
-          {:error "The object field may include additional arguments not defined in the interface field, but any additional argument must not be required, e.g. must not be of a non‐nullable type."
+          {:message "The object field may include additional arguments not defined in the interface field, but any additional argument must not be required, e.g. must not be of a non‐nullable type."
            :argument-name name
            :field-name (::g/name object-field)}))))
    acc
@@ -303,7 +303,7 @@
            ;; defined in an interface.
            (add-error
             acc
-            {:error "The object type must include a field of the same name for every field defined in an interface."
+            {:message "The object type must include a field of the same name for every field defined in an interface."
              :interface (::interface interface-field)
              :missing-field-name field-name})
 
@@ -337,7 +337,7 @@
   (cond-> acc
     (not (apply distinct? interfaces))
     (add-error
-     {:error "An object type may declare that it implements one or more unique interfaces. Interfaces declaration contains duplicates."
+     {:message "An object type may declare that it implements one or more unique interfaces. Interfaces declaration contains duplicates."
       :type-definition td})
     interfaces (-> (check-object-interfaces-exist td)
                    (check-object-interface-fields td))))
@@ -349,7 +349,7 @@
      (nil? field-definitions)
      (zero? (count field-definitions)))
     (add-error
-     {:error "An Object type must define one or more fields"
+     {:message "An Object type must define one or more fields"
       :type-definition td})
     true (check-object-type-fields td)
     interfaces (check-object-interfaces td)))
@@ -359,7 +359,7 @@
     (cond-> acc
       duplicates
       (add-error
-       {:error (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
+       {:message (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
         :duplicates (vec duplicates)}))))
 
 (defn check-interface-field-argument-definition [{::keys [provided-types] :as acc} arg-def tf]
@@ -368,20 +368,20 @@
     (cond-> acc
       (str/starts-with? (::g/name arg-def) "__")
       (add-error
-       {:error "A field argument must not have a name which begins with two underscores."
+       {:message "A field argument must not have a name which begins with two underscores."
         :arg-name (::g/name arg-def)
         :field-name (::g/name tf)})
 
       (nil? typ)
       (add-error
-       {:error "A field argument must accept a type that is known."
+       {:message "A field argument must accept a type that is known."
         :field-name (::g/name tf)
         :type typ
         :argument-definition arg-def})
 
       (and typ (not (input-type? typ)))
       (add-error
-       {:error "A field argument must accept a type that is an input type."
+       {:message "A field argument must accept a type that is an input type."
         :field-name (::g/name tf)
         :argument-definition arg-def}))))
 
@@ -395,18 +395,18 @@
     (cond-> acc
       (str/starts-with? (::g/name tf) "__")
       (add-error
-       {:error "A field must not have a name which begins with two underscores."
+       {:message "A field must not have a name which begins with two underscores."
         :field-name (::g/name tf)})
 
       (nil? typ)
       (add-error
-       {:error "A field must return a type that is known."
+       {:message "A field must return a type that is known."
         :field-name (::g/name tf)
         :field-type-name (::g/name type-ref)})
 
       (and typ (not (output-type? typ)))
       (add-error
-       {:error "A field must return a type that is an output type."
+       {:message "A field must return a type that is an output type."
         :field-name (::g/name tf)
         :type typ
         :tf tf})
@@ -461,11 +461,11 @@
     (cond
       (nil? query-root-op-type)
       (add-error acc
-       {:error (format "The query root operation type must be provided: '%s'" query-root-op-type-name)})
+       {:message (format "The query root operation type must be provided: '%s'" query-root-op-type-name)})
 
       (not= :object (get query-root-op-type ::g/kind))
       (add-error
-       acc {:error "The query root operation type must be an Object type"})
+       acc {:message "The query root operation type must be an Object type"})
 
       :else acc)))
 
@@ -492,7 +492,7 @@
   (when (pos? (dec (count (filter #(= (::g/definition-type %) :schema-definition) document))))
     (add-error
      acc
-     {:error "A document must include at most one schema definition"})))
+     {:message "A document must include at most one schema definition"})))
 
 (defn process-schema-definition [acc document]
   (let [schema-def (first (filter #(= (::g/definition-type %) :schema-definition) document))]
@@ -564,7 +564,7 @@
             (if (seq existing-directives)
               (add-error
                schema
-               {:error "Any directives provided must not already apply to the original Schema"
+               {:message "Any directives provided must not already apply to the original Schema"
                 :existing-directives existing-directives})
               (update schema ::directives merge (into {} (map (juxt ::g/name identity) directives))))))
         add-operation-types
@@ -576,7 +576,7 @@
             (if (seq duplicates)
               (add-error
                schema
-               {:error "Schema extension attempting to add root operation types that already exist"
+               {:message "Schema extension attempting to add root operation types that already exist"
                 :duplicates duplicates})
               (update schema ::root-operation-type-names merge operation-types))))]
     (cond-> schema
@@ -604,26 +604,26 @@
       ;; 1. The named type must already be defined and must be an Object type.
       (nil? existing-type)
       (add-error
-       {:error "The named type must already be defined and must be an Object type"
+       {:message "The named type must already be defined and must be an Object type"
         :name name})
 
       ;; 2. The fields of an Object type extension must have unique names; no
       ;; two fields may share the same name.
       duplicates
       (add-error
-       {:error "The fields of an Object type extension must have unique names; no two fields may share the same name."
+       {:message "The fields of an Object type extension must have unique names; no two fields may share the same name."
         :duplicates duplicates})
 
       ;; 3. Any fields of an Object type extension must not be already defined on the original Object type.
       pre-existing-fields
       (add-error
-       {:error "Any fields of an Object type extension must not be already defined on the original Object type."
+       {:message "Any fields of an Object type extension must not be already defined on the original Object type."
         :pre-existing-fields pre-existing-fields})
 
       ;; 4. Any directives provided must not already apply to the original Object type.
       pre-existing-directives
       (add-error
-       {:error "Any directives provided must not already apply to the original Object type."
+       {:message "Any directives provided must not already apply to the original Object type."
         :pre-existing-directives pre-existing-directives})
 
       ;; 5. Any interfaces provided must not be already implemented by the original Object type

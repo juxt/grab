@@ -21,9 +21,9 @@
   (doall
    (map
     (fn [error regex]
-      (is (:error error))
+      (is (:message error))
       (when regex
-        (is (re-matches regex (:error error)))))
+        (is (re-matches regex (:message error)))))
     errors regexes)))
 
 ;; https://spec.graphql.org/June2018/#sec-Schema

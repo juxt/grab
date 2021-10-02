@@ -29,7 +29,7 @@
    (map
     (fn [error regex]
       (when regex
-        (is (re-matches regex (:error error)))))
+        (is (re-matches regex (:message error)))))
     errors regexes)))
 
 (deftest schema-parsing-test

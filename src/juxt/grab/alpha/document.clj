@@ -36,7 +36,7 @@
   (when-not (every? #(#{:executable-definition} (::g/definition-type %)) document)
     (add-error
      acc
-     {:error "A document containing a type system definition or extension is invalid for execution"})))
+     {:message "A document containing a type system definition or extension is invalid for execution"})))
 
 (defn add-operations [{::keys [document] :as acc}]
   (assoc acc ::operations (vec (keep ::g/operation-definition document))))
@@ -56,13 +56,13 @@
   (assert operations)
   (when (> (count operations) 1)
     (when-not (empty? (get operations-grouped-by-name nil))
-      (add-error acc {:error "When there are multiple operations in the document, none can be anonymous"}))))
+      (add-error acc {:message "When there are multiple operations in the document, none can be anonymous"}))))
 
 (defn validate-operation-uniqueness [{::keys [operations-grouped-by-name] :as acc}]
   (reduce-kv
    (fn [acc n ops]
      (if (> (count ops) 1)
-       (add-error acc {:error (format "Operation name '%s' is not unique" n) :name n})
+       (add-error acc {:message (format "Operation name '%s' is not unique" n) :name n})
        (assoc-in acc [::operations-by-name n] (first ops))))
    acc
    operations-grouped-by-name))
@@ -71,7 +71,7 @@
   (reduce-kv
    (fn [acc n ops]
      (if (> (count ops) 1)
-       (add-error acc {:error (format "Fragment name '%s' is not unique" n) :name n})
+       (add-error acc {:message (format "Fragment name '%s' is not unique" n) :name n})
        (assoc-in acc [::fragments-by-name n] (first ops))))
    acc
    fragments-grouped-by-name))
@@ -170,7 +170,7 @@
 
       (cond
         (nil? field-def)
-        [{:error (format
+        [{:message (format
                   "Field name '%s' not defined on type in scope '%s'"
                   (::g/name selection)
                   scoped-type-name)
@@ -182,7 +182,7 @@
           :type-ref (some-> scoped-type-name provided-types)}]
 
         (and (#{:scalar :enum} (some-> selection-type ::g/kind)) subselection-set)
-        [{:error "The subselection set of a scalar or enum must be empty"}]
+        [{:message "The subselection set of a scalar or enum must be empty"}]
 
         subselection-set
         (mapcat #(validate-selection % scoped-type-name schema path) subselection-set)
@@ -240,7 +240,7 @@
     (cond
       (some #{:scalar :enum} kinds)
       (when (apply not= (map ::return-type fields))
-        {:error "Fields have conflicting return types"
+        {:message "Fields have conflicting return types"
          :path path
          :response-name response-name
          :fields fields}))))
@@ -273,7 +273,7 @@
            (cond
              ;; "i. fieldA and fieldB must have identical field names."
              (not (apply = (map ::g/name fields)))
-             {:error "Cannot merge since field names are not identical"
+             {:message "Cannot merge since field names are not identical"
               :selection-set selection-set
               :parent-scoped-type parent-scoped-type
               :path path
@@ -284,7 +284,7 @@
 
              ;; "ii. fieldA and fieldB must have identical sets of arguments."
              (not (apply = (map ::g/arguments fields)))
-             {:error "Cannot merge since field arguments are not identical"
+             {:message "Cannot merge since field arguments are not identical"
               :selection-set selection-set
               :parent-scoped-type parent-scoped-type
               :path path
