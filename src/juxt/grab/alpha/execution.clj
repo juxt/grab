@@ -465,7 +465,7 @@
           :field-resolver field-resolver
           :schema schema
           :document document
-          :path (conj path (::g/name field-type))})))))
+          :path path})))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
