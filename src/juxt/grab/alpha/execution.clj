@@ -337,12 +337,24 @@
     :scalar
     (if (coll? result)
       (throw (field-error (format "A collection (%s) is not coerceable to a %s scalar" (type result) (::g/name field-type))))
-      (case (::g/name field-type)
-        "String" (cond
-                   (nil? result) nil
-                   (keyword? result) (str/upper-case (name result))
+      (if (nil? result) nil
+          (case (::g/name field-type)
+            "String" (cond
+                       (keyword? result) (str/upper-case (name result))
+                       :else (str result))
+            "ID" (cond
+                   (keyword? result) (subs (str result) 1)
                    :else (str result))
-        result))))
+            "Int" (cond
+                    (integer? result) result
+                    (string? result)
+                    (try
+                      (Integer/parseInt result)
+                      (catch NumberFormatException e
+                        (throw (field-error "String cannot be coerced into an Int"))))
+                    :else (throw (field-error "No coercion to Int")))
+
+            result)))))
 
 (defn ^{:juxt.grab.alpha.spec-ref/version "June2018"
         :juxt.grab.alpha.spec-ref/section "6.4.3"
