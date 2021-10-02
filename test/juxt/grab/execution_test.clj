@@ -1,6 +1,6 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.graphql-test
+(ns juxt.grab.execution-test
   (:require
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.execution :refer [execute-request]]
