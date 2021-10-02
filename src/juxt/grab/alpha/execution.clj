@@ -512,12 +512,9 @@
         :schema schema
         :document document
         :path path}))
-    (catch clojure.lang.ExceptionInfo cause
-      ;; Return a map of :data and :errors
-      (if (contains? (ex-data cause) ::field-error)
-        {:errors [{:message (.getMessage cause) :path path}]}
-        ;; Propagate original error
-        (throw cause)))))
+    (catch Exception e
+      {:errors [{:message (.getMessage e) :path path}]
+       :data nil})))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -568,10 +565,10 @@
                    ;; the error should use the aliased name, since it
                    ;; represents a path in the response, not in the query."
                    ;; -- GraphQL Spec. June 2018, 7.1.2
-                   :path (conj path response-key)})]
+                   :path (conj path (keyword response-key))})]
              ;; ii. Set responseValue as the value for responseKey in resultMap.
              (cond-> acc
-               data (update :data conj [response-key data])
+               (find field-result :data) (update :data conj [(keyword response-key) data])
                (seq errors) (update :errors concat errors)))
            ;; Otherwise return the accumulator
            acc)))
