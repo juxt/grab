@@ -43,59 +43,65 @@
 
                 (throw (ex-info "" args))))})))))
 
+(deftest example-184-test
+  (is
+   (=
+    {:data
+     {:hero
+      {:name "R2-D2",
+       :heroFriends
+       [{:id "1000", :name "Luke Skywalker"}
+        {:id "1002", :name nil}
+        {:id "1003", :name "Leia Organa"}]}},
+     :errors
+     [{:message "Name for character with ID 1002 could not be fetched."
+       :path [:hero :heroFriends 1 :name]}]}
+    (let [schema
+          (schema/compile-schema
+           (parser/parse
+            (str/join
+             \newline
+             ["type Query { hero(episode: ID!): Person! }"
+              "type Person {"
+              "  id: ID!"
+              "  name: String"
+              "  friends: [Person!]"
+              "}"])))
+          document (document/compile-document
+                    (parser/parse
+                     (slurp (io/resource "juxt/grab/example-184.graphql")))
+                    schema)]
 
-;; 6.4.3  Value Completion
+      (execute-request
+       {:schema schema
+        :document document
+        :field-resolver
+        (fn [{:keys [object-type object-value field-name] :as args}]
+          (condp = [(::g/name object-type) field-name]
+            ["Query" "hero"]
+            {:name "R2-D2"
+             :friends [{:id "1000" :name "Luke Skywalker"}
+                       {:id "1002"}
+                       {:id "1003" :name "Leia Organa"}]}
 
-;; 4. If fieldType is a Scalar or Enum type:
-;;   a. Return the result of “coercing” result, ensuring it is a legal value of
-;;   fieldType, otherwise null.
+            ["Person" "id"]
+            (get object-value :id)
 
-(let [schema
-      (schema/compile-schema
-       (parser/parse
-        (str/join
-         \newline
-         ["type Query { hero(episode: ID!): Person! }"
-          "type Person {"
-          "  id: ID!"
-          "  name: String"
-          "  friends: [Person!]"
-          "}"])))
-      document (document/compile-document
-                (parser/parse
-                 (slurp (io/resource "juxt/grab/example-184.graphql")))
-                schema)]
+            ["Person" "name"]
+            (if (= (:id object-value) "1002")
+              (throw
+               (ex-info
+                (format
+                 "Name for character with ID %s could not be fetched."
+                 (:id object-value))
+                {}))
+              (get object-value :name))
 
-  (execute-request
-   {:schema schema
-    :document document
-    :field-resolver
-    (fn [{:keys [object-type object-value field-name] :as args}]
-      (condp = [(::g/name object-type) field-name]
-        ["Query" "hero"]
-        {:name "R2-D2"
-         :friends [{:id "1000" :name "Luke Skywalker"}
-                   {:id "1002"}
-                   {:id "1003" :name "Leia Organa"}]}
+            ["Person" "friends"]
+            (get object-value :friends)
 
-        ["Person" "id"]
-        (get object-value :id)
-
-        ["Person" "name"]
-        (if (= (:id object-value) "1002")
-          (throw
-           (ex-info
-            (format
-             "Name for character with ID %s could not be fetched."
-             (:id object-value))
-            {}))
-          (get object-value :name))
-
-        ["Person" "friends"]
-        (get object-value :friends)
-
-        (throw
-         (ex-info
-          "TODO"
-          {:case [(::g/name object-type) field-name]
-           :args args}))))}))
+            (throw
+             (ex-info
+              "TODO"
+              {:case [(::g/name object-type) field-name]
+               :args args}))))})))))
