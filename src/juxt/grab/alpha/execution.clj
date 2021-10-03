@@ -639,12 +639,43 @@
         :fragments-by-name fragments-by-name
         :path []}))))
 
-(defn execute-mutation [{:keys [mutation schema variable-values initial-value field-resolver fragments-by-name]}]
-  (throw (ex-info "TODO" {})))
+(defn execute-mutation
+  [{:keys [mutation schema variable-values initial-value field-resolver fragments-by-name]}]
+
+  (let [mutation-type-name (get-in schema [::schema/root-operation-type-names :mutation])
+        mutation-type (get-in schema [::schema/provided-types mutation-type-name])]
+
+    ;; 2. Assert: mutationType is an Object type.
+    (when-not (= (get mutation-type ::g/kind) :object)
+      (throw (ex-info
+              "Query type must be an OBJECT"
+              (into
+               {:mutation-type mutation-type
+                :schema schema
+                :juxt.grab.alpha.spec-ref/step 2}
+               (meta #'execute-mutation)))))
+
+    (assert (::g/selection-set mutation))
+
+    (let [ ;; 3. Let selectionSet be the top level Selection Set in mutation.
+          selection-set (::g/selection-set mutation)]
+
+      ;; 4. Let data be the result of running ExecuteSelectionSet
+      ;; normally (allowing parallelization).
+      ;; 5. Let errors be any field errors produced while executing the selection set.
+      ;; 6. Return an unordered map containing data and errors.
+      (execute-selection-set-normally
+       {:selection-set selection-set
+        :object-type mutation-type
+        :object-value initial-value
+        :variable-values variable-values
+        :schema schema
+        :field-resolver field-resolver
+        :fragments-by-name fragments-by-name
+        :path []}))))
 
 (defn execute-subscription [_]
   (throw (ex-info "Subscriptions are not currently supported" {})))
-
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -677,7 +708,13 @@
       ;; 4. Otherwise if operation is a mutation operation:
       ;;   a. Return ExecuteMutation(operation, schema, coercedVariableValues, initialValue).
       :mutation
-      (execute-mutation {})
+      (execute-mutation
+       {:mutation operation
+        :schema schema
+        :variable-values coerced-variable-values
+        :initial-value initial-value
+        :field-resolver field-resolver
+        :fragments-by-name fragments-by-name})
 
       ;; 5. Otherwise if operation is a subscription operation:
       ;;   a. Return Subscribe(operation, schema, coercedVariableValues, initialValue).
