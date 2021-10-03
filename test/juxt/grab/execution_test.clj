@@ -240,7 +240,7 @@
        "  friends: [Person!]!"
        "}"])))))
 
-;; TODO: Coercion errors with bubble up
+;; TODO: Coercion errors with propagation
 
 (deftest mutation-test
   (let [schema (schema/compile-schema
@@ -278,7 +278,6 @@
                 ["Story" "likeCount"]
                 (:likes (:object-value args))
 
-                ;; TODO: ex-data propagation into error 'extensions'
                 (throw (ex-info "TODO: resolve field" {:args args}))))))})
 
     (is (= {12345 {:likes 1}
