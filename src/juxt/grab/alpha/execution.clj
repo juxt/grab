@@ -17,12 +17,10 @@
     :juxt.grab.alpha.spec-ref/section "6.3.2"
     :juxt.grab.alpha.spec-ref/algorithm "CollectFields"}
   collect-fields
-  [{:keys [object-type selection-set variable-values visited-fragments document]
+  [{:keys [object-type selection-set variable-values visited-fragments fragments-by-name]
     ;; 1. If visitedFragments if not provided, initialize it to the empty
     ;; set.
     :or {visited-fragments #{}}}]
-
-  (assert document)
 
   (reduce
    (fn [grouped-fields selection]
@@ -64,7 +62,7 @@
 
                  ;; iv. Let fragment be the Fragment in the current Document
                  ;; whose name is fragmentSpreadName.
-                 fragment (get-in document [::document/fragments-by-name fragment-spread-name])]
+                 fragment (get fragments-by-name fragment-spread-name)]
 
              ;; v. If no such fragment exists, continue with the next
              ;; selection in selectionSet.
@@ -92,7 +90,7 @@
                          :selection-set fragment-selection-set
                          :variable-values variable-values
                          :visited-fragments visited-fragments
-                         :document document})]
+                         :fragments-by-name fragments-by-name})]
 
                    (reduce
                     (fn [grouped-fields [response-key fragment-group]]
@@ -108,7 +106,6 @@
                       :visited-fragments visited-fragments
                       :fragment fragment
                       :fragment-group-field-set fragment-group-field-set
-                      ;;:document document
                       }))))))))
 
        :inline-fragment
@@ -361,13 +358,7 @@
   complete-value
   "Return a map of :data and :errors"
   [{:keys [field-type-ref fields result variable-values field-resolver
-           schema document path] :as args}]
-
-  (assert path)
-  (assert field-type-ref)
-  (assert (map? field-type-ref))
-  (assert schema)
-  (assert document)
+           schema fragments-by-name path] :as args}]
 
   (let [{::schema/keys [provided-types]} schema
         field-type (some-> field-type-ref schema/unwrapped-type ::g/name provided-types)
@@ -390,7 +381,7 @@
               :variable-values variable-values
               :field-resolver field-resolver
               :schema schema
-              :document document
+              :fragments-by-name fragments-by-name
               :path path})]
 
         ;; c. If completedResult is null, throw a field error.
@@ -444,7 +435,7 @@
                     :variable-values variable-values
                     :field-resolver field-resolver
                     :schema schema
-                    :document document
+                    :fragments-by-name fragments-by-name
                     :path (conj path ix)}))
                 result))]
           (cond-> result
@@ -475,7 +466,7 @@
           :variable-values variable-values
           :field-resolver field-resolver
           :schema schema
-          :document document
+          :fragments-by-name fragments-by-name
           :path path})))))
 
 (defn
@@ -484,9 +475,8 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteField"}
   execute-field
   "Return a map of :data and :errors"
-  [{:keys [object-type object-value field-type-ref fields variable-values field-resolver schema document path]}]
+  [{:keys [object-type object-value field-type-ref fields variable-values field-resolver schema fragments-by-name path]}]
   (assert schema)
-  (assert document)
   (assert path)
 
   ;; 1. Let field be the first entry in fields.
@@ -522,7 +512,7 @@
           :variable-values variable-values
           :field-resolver field-resolver
           :schema schema
-          :document document
+          :fragments-by-name fragments-by-name
           :path path}))
 
       (catch Exception e
@@ -540,10 +530,9 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteSelectionSet"}
   execute-selection-set-normally
   "Return a map with :data and :errors."
-  [{:keys [selection-set object-type object-value variable-values field-resolver schema document path]}]
+  [{:keys [selection-set object-type object-value variable-values field-resolver schema fragments-by-name path]}]
 
   (assert schema)
-  (assert document)
   (assert path)
 
   ;; 1. Let groupedFieldSet be the result of CollectFields
@@ -552,7 +541,7 @@
          {:object-type object-type
           :selection-set selection-set
           :variable-values variable-values
-          :document document})]
+          :fragments-by-name fragments-by-name})]
 
     (let [result
           (reduce
@@ -579,7 +568,7 @@
                          :variable-values variable-values
                          :field-resolver field-resolver
                          :schema schema
-                         :document document
+                         :fragments-by-name fragments-by-name
                          ;; "If the error happens in an aliased field, the path to
                          ;; the error should use the aliased name, since it
                          ;; represents a path in the response, not in the query."
@@ -612,9 +601,8 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteQuery"}
   execute-query
   "Returns a map with :errors and :data"
-  [{:keys [query schema variable-values initial-value field-resolver document]}]
+  [{:keys [query schema variable-values initial-value field-resolver fragments-by-name]}]
   (assert schema)
-  (assert document)
 
   ;; 1. Let queryType be the root Query type in schema.
   (let [query-type-name (get-in schema [::schema/root-operation-type-names :query])
@@ -646,8 +634,15 @@
         :variable-values variable-values
         :schema schema
         :field-resolver field-resolver
-        :document document
+        :fragments-by-name fragments-by-name
         :path []}))))
+
+(defn execute-mutation [{:keys [mutation schema variable-values initial-value field-resolver fragments-by-name]}]
+  (throw (ex-info "TODO" {})))
+
+(defn execute-subscription [_]
+  (throw (ex-info "Subscriptions are not currently supported" {})))
+
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -661,7 +656,8 @@
   (let [operation (document/get-operation document operation-name)
         ;; 2. Let coercedVariableValues be the result of
         ;; CoerceVariableValues(schema, operation, variableValues). (TODO)
-        coerced-variable-values variable-values]
+        coerced-variable-values variable-values
+        fragments-by-name (::document/fragments-by-name document)]
 
     (case (::g/operation-type operation)
       ;; 3. If operation is a
@@ -674,16 +670,16 @@
         :variable-values coerced-variable-values
         :initial-value initial-value
         :field-resolver field-resolver
-        :document document})
+        :fragments-by-name fragments-by-name})
 
       ;; 4. Otherwise if operation is a mutation operation:
       ;;   a. Return ExecuteMutation(operation, schema, coercedVariableValues, initialValue).
-
-      ;; TODO
+      :mutation
+      (execute-mutation {})
 
       ;; 5. Otherwise if operation is a subscription operation:
       ;;   a. Return Subscribe(operation, schema, coercedVariableValues, initialValue).
-
-      ;; TODO
+      :subscription
+      (execute-subscription {})
 
       (throw (ex-info "Unsupported operation type on operation" {:operation operation})))))

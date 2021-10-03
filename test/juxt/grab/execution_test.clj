@@ -243,3 +243,35 @@
 ;; TODO: Mutations
 
 ;; TODO: Coercion errors with bubble up
+
+
+#_(let [schema (schema/compile-schema
+              (parser/parse
+               (str/join
+                "\n"
+                ["type Query { stories: [Story] }"
+                 "type Mutation { likeStory(storyId: Int): LikeStoryResult }"
+                 "type LikeStoryResult { story: Story }"
+                 "type Story { likeCount: Int }"])))
+      document (document/compile-document
+                (parser/parse (slurp (io/resource "juxt/grab/example-5.graphql")))
+                schema)]
+
+  (execute-request
+   {:schema schema
+    :document document
+    :field-resolver
+    (fn [args]
+      (condp =
+          #_[(get-in args [:object-type ::g/name])
+           (get-in args [:field-name])]
+          #_["Root" "user"]
+          {:name "Isaac Newton"}
+
+          #_["Person" "name"]
+          (get-in args [:object-value :name])
+
+          #_["Person" "profilePic"]
+          (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
+
+          (throw (ex-info "TODO: resolve field" args))))}))
