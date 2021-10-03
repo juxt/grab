@@ -519,10 +519,12 @@
         ;; Error resolving field value. If an error occurs we can set the field
         ;; to nil, marking whether this makes the field invalid with respect to
         ;; any non-nil wrapper.
-        (-> (if (::g/non-null-type field-type-ref)
-              {::invalid? true}
-              {:data nil})
-            (assoc :errors [{:message (.getMessage e) :path path}]))))))
+        (let [ex-data (ex-data e)]
+          (-> (if (::g/non-null-type field-type-ref)
+                {::invalid? true}
+                {:data nil})
+              (assoc :errors [(cond-> {:message (.getMessage e) :path path}
+                                (seq ex-data) (assoc :extensions ex-data))])))))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
