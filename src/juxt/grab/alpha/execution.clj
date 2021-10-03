@@ -380,11 +380,10 @@
       ;; a. Let innerType be the inner type of fieldType.
       (let [inner-type-ref (get field-type-ref ::g/non-null-type)
             _ (assert inner-type-ref (format "Field type %s is NON_NULL but doesn't have a non-nil inner type" (pr-str field-type-ref)))
+
             ;; b. Let completedResult be the result of calling
             ;; CompleteValue(…).
-
-            {completed-result :data
-             errors :errors}
+            {:keys [data errors]}
             (complete-value
              {:field-type-ref inner-type-ref
               :fields fields
@@ -395,15 +394,20 @@
               :document document
               :path path})]
 
-        ;; c. If completedResult is null, throw a field error.
-        (when (nil? completed-result)
-          {:errors
-           [{:message "Field error, NON_NULL type returned nil value for inner type"
-             :path path}]})
+        #_(when (nil? result)
+          (throw (ex-info "break" {:field-type-ref field-type-ref
+                                   :path path
+                                   :data data
+                                   :errors errors})))
 
-        ;; d. Return completedResult.
-        (cond-> {:data completed-result}
-          (seq errors) (assoc :errors errors)))
+        ;; c. If completedResult is null, throw a field error.
+        (if (nil? data)
+          {:errors errors
+           :bubble-up true}
+
+          ;; d. Return completedResult.
+          (cond-> {:data data}
+            (seq errors) (assoc :errors errors))))
 
       ;; 2. If result is null (or another internal value similar to null such
       ;; as undefined or NaN), return null.
@@ -417,30 +421,37 @@
           (throw (field-error "Resolver must return a collection")))
 
         ;; b. Let innerType be the inner type of fieldType.
-        (let [inner-type-ref (get field-type-ref ::g/list-type)]
+        (let [inner-type-ref (get field-type-ref ::g/list-type)
 
-          ;; c. Return a list where each list item is the result of calling
-          ;; CompleteValue(innerType, fields, resultItem, variableValues),
-          ;; where resultItem is each item in result.
+              ;; c. Return a list where each list item is the result of calling
+              ;; CompleteValue(innerType, fields, resultItem, variableValues),
+              ;; where resultItem is each item in result.
 
-          (reduce
-           (fn [acc {:keys [data errors]}]
-             (cond-> acc
-               data (update :data conj data)
-               (seq errors) (update :errors concat errors)))
-           {:data []}
-           (map-indexed
-            (fn [ix result-item]
-              (complete-value
-               {:field-type-ref inner-type-ref
-                :fields fields
-                :result result-item
-                :variable-values variable-values
-                :field-resolver field-resolver
-                :schema schema
-                :document document
-                :path (conj path ix)}))
-            result))))
+              result
+              (reduce
+               (fn [acc {:keys [data errors]}]
+                 (cond-> (update acc :data conj data)
+                   (seq errors) (update :errors concat errors)
+                   (and (::g/non-null-type inner-type-ref) (nil? data))
+                   (assoc :some-nil true)))
+               {:data []}
+               (map-indexed
+                (fn [ix result-item]
+                  (complete-value
+                   {:field-type-ref inner-type-ref
+                    :fields fields
+                    :result result-item
+                    :variable-values variable-values
+                    :field-resolver field-resolver
+                    :schema schema
+                    :document document
+                    :path (conj path ix)}))
+                result))]
+          (cond-> result
+            ;; "If a List type wraps a Non-Null type, and one of the elements of
+            ;; that list resolves to null, then the entire list must resolve to
+            ;; null."
+            (:some-nil result) (assoc :data nil))))
 
       ;; 4. If fieldType is a Scalar or Enum type:
       (#{:scalar :enum} kind)
@@ -479,42 +490,48 @@
   (assert path)
 
   ;; 1. Let field be the first entry in fields.
-  (try
-    (let [field (first fields)
+  (let [field (first fields)
 
-          ;; 2. Let fieldName be the field name of field.
-          field-name (::g/name field)
-          ;; 3. Let argumentValues be the result of CoerceArgumentValues(…).
-          argument-values
-          (coerce-argument-values
-           {:object-type object-type
-            :field field
-            :variable-values variable-values})
+        ;; 2. Let fieldName be the field name of field.
+        field-name (::g/name field)
 
-          ;; 4. Let resolvedValue be ResolveFieldValue(…).
-          resolved-value
-          (resolve-field-value
-           {:object-type object-type
-            :object-value object-value
-            :field-name field-name
-            :argument-values argument-values
-            :field-resolver field-resolver
-            :schema schema
-            :path path})]
+        ;; 3. Let argumentValues be the result of CoerceArgumentValues(…).
+        argument-values
+        (coerce-argument-values
+         {:object-type object-type
+          :field field
+          :variable-values variable-values})]
 
-      ;; 5. Return the result of CompleteValue(…).
-      (complete-value
-       {:field-type-ref field-type-ref
-        :fields fields
-        :result resolved-value
-        :variable-values variable-values
-        :field-resolver field-resolver
-        :schema schema
-        :document document
-        :path path}))
-    (catch Exception e
-      {:errors [{:message (.getMessage e) :path path}]
-       :data nil})))
+    (try
+      (let [ ;; 4. Let resolvedValue be ResolveFieldValue(…).
+            resolved-value
+            (resolve-field-value
+             {:object-type object-type
+              :object-value object-value
+              :field-name field-name
+              :argument-values argument-values
+              :field-resolver field-resolver
+              :schema schema
+              :path path})]
+
+        ;; 5. Return the result of CompleteValue(…).
+        (complete-value
+         {:field-type-ref field-type-ref
+          :fields fields
+          :result resolved-value
+          :variable-values variable-values
+          :field-resolver field-resolver
+          :schema schema
+          :document document
+          :path path}))
+
+      (catch Exception e
+        (when (= (.getMessage e) "break") (throw e))
+        ;; Error resolving field value
+        (-> (if (::g/non-null-type field-type-ref)
+              {:bubble-up true}
+              {:data nil})
+            (assoc :errors [{:message (.getMessage e) :path path}]))))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -536,45 +553,52 @@
           :variable-values variable-values
           :document document})]
 
-    (reduce
-     (fn [acc [response-key fields]]
+    (let [result
+          (reduce
+           (fn [acc [response-key fields]]
 
-       ;; a. Let fieldName be the name of the first entry in fields. Note:
-       ;; This value is unaffected if an alias is used.
-       (let [field (first fields)
-             field-name (::g/name field)
-             ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-             field-type-ref
-             (get-in object-type [::schema/fields-by-name field-name ::g/type-ref])]
+             ;; a. Let fieldName be the name of the first entry in fields. Note:
+             ;; This value is unaffected if an alias is used.
+             (let [field (first fields)
+                   field-name (::g/name field)
+                   ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
+                   field-type-ref
+                   (get-in object-type [::schema/fields-by-name field-name ::g/type-ref])]
 
-         ;; c. If fieldType is defined:
-         (if field-type-ref
-           ;; i. Let responseValue be ExecuteField(objectType, objectValue,
-           ;; fields, fieldType, variableValues).
-           (let [{:keys [data errors] :as field-result}
-                 (execute-field
-                  {:object-type object-type
-                   :object-value object-value
-                   :field-type-ref field-type-ref
-                   :fields fields
-                   :variable-values variable-values
-                   :field-resolver field-resolver
-                   :schema schema
-                   :document document
-                   ;; "If the error happens in an aliased field, the path to
-                   ;; the error should use the aliased name, since it
-                   ;; represents a path in the response, not in the query."
-                   ;; -- GraphQL Spec. June 2018, 7.1.2
-                   :path (conj path (keyword response-key))})]
-             ;; ii. Set responseValue as the value for responseKey in resultMap.
-             (cond-> acc
-               (find field-result :data) (update :data conj [(keyword response-key) data])
-               (seq errors) (update :errors concat errors)))
-           ;; Otherwise return the accumulator
-           acc)))
-     ;; 2. Initialize resultMap to an empty ordered map.
-     {:data (ordered-map)}
-     grouped-field-set)))
+               ;; c. If fieldType is defined:
+               (if field-type-ref
+                 ;; i. Let responseValue be ExecuteField(objectType, objectValue,
+                 ;; fields, fieldType, variableValues).
+                 (let [{:keys [data errors bubble-up] :as field-result}
+                       (execute-field
+                        {:object-type object-type
+                         :object-value object-value
+                         :field-type-ref field-type-ref
+                         :fields fields
+                         :variable-values variable-values
+                         :field-resolver field-resolver
+                         :schema schema
+                         :document document
+                         ;; "If the error happens in an aliased field, the path to
+                         ;; the error should use the aliased name, since it
+                         ;; represents a path in the response, not in the query."
+                         ;; -- GraphQL Spec. June 2018, 7.1.2
+                         :path (conj path (keyword response-key))})]
+                   ;; ii. Set responseValue as the value for responseKey in resultMap.
+                   (cond-> acc
+                     (find field-result :data) (update :data conj [(keyword response-key) data])
+                     (seq errors) (update :errors concat errors)
+                     bubble-up (assoc :bubble-up true)))
+                 ;; Otherwise return the accumulator
+                 acc)))
+           ;; 2. Initialize resultMap to an empty ordered map.
+           {:data (ordered-map)}
+           grouped-field-set)]
+
+      (cond-> result
+        (:bubble-up result) (assoc :data nil))
+
+      )))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -638,13 +662,15 @@
       :query ;; operation:
       ;;   a. Return ExecuteQuery(operation, schema, coercedVariableValues,
       ;;   initialValue).
-      (execute-query
-       {:query operation
-        :schema schema
-        :variable-values coerced-variable-values
-        :initial-value initial-value
-        :field-resolver field-resolver
-        :document document})
+      (->
+       (execute-query
+        {:query operation
+         :schema schema
+         :variable-values coerced-variable-values
+         :initial-value initial-value
+         :field-resolver field-resolver
+         :document document})
+       (dissoc :bubble-up))
 
       ;; 4. Otherwise if operation is a mutation operation:
       ;;   a. Return ExecuteMutation(operation, schema, coercedVariableValues, initialValue).

@@ -21,7 +21,6 @@
    (parse (slurp (io/resource "juxt/grab/example-90.graphql")))))
 
 (defn expected-errors [{::doc/keys [errors]} regexes]
-  (assert errors)
   (is
    (= (count errors) (count regexes))
    "Count of errors doesn't equal expected count")
@@ -169,10 +168,15 @@
       (compile-document* (example-schema))
       (expected-errors [#"The subselection set of a scalar or enum must be empty"])))
 
-#_(deftest example-115-test
+
+(deftest example-115-test
   (-> (example-schema)
       (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))
       (expected-errors [])))
+
+#_(-> (example-schema)
+    (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))
+    )
 
 #_(deftest example-116-test
   (let [schema
@@ -191,3 +195,11 @@
 
   ;; TODO: Support :typeSystemExtension
   (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))
+
+
+;; Arguments
+
+;; Fragments
+#_(-> (example "126")
+    (compile-document* (example-schema))
+    )

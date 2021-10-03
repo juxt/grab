@@ -379,3 +379,5 @@
       parse
       compile-schema*
       (expected-errors [#"A field argument must accept a type that is an input type."])))
+
+;; TODO: Interface extensions (3.7.1)

@@ -43,7 +43,7 @@
 
                 (throw (ex-info "" args))))})))))
 
-(deftest example-184-test
+(deftest error-result-format-test
   (is
    (=
     {:data
@@ -105,3 +105,59 @@
               "TODO"
               {:case [(::g/name object-type) field-name]
                :args args}))))})))))
+
+;;(deftest error-result-format-bubble-up-test)
+
+
+(let [schema
+      (schema/compile-schema
+       (parser/parse
+        (str/join
+         \newline
+         ["type Query { hero(episode: ID!): Person }"
+          "type Person {"
+          "  id: ID!"
+          "  name: String!"
+          "  friends: [Person!]!"
+          "}"])))
+      document (document/compile-document
+                (parser/parse
+                 (slurp (io/resource "juxt/grab/example-184.graphql")))
+                schema)]
+
+  (execute-request
+   {:schema schema
+    :document document
+    :field-resolver
+    (fn [{:keys [object-type object-value field-name] :as args}]
+      (condp = [(::g/name object-type) field-name]
+        ["Query" "hero"]
+        {:name "R2-D2"
+         :friends [{:id "1000" :name "Luke Skywalker"}
+                   {:id "1002"}
+                   {:id "1003" :name "Leia Organa"}]}
+
+        ["Person" "id"]
+        (get object-value :id)
+
+        ["Person" "name"]
+        #_(get object-value :name)
+        (if (= (:id object-value) "1002")
+          (throw
+           (ex-info
+            (format
+             "Name for character with ID %s could not be fetched."
+             (:id object-value))
+            {}))
+          (get object-value :name))
+
+        ["Person" "friends"]
+        (get object-value :friends)
+
+        (throw
+         (ex-info
+          "TODO"
+          {:case [(::g/name object-type) field-name]
+           :args args}))))}))
+
+;; TODO: Coercion errors with bubble up
