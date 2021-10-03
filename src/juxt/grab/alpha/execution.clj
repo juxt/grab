@@ -355,7 +355,13 @@
                         (throw (field-error "String cannot be coerced into an Int"))))
                     :else (throw (field-error "No coercion to Int")))
 
-            result)))))
+            result)))
+    :enum
+    (if (coll? result)
+      (throw (field-error (format "A collection (%s) is not coerceable to a enum" (type result))))
+      (keyword result))
+
+    (throw (ex-info "Cannot coerce result" {:kind (::g/kind field-type)}))))
 
 (defn ^{:juxt.grab.alpha.spec-ref/version "June2018"
         :juxt.grab.alpha.spec-ref/section "6.4.3"
