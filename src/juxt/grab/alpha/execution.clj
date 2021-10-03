@@ -177,7 +177,10 @@
              (nil? argument-value)
              ;; 1. Add an entry to coercedValues named argumentName with the value null.
              (conj acc [argument-name nil])
-             ;; ii. Otherwise, if argumentValue is a Variable: (TODO)
+
+             ;; ii. Otherwise, if argumentValue is a Variable:
+             (and (map? argument-value) (::g/variable argument-value))
+             (conj acc [argument-name (get variable-values (::g/variable argument-value))])
 
              :else
              ;; TODO: apply coercion rules, for now just set it to the value

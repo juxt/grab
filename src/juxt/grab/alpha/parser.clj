@@ -3,8 +3,7 @@
 (ns juxt.grab.alpha.parser
   (:require
    [clj-antlr.core :as antlr]
-   [clojure.java.io :as io]
-   [clojure.string :as str]))
+   [clojure.java.io :as io]))
 
 (defonce parser (antlr/parser (slurp (io/resource "GraphQL.g4"))))
 
@@ -28,8 +27,7 @@
                                 :column (:column coords)
                                 :index (:index coords)}}))))
 
-(defmethod process :constant [_]
-  nil)
+(defmethod process :constant [_] nil)
 
 (defmethod process :default [[k & vals]]
   {:not-handled! {:k k :vals vals}})
@@ -296,6 +294,9 @@
   (when-not (#{"true" "false"} value)
     (throw (ex-info "Boolean value must be true or false" {})))
   (Boolean/valueOf value))
+
+(defmethod process :variable [[_ _ nm]]
+  {::g/variable (::g/name (process-child nm))})
 
 (defn parse* [s]
   (some-> s parser))

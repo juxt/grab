@@ -283,3 +283,47 @@
     (is (= {12345 {:likes 1}
             54321 {:likes 0}}
            @stories))))
+
+
+(deftest example-32-test
+  (let [schema (schema/compile-schema
+                (parser/parse
+                 (str/join
+                  "\n"
+                  ["type Query { user(id: Int): User }"
+                   "type User { id: Int name: String profilePic(size: Int): String }"])))
+
+        document (document/compile-document
+                  (parser/parse (slurp (io/resource "juxt/grab/example-32.graphql")))
+                  schema)
+
+        users {4 {:id 4
+                  :name "Mark Zuckerberg"
+                  :profilePic {60 "abc.png" 90 "def.png"}}}]
+
+    (is
+     (=
+      {:data {:user {:id 4, :name "Mark Zuckerberg", :profilePic "abc.png"}}}
+      (execute-request
+       {:schema schema
+        :document document
+        :variable-values {"devicePicSize" 60}
+        :field-resolver
+        (fn [args]
+          (condp =
+              [(get-in args [:object-type ::g/name])
+               (get-in args [:field-name])]
+
+            ["Query" "user"]
+            (get users (get-in args [:argument-values "id"]))
+
+            ["User" "id"]
+            (get-in args [:object-value :id])
+
+            ["User" "name"]
+            (get-in args [:object-value :name])
+
+            ["User" "profilePic"]
+            (get-in args [:object-value :profilePic (get-in args [:argument-values "size"])])
+
+            (throw (ex-info "TODO: resolve field" {:args args}))))})))))
