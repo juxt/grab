@@ -16,7 +16,7 @@
   (is
    (= {:data
        {:user
-        {:name "Isaac Newton",
+        {:name "Isaac Newton"
          :profilePic "https://profile.juxt.site/pic-100.png"}}}
       (let [schema (schema/compile-schema
                     (parser/parse (slurp (io/resource "juxt/grab/schema-3.graphql"))))
@@ -48,11 +48,11 @@
    (=
     {:data
      {:hero
-      {:name "R2-D2",
+      {:name "R2-D2"
        :heroFriends
-       [{:id "1000", :name "Luke Skywalker"}
-        {:id "1002", :name nil}
-        {:id "1003", :name "Leia Organa"}]}},
+       [{:id "1000" :name "Luke Skywalker"}
+        {:id "1002" :name nil}
+        {:id "1003" :name "Leia Organa"}]}}
      :errors
      [{:message "Name for character with ID 1002 could not be fetched."
        :path [:hero :heroFriends 1 :name]}]}
@@ -153,13 +153,13 @@
   (is (=
        {:data
         {:hero
-         {:name "R2-D2",
+         {:name "R2-D2"
           :heroFriends
-          [{:id "1000", :name "Luke Skywalker"}
-           {:id "1002", :name nil}
-           {:id "1003", :name "Leia Organa"}]}},
+          [{:id "1000" :name "Luke Skywalker"}
+           {:id "1002" :name nil}
+           {:id "1003" :name "Leia Organa"}]}}
         :errors
-        [{:message "Name for character with ID 1002 could not be fetched.",
+        [{:message "Name for character with ID 1002 could not be fetched."
           :path [:hero :heroFriends 1 :name]}]}
        (execute-example-184-query
         (str/join
@@ -174,13 +174,13 @@
    (=
     {:data
      {:hero
-      {:name "R2-D2",
+      {:name "R2-D2"
        :heroFriends
-       [{:id "1000", :name "Luke Skywalker"}
+       [{:id "1000" :name "Luke Skywalker"}
         nil
-        {:id "1003", :name "Leia Organa"}]}},
+        {:id "1003" :name "Leia Organa"}]}}
      :errors
-     [{:message "Name for character with ID 1002 could not be fetched.",
+     [{:message "Name for character with ID 1002 could not be fetched."
        :path [:hero :heroFriends 1 :name]}]}
     (execute-example-184-query
      (str/join
@@ -194,9 +194,9 @@
 
   (is
    (=
-    {:data {:hero {:name "R2-D2", :heroFriends nil}},
+    {:data {:hero {:name "R2-D2" :heroFriends nil}}
      :errors
-     [{:message "Name for character with ID 1002 could not be fetched.",
+     [{:message "Name for character with ID 1002 could not be fetched."
        :path [:hero :heroFriends 1 :name]}]}
     (execute-example-184-query
      (str/join
@@ -212,7 +212,7 @@
    (=
     {:data {:hero nil}
      :errors
-     [{:message "Name for character with ID 1002 could not be fetched.",
+     [{:message "Name for character with ID 1002 could not be fetched."
        :path [:hero :heroFriends 1 :name]}]}
     (execute-example-184-query
      (str/join
@@ -228,7 +228,7 @@
    (=
     {:data nil
      :errors
-     [{:message "Name for character with ID 1002 could not be fetched.",
+     [{:message "Name for character with ID 1002 could not be fetched."
        :path [:hero :heroFriends 1 :name]}]}
     (execute-example-184-query
      (str/join
@@ -240,38 +240,47 @@
        "  friends: [Person!]!"
        "}"])))))
 
-;; TODO: Mutations
-
 ;; TODO: Coercion errors with bubble up
 
+(deftest mutation-test
+  (let [schema (schema/compile-schema
+                (parser/parse
+                 (str/join
+                  "\n"
+                  ["type Query { stories: [Story] }"
+                   "type Mutation { likeStory(storyID: Int!): LikeStoryResult }"
+                   "type LikeStoryResult { story: Story }"
+                   "type Story { likeCount: Int }"])))
+        document (document/compile-document
+                  (parser/parse (slurp (io/resource "juxt/grab/example-5.graphql")))
+                  schema)
+        stories (atom {12345 {:likes 0}
+                       54321 {:likes 0}})]
 
-#_(let [schema (schema/compile-schema
-              (parser/parse
-               (str/join
-                "\n"
-                ["type Query { stories: [Story] }"
-                 "type Mutation { likeStory(storyId: Int): LikeStoryResult }"
-                 "type LikeStoryResult { story: Story }"
-                 "type Story { likeCount: Int }"])))
-      document (document/compile-document
-                (parser/parse (slurp (io/resource "juxt/grab/example-5.graphql")))
-                schema)]
+    (execute-request
+     {:schema schema
+      :document document
+      :field-resolver
+      (fn [args]
+        (let [story-id (get-in args [:argument-values "storyID"])
+              field-name (get-in args [:field-name])]
+          (case field-name
+            "likeStory" (get
+                         (swap! stories update-in [story-id :likes] inc)
+                         story-id)
+            (condp =
+                [(get-in args [:object-type ::g/name])
+                 field-name]
 
-  (execute-request
-   {:schema schema
-    :document document
-    :field-resolver
-    (fn [args]
-      (condp =
-          #_[(get-in args [:object-type ::g/name])
-           (get-in args [:field-name])]
-          #_["Root" "user"]
-          {:name "Isaac Newton"}
+                ["LikeStoryResult" "story"]
+                (:object-value args)
 
-          #_["Person" "name"]
-          (get-in args [:object-value :name])
+                ["Story" "likeCount"]
+                (:likes (:object-value args))
 
-          #_["Person" "profilePic"]
-          (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
+                ;; TODO: ex-data propagation into error 'extensions'
+                (throw (ex-info "TODO: resolve field" {:args args}))))))})
 
-          (throw (ex-info "TODO: resolve field" args))))}))
+    (is (= {12345 {:likes 1}
+            54321 {:likes 0}}
+           @stories))))
