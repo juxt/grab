@@ -61,10 +61,9 @@
 
            (let [ ;; iii. Add fragmentSpreadName to visitedFragments.
                  visited-fragments (conj visited-fragments fragment-spread-name)
+
                  ;; iv. Let fragment be the Fragment in the current Document
                  ;; whose name is fragmentSpreadName.
-
-                 ;; TODO: Create fragment index
                  fragment (get-in document [::document/fragments-by-name fragment-spread-name])]
 
              ;; v. If no such fragment exists, continue with the next
@@ -394,16 +393,17 @@
               :document document
               :path path})]
 
-        #_(when (nil? result)
-          (throw (ex-info "break" {:field-type-ref field-type-ref
-                                   :path path
-                                   :data data
-                                   :errors errors})))
-
         ;; c. If completedResult is null, throw a field error.
         (if (nil? data)
           {:errors errors
-           :bubble-up true}
+           ;; "If the parent field may be null then it resolves to null,
+           ;; otherwise if it is a Non-Null type, the field error is further
+           ;; propagated to it’s parent field."
+
+           ;; Here we set a flag to indicate to the parent to decide whether to
+           ;; resolve itself to null, or whether to propagate to it's parent
+           ;; field.
+           ::invalid? true}
 
           ;; d. Return completedResult.
           (cond-> {:data data}
@@ -526,10 +526,11 @@
           :path path}))
 
       (catch Exception e
-        (when (= (.getMessage e) "break") (throw e))
-        ;; Error resolving field value
+        ;; Error resolving field value. If an error occurs we can set the field
+        ;; to nil, marking whether this makes the field invalid with respect to
+        ;; any non-nil wrapper.
         (-> (if (::g/non-null-type field-type-ref)
-              {:bubble-up true}
+              {::invalid? true}
               {:data nil})
             (assoc :errors [{:message (.getMessage e) :path path}]))))))
 
@@ -569,7 +570,7 @@
                (if field-type-ref
                  ;; i. Let responseValue be ExecuteField(objectType, objectValue,
                  ;; fields, fieldType, variableValues).
-                 (let [{:keys [data errors bubble-up] :as field-result}
+                 (let [{:keys [data errors] ::keys [invalid?] :as field-result}
                        (execute-field
                         {:object-type object-type
                          :object-value object-value
@@ -588,7 +589,8 @@
                    (cond-> acc
                      (find field-result :data) (update :data conj [(keyword response-key) data])
                      (seq errors) (update :errors concat errors)
-                     bubble-up (assoc :bubble-up true)))
+                     ;; Indicate in the accumulator that we have an invalid nil field.
+                     invalid? (assoc ::invalid? true)))
                  ;; Otherwise return the accumulator
                  acc)))
            ;; 2. Initialize resultMap to an empty ordered map.
@@ -596,9 +598,13 @@
            grouped-field-set)]
 
       (cond-> result
-        (:bubble-up result) (assoc :data nil))
-
-      )))
+        ;; If any of the fields are invalid, this invalidates the field's
+        ;; parent's selection set. We nil it and clear the flag, letting its
+        ;; parent to set the flag based on whether this is acceptable or to
+        ;; proppagate in turn to it's parent.
+        (::invalid? result)
+        (-> (assoc :data nil)
+            (dissoc ::invalid?))))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -662,15 +668,13 @@
       :query ;; operation:
       ;;   a. Return ExecuteQuery(operation, schema, coercedVariableValues,
       ;;   initialValue).
-      (->
-       (execute-query
-        {:query operation
-         :schema schema
-         :variable-values coerced-variable-values
-         :initial-value initial-value
-         :field-resolver field-resolver
-         :document document})
-       (dissoc :bubble-up))
+      (execute-query
+       {:query operation
+        :schema schema
+        :variable-values coerced-variable-values
+        :initial-value initial-value
+        :field-resolver field-resolver
+        :document document})
 
       ;; 4. Otherwise if operation is a mutation operation:
       ;;   a. Return ExecuteMutation(operation, schema, coercedVariableValues, initialValue).
