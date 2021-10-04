@@ -103,6 +103,9 @@
         (keep process-child)
         (into {}))})
 
+(defmethod process :listValue [[_ & args]]
+  (mapv (comp ::g/value process-child) (rest (butlast args))))
+
 (defmethod process :argument [[_ name _ value]]
   [(::g/name (process-child name))
    (::g/value (process-child value))])
