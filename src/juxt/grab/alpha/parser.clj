@@ -85,9 +85,11 @@
 (defmethod process :intValue [[_ val]]
   (Integer/parseInt val))
 
+(defmethod process :floatValue [[_ val]]
+  (Double/parseDouble val))
+
 (defmethod process :type_ [[_ val bang? :as args]]
-  (-> {::g/type-ref (if (= bang? "!") {::g/non-null-type (process-child val)} (process-child val))
-       }))
+  (-> {::g/type-ref (if (= bang? "!") {::g/non-null-type (process-child val)} (process-child val))}))
 
 (defmethod process :namedType [[_ val]]
   (process-child val))
