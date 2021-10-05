@@ -303,6 +303,12 @@
 (defmethod process :variable [[_ _ nm]]
   {::g/variable (::g/name (process-child nm))})
 
+(defmethod process :objectValue [[_ & args]]
+  (into {} (map (comp process-child) (rest (butlast args)))))
+
+(defmethod process :objectField [[_ name _ value]]
+  [(keyword (::g/name (process-child name))) (::g/value (process-child value))])
+
 (defn parse* [s]
   (some-> s parser))
 
