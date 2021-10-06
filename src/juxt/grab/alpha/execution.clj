@@ -96,17 +96,7 @@
                     (fn [grouped-fields [response-key fragment-group]]
                       (update grouped-fields response-key (fnil concat (list)) fragment-group))
                     grouped-fields
-                    fragment-group-field-set)
-
-                   #_(throw
-                    (ex-info
-                     "TODO: fragment-spread"
-                     {:selection selection
-                      :fragment-spread-name fragment-spread-name
-                      :visited-fragments visited-fragments
-                      :fragment fragment
-                      :fragment-group-field-set fragment-group-field-set
-                      }))))))))
+                    fragment-group-field-set)))))))
 
        :inline-fragment
        (throw (ex-info "TODO: inline-fragment" {:selection selection}))))
@@ -198,8 +188,12 @@
     :juxt.grab.alpha.spec-ref/section "6.4.3"
     :juxt.grab.alpha.spec-ref/algorithm "ResolveAbstractType"}
   resolve-abstract-type
-  [{:keys [field-type result]}]
-  (throw (ex-info "TODO: resolve-abstract-type" (meta #'resolve-abstract-type))))
+  [{:keys [abstract-type object-value abstract-type-resolver]}]
+  (assert abstract-type)
+  (assert object-value)
+  (assert abstract-type-resolver)
+  (abstract-type-resolver
+   {:abstract-type abstract-type :object-value object-value}))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -301,9 +295,6 @@
       ["__Field" "isDeprecated"] false    ;; TODO
       ["__Field" "deprecationReason"] nil ;; TODO
 
-      #_(throw (ex-info "Unhandled introspection" {:case [(::g/name object-type) field-name]
-                                                   :object-value object-value
-                                                   :field-name field-name}))
       ;; Forward to resolver
       (if (some-> object-value ::g/name (str/starts-with? "__"))
         (throw
@@ -371,7 +362,7 @@
         :juxt.grab.alpha.spec-ref/algorithm "CompleteValue"}
   complete-value
   "Return a map of :data and :errors"
-  [{:keys [field-type-ref fields result variable-values field-resolver
+  [{:keys [field-type-ref fields result variable-values field-resolver abstract-type-resolver
            schema fragments-by-name path] :as args}]
 
   (let [{::schema/keys [provided-types]} schema
@@ -394,6 +385,7 @@
               :result result
               :variable-values variable-values
               :field-resolver field-resolver
+              :abstract-type-resolver abstract-type-resolver
               :schema schema
               :fragments-by-name fragments-by-name
               :path path})]
@@ -448,6 +440,7 @@
                     :result result-item
                     :variable-values variable-values
                     :field-resolver field-resolver
+                    :abstract-type-resolver abstract-type-resolver
                     :schema schema
                     :fragments-by-name fragments-by-name
                     :path (conj path ix)}))
@@ -468,9 +461,12 @@
       (let [object-type
             (if (= kind :object)
               field-type
-              (resolve-abstract-type
-               {:field-type field-type
-                :result result}))
+              (some->
+               (resolve-abstract-type
+                {:abstract-type field-type
+                 :object-value result
+                 :abstract-type-resolver abstract-type-resolver})
+               provided-types))
             sub-selection-set (merge-selection-sets {:fields fields})]
 
         (execute-selection-set-normally
@@ -479,6 +475,7 @@
           :object-value result
           :variable-values variable-values
           :field-resolver field-resolver
+          :abstract-type-resolver abstract-type-resolver
           :schema schema
           :fragments-by-name fragments-by-name
           :path path})))))
@@ -489,7 +486,8 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteField"}
   execute-field
   "Return a map of :data and :errors"
-  [{:keys [object-type object-value field-type-ref fields variable-values field-resolver schema fragments-by-name path]}]
+  [{:keys [object-type object-value field-type-ref fields variable-values
+           field-resolver abstract-type-resolver schema fragments-by-name path]}]
   (assert schema)
   (assert path)
 
@@ -525,6 +523,7 @@
           :result resolved-value
           :variable-values variable-values
           :field-resolver field-resolver
+          :abstract-type-resolver abstract-type-resolver
           :schema schema
           :fragments-by-name fragments-by-name
           :path path}))
@@ -546,7 +545,8 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteSelectionSet"}
   execute-selection-set-normally
   "Return a map with :data and :errors."
-  [{:keys [selection-set object-type object-value variable-values field-resolver schema fragments-by-name path]}]
+  [{:keys [selection-set object-type object-value variable-values
+           field-resolver abstract-type-resolver schema fragments-by-name path]}]
 
   (assert schema)
   (assert path)
@@ -583,6 +583,7 @@
                          :fields fields
                          :variable-values variable-values
                          :field-resolver field-resolver
+                         :abstract-type-resolver abstract-type-resolver
                          :schema schema
                          :fragments-by-name fragments-by-name
                          ;; "If the error happens in an aliased field, the path to
@@ -617,7 +618,8 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteQuery"}
   execute-query
   "Returns a map with :errors and :data"
-  [{:keys [query schema variable-values initial-value field-resolver fragments-by-name]}]
+  [{:keys [query schema variable-values initial-value
+           field-resolver abstract-type-resolver fragments-by-name]}]
   (assert schema)
 
   ;; 1. Let queryType be the root Query type in schema.
@@ -650,6 +652,7 @@
         :variable-values variable-values
         :schema schema
         :field-resolver field-resolver
+        :abstract-type-resolver abstract-type-resolver
         :fragments-by-name fragments-by-name
         :path []}))))
 
@@ -697,7 +700,8 @@
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteRequest"}
   execute-request
   "Returns a map with :errors and :data"
-  [{:keys [schema document operation-name variable-values initial-value field-resolver]}]
+  [{:keys [schema document operation-name variable-values
+           initial-value field-resolver abstract-type-resolver]}]
 
   ;; 1. Let operation be the result of GetOperation(document, operationName).
   (let [operation (document/get-operation document operation-name)
@@ -717,6 +721,7 @@
         :variable-values coerced-variable-values
         :initial-value initial-value
         :field-resolver field-resolver
+        :abstract-type-resolver abstract-type-resolver
         :fragments-by-name fragments-by-name})
 
       ;; 4. Otherwise if operation is a mutation operation:

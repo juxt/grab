@@ -327,3 +327,45 @@
             (get-in args [:object-value :profilePic (get-in args [:argument-values "size"])])
 
             (throw (ex-info "TODO: resolve field" {:args args}))))})))))
+
+(deftest interface-test
+  (is
+   (=
+    {:data {:entity {:name "JUXT LTD."}}}
+    (let [schema
+          (schema/compile-schema
+           (parser/parse
+            (str/join
+             \newline
+             ["type Query { entity: NamedEntity }"
+              (slurp (io/resource "juxt/grab/example-62.graphql"))])))
+          document (document/compile-document (parser/parse "{ entity { name } }") schema)]
+
+      (execute-request
+       {:schema schema
+        :document document
+        :field-resolver
+        (fn [args]
+          (condp = [(get-in args [:object-type ::g/name])
+                    (get-in args [:field-name])]
+
+            ["Query" "entity"]
+            {:name "JUXT LTD."
+             :value 100
+             ::type "Business"
+             }
+
+            ["Business" "name"]
+            (get-in args [:object-value :name])
+
+            (throw (ex-info "TODO" {:args args}))))
+
+        :abstract-type-resolver
+        (fn [{:keys [abstract-type object-value]}]
+          #_(throw (ex-info "break" {:abstract-type abstract-type
+                                     :object-value object-value}))
+          (assert abstract-type)
+          (assert object-value)
+          (::type object-value)
+          )}))))
+  )
