@@ -11,14 +11,14 @@
 (set! clojure.core/*print-namespace-maps* false)
 
 (defn example [n]
-  (-> (format "juxt/grab/example-%s.graphql" n)
+  (-> (format "juxt/grab/examples/example-%s.graphql" n)
       io/resource
       slurp
       parse))
 
 (defn example-schema []
   (compile-schema
-   (parse (slurp (io/resource "juxt/grab/example-90.graphql")))))
+   (parse (slurp (io/resource "juxt/grab/examples/example-90.graphql")))))
 
 (defn expected-errors [{::doc/keys [errors]} regexes]
   (is
@@ -55,7 +55,7 @@
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
    (compile-document*
-    (parse (slurp (io/resource "juxt/grab/example-92.graphql")))
+    (parse (slurp (io/resource "juxt/grab/examples/example-92.graphql")))
     {}))
   (-> (example "93")
       (compile-document* {})
@@ -66,7 +66,7 @@
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
    (compile-document*
-    (parse (slurp (io/resource "juxt/grab/example-92.graphql")))
+    (parse (slurp (io/resource "juxt/grab/examples/example-92.graphql")))
     {}))
   (-> (example "94")
       (compile-document* {})
@@ -171,17 +171,17 @@
 
 (deftest example-115-test
   (-> (example-schema)
-      (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))
+      (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql"))))
       (expected-errors [])))
 
 #_(-> (example-schema)
-    (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))
+    (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql"))))
     )
 
 #_(deftest example-116-test
   (let [schema
         (-> (example-schema)
-            (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql")))))]
+            (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql")))))]
     (->(example "116")
        (compile-document* schema)
        (expected-errors [#"error"]))))
@@ -189,12 +189,12 @@
 
 (comment
   (-> (example-schema)
-      (extend-schema (parse (slurp (io/resource "juxt/grab/example-115.graphql")))))
+      (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql")))))
 
   (example-schema)
 
   ;; TODO: Support :typeSystemExtension
-  (parse (slurp (io/resource "juxt/grab/example-115.graphql"))))
+)
 
 
 ;; Arguments

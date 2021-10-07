@@ -126,7 +126,7 @@
         (expected-errors [#"Any directives provided must not already apply to the original Schema"]))))
 
 (deftest example-40-test
-  (-> "juxt/grab/example-40.graphql"
+  (-> "juxt/grab/examples/example-40.graphql"
       io/resource
       slurp
       ;; To help this compile
@@ -229,7 +229,7 @@
 ;; type as) the interface field type.
 
 (deftest interface-fields-inclusion-test
-  (-> "juxt/grab/example-62.graphql"
+  (-> "juxt/grab/examples/example-62.graphql"
       (io/resource)
       (slurp)
       (str " type BadBusiness implements NamedEntity & ValuedEntity { foo: String }")
@@ -381,3 +381,6 @@
       (expected-errors [#"A field argument must accept a type that is an input type."])))
 
 ;; TODO: Interface extensions (3.7.1)
+
+
+;; 3.8 Unions

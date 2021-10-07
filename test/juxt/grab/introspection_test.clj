@@ -12,7 +12,7 @@
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defn example [n]
-  (-> (format "juxt/grab/example-%s.graphql" n)
+  (-> (format "juxt/grab/examples/example-%s.graphql" n)
       io/resource
       slurp
       parser/parse))

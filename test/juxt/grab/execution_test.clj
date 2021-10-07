@@ -69,7 +69,7 @@
               "}"])))
           document (document/compile-document
                     (parser/parse
-                     (slurp (io/resource "juxt/grab/example-184.graphql")))
+                     (slurp (io/resource "juxt/grab/examples/example-184.graphql")))
                     schema)]
 
       (execute-request
@@ -110,7 +110,7 @@
   (let [schema (schema/compile-schema (parser/parse schema-str))
         document (document/compile-document
                   (parser/parse
-                   (slurp (io/resource "juxt/grab/example-184.graphql")))
+                   (slurp (io/resource "juxt/grab/examples/example-184.graphql")))
                   schema)]
 
     (execute-request
@@ -252,7 +252,7 @@
                    "type LikeStoryResult { story: Story }"
                    "type Story { likeCount: Int }"])))
         document (document/compile-document
-                  (parser/parse (slurp (io/resource "juxt/grab/example-5.graphql")))
+                  (parser/parse (slurp (io/resource "juxt/grab/examples/example-5.graphql")))
                   schema)
         stories (atom {12345 {:likes 0}
                        54321 {:likes 0}})]
@@ -294,7 +294,7 @@
                    "type User { id: Int name: String profilePic(size: Int): String }"])))
 
         document (document/compile-document
-                  (parser/parse (slurp (io/resource "juxt/grab/example-32.graphql")))
+                  (parser/parse (slurp (io/resource "juxt/grab/examples/example-32.graphql")))
                   schema)
 
         users {4 {:id 4
@@ -338,7 +338,7 @@
             (str/join
              \newline
              ["type Query { entity: NamedEntity }"
-              (slurp (io/resource "juxt/grab/example-62.graphql"))])))
+              (slurp (io/resource "juxt/grab/examples/example-62.graphql"))])))
           document (document/compile-document (parser/parse "{ entity { name } }") schema)]
 
       (execute-request
