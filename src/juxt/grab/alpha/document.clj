@@ -322,17 +322,17 @@
    (compile-document*
     document schema
     {:compilers
-     [validate-executable-definitions
+     [
       add-operations
       add-default-operation-type
       add-fragments
-
       add-scoped-types-to-operations
       add-scoped-types-to-fragments
-      validate-selection-sets
-
       group-operations-by-name
       group-fragments-by-name
+
+      validate-executable-definitions
+      validate-selection-sets
       validate-anonymous
       validate-operation-uniqueness
       validate-fragment-uniqueness
