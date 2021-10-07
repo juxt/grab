@@ -598,8 +598,6 @@
                j (map ::g/name directives)
                :when (= i j)] i))]
 
-    (def existing-type existing-type)
-
     (cond-> schema
       ;; 1. The named type must already be defined and must be an Object type.
       (nil? existing-type)
