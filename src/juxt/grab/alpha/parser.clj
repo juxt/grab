@@ -80,7 +80,7 @@
   {::g/name val})
 
 (defmethod process :value [[_ val]]
-  {::g/value (process-child val)})
+  (process-child val))
 
 (defmethod process :intValue [[_ val]]
   (Integer/parseInt val))
@@ -104,11 +104,11 @@
         (into {}))})
 
 (defmethod process :listValue [[_ & args]]
-  (mapv (comp ::g/value process-child) (rest (butlast args))))
+  (mapv process-child (rest (butlast args))))
 
 (defmethod process :argument [[_ name _ value]]
   [(::g/name (process-child name))
-   (::g/value (process-child value))])
+   (process-child value)])
 
 (defmethod process :fieldDefinition [[_ & terms]]
   (-> terms
@@ -307,7 +307,7 @@
   (into {} (map (comp process-child) (rest (butlast args)))))
 
 (defmethod process :objectField [[_ name _ value]]
-  [(keyword (::g/name (process-child name))) (::g/value (process-child value))])
+  [(keyword (::g/name (process-child name))) (process-child value)])
 
 (defn parse* [s]
   (some-> s parser))
