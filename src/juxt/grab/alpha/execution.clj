@@ -253,7 +253,6 @@
       (some-> object-value ::g/field-definitions)
 
       ["__Type" "ofType"]
-      ;; TODO: Resolve type-ref
       (when-let [type-ref (::of-type-ref object-value)]
         (cond
           (::g/list-type type-ref) {::g/kind :list
