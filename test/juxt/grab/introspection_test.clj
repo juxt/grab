@@ -11,6 +11,8 @@
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
+(set! clojure.core/*print-namespace-maps* false)
+
 (defn example [n]
   (-> (format "juxt/grab/examples/example-%s.graphql" n)
       io/resource
