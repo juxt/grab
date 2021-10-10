@@ -290,11 +290,41 @@
       ["__Type" "enumValues"] []    ;; TODO
       ["__Type" "possibleTypes"] [] ;; TODO
       ["__Field" "description"] (some-> object-value ::g/description)
-      ["__Field" "args"] []               ;; TODO
+      ["__Field" "args"] (mapv
+                          (fn [arg-def]
+                            {::g/name (::g/name arg-def)
+                             ::g/description (::g/description arg-def)
+                             ::g/type-ref (::g/type-ref arg-def)
+                             ::debug arg-def
+                             ::g/default-value (::g/default-value arg-def)
+                             ;; Add description, type defaultValue
+                             })
+
+                          (some-> object-value ::g/arguments-definition))
       ["__Field" "isDeprecated"] false    ;; TODO
       ["__Field" "deprecationReason"] nil ;; TODO
 
       ;; Forward to resolver
+      ["__InputValue" "name"] (some-> object-value ::g/name)
+
+      ["__InputValue" "description"] (some-> object-value ::g/description)
+
+      ["__InputValue" "type"]
+      (let [type-ref (some-> object-value ::g/type-ref)]
+        (cond
+          (::g/list-type type-ref) {::g/kind :list
+                                    ::of-type-ref (::g/list-type type-ref)}
+          (::g/non-null-type type-ref) {::g/kind :non-null
+                                        ::of-type-ref (::g/non-null-type type-ref)}
+          :else
+          (let [typ (some-> type-ref ::g/name provided-types)]
+            (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
+            {::g/name (::g/name typ)
+             ::g/kind (::g/kind typ)})))
+
+      ["__InputValue" "defaultValue"] (some-> object-value ::g/default-value)
+
+
       (if (some-> object-value ::g/name (str/starts-with? "__"))
         (throw
          (ex-info
