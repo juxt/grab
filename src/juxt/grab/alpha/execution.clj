@@ -289,6 +289,7 @@
       ["__Type" "inputFields"] []   ;; TODO
       ["__Type" "enumValues"] []    ;; TODO
       ["__Type" "possibleTypes"] [] ;; TODO
+
       ["__Field" "description"] (some-> object-value ::g/description)
       ["__Field" "args"] (mapv
                           (fn [arg-def]
@@ -304,7 +305,6 @@
       ["__Field" "isDeprecated"] false    ;; TODO
       ["__Field" "deprecationReason"] nil ;; TODO
 
-      ;; Forward to resolver
       ["__InputValue" "name"] (some-> object-value ::g/name)
 
       ["__InputValue" "description"] (some-> object-value ::g/description)
@@ -325,11 +325,13 @@
       ["__InputValue" "defaultValue"] (some-> object-value ::g/default-value)
 
 
-      (if (some-> object-value ::g/name (str/starts-with? "__"))
+      ;; Forward to resolver
+      (if (some-> object-type ::g/name (str/starts-with? "__"))
         (throw
          (ex-info
           "Unhandled introspection"
           {:object-value object-value
+           :object-type object-type
            :field-name field-name}))
         (delegate args)))))
 
