@@ -106,28 +106,12 @@ type Query {
                 (parser/parse
                  (slurp (io/resource "juxt/grab/graphiql-introspection-query.graphql")))
                 schema)]
-
   (execute-request
    {:schema schema
     :document document
     :field-resolver
     (fn [args]
-      (let [provided-types (::schema/provided-types schema)]
-        (condp =
-            [(get-in args [:object-type ::g/name])
-             (get-in args [:field-name])]
-          ["Root" "user"]
-          {:name "Isaac Newton"}
-
-          ["Person" "name"]
-          (get-in args [:object-value :name])
-
-          ["Person" "profilePic"]
-          (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
-
-          nil
-
-          )))}))
+      (throw (ex-info "TODO" {:args args})))}))
 
 
 #_(let [schema (schema/compile-schema
