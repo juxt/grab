@@ -523,6 +523,33 @@
   (compile-base-schema
    (parse (slurp (io/resource "juxt/grab/alpha/meta-schema.graphql")))))
 
+;; Compiling a schema should be independent of any base
+
+;; Break schema process into construction (build) and validation
+
+;; WIP
+(defn build-schema [document]
+  (reduce
+   (fn [acc f]
+     (or (f acc document) acc))
+   (schema-base)
+   [process-schema-definition
+    provide-types
+    inject-introspection-fields]))
+
+;; WIP
+(defn validate-schema [schema]
+  (mapcat
+   (fn [check]
+     (check schema))
+   [check-unique-type-names
+    check-no-conflicts-with-built-in-types
+    check-unique-directive-names
+    check-reserved-names
+    check-types
+    check-schema-definition-count
+    check-root-operation-type]))
+
 (defn compile-schema*
   "Create a schema from the parsed document."
   ([document base]
