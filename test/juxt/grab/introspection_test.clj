@@ -76,6 +76,24 @@ type Query {
                                            (get-in args [:field-name])]))
                     args)))))})))))
 
+(deftest root-types-test
+  (let [schema (schema/compile-schema (parser/parse "schema { query: TestQuery mutation: TestMutation subscription: TestSubscription } type TestQuery { foo: String } type TestMutation { test: String } type TestSubscription { bar: String }"))
+        document (document/compile-document*
+                  (parser/parse
+                   (slurp (io/resource "juxt/grab/graphiql-introspection-query.graphql")))
+                  schema)
+        response (execute-request
+                  {:schema schema
+                   :document document
+                   :field-resolver
+                   (fn [args]
+                     (throw (ex-info "TODO" {:args args})))})]
+
+    (is (= "TestQuery" (get-in response [:data :__schema :queryType :name])))
+    (is (= "TestMutation" (get-in response [:data :__schema :mutationType :name])))
+    (is (= "TestSubscription" (get-in response [:data :__schema :subscriptionType :name])))))
+
+
 #_(let [schema (schema/compile-schema
                     (parser/parse
                      ;; We prepare schema which is a super-set of the schema in the text, because we

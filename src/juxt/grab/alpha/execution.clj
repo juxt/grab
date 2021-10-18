@@ -229,10 +229,12 @@
       (some-> root-query-name provided-types)
 
       ["__Schema" "mutationType"]
-      nil
+      (when-let [type-name (get-in schema [::schema/root-operation-type-names :mutation])]
+        (some-> type-name provided-types))
 
       ["__Schema" "subscriptionType"]
-      nil
+      (when-let [type-name (get-in schema [::schema/root-operation-type-names :subscription])]
+        (some-> type-name provided-types))
 
       ["__Schema" "directives"]
       []
