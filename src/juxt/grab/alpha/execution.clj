@@ -590,60 +590,60 @@
          {:object-type object-type
           :selection-set selection-set
           :variable-values variable-values
-          :fragments-by-name fragments-by-name})]
+          :fragments-by-name fragments-by-name})
 
-    (let [result
-          (reduce
-           (fn [acc [response-key fields]]
+        result
+        (reduce
+         (fn [acc [response-key fields]]
 
-             ;; a. Let fieldName be the name of the first entry in fields. Note:
-             ;; This value is unaffected if an alias is used.
-             (let [field (first fields)
-                   field-name (::g/name field)
-                   ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-                   field-type-ref
-                   (get-in object-type [::schema/fields-by-name field-name ::g/type-ref])]
+           ;; a. Let fieldName be the name of the first entry in fields. Note:
+           ;; This value is unaffected if an alias is used.
+           (let [field (first fields)
+                 field-name (::g/name field)
+                 ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
+                 field-type-ref
+                 (get-in object-type [::schema/fields-by-name field-name ::g/type-ref])]
 
-               ;; c. If fieldType is defined:
-               (if field-type-ref
-                 ;; i. Let responseValue be ExecuteField(objectType, objectValue,
-                 ;; fields, fieldType, variableValues).
-                 (let [{:keys [data errors] ::keys [invalid?] :as field-result}
-                       (execute-field
-                        {:object-type object-type
-                         :object-value object-value
-                         :field-type-ref field-type-ref
-                         :fields fields
-                         :variable-values variable-values
-                         :field-resolver field-resolver
-                         :abstract-type-resolver abstract-type-resolver
-                         :schema schema
-                         :fragments-by-name fragments-by-name
-                         ;; "If the error happens in an aliased field, the path to
-                         ;; the error should use the aliased name, since it
-                         ;; represents a path in the response, not in the query."
-                         ;; -- GraphQL Spec. June 2018, 7.1.2
-                         :path (conj path (keyword response-key))})]
-                   ;; ii. Set responseValue as the value for responseKey in resultMap.
-                   (cond-> acc
-                     (find field-result :data) (update :data conj [(keyword response-key) data])
-                     (seq errors) (update :errors concat errors)
-                     ;; Indicate in the accumulator that we have an invalid nil field.
-                     invalid? (assoc ::invalid? true)))
-                 ;; Otherwise return the accumulator
-                 acc)))
-           ;; 2. Initialize resultMap to an empty ordered map.
-           {:data (ordered-map)}
-           grouped-field-set)]
+             ;; c. If fieldType is defined:
+             (if field-type-ref
+               ;; i. Let responseValue be ExecuteField(objectType, objectValue,
+               ;; fields, fieldType, variableValues).
+               (let [{:keys [data errors] ::keys [invalid?] :as field-result}
+                     (execute-field
+                      {:object-type object-type
+                       :object-value object-value
+                       :field-type-ref field-type-ref
+                       :fields fields
+                       :variable-values variable-values
+                       :field-resolver field-resolver
+                       :abstract-type-resolver abstract-type-resolver
+                       :schema schema
+                       :fragments-by-name fragments-by-name
+                       ;; "If the error happens in an aliased field, the path to
+                       ;; the error should use the aliased name, since it
+                       ;; represents a path in the response, not in the query."
+                       ;; -- GraphQL Spec. June 2018, 7.1.2
+                       :path (conj path (keyword response-key))})]
+                 ;; ii. Set responseValue as the value for responseKey in resultMap.
+                 (cond-> acc
+                   (find field-result :data) (update :data conj [(keyword response-key) data])
+                   (seq errors) (update :errors concat errors)
+                   ;; Indicate in the accumulator that we have an invalid nil field.
+                   invalid? (assoc ::invalid? true)))
+               ;; Otherwise return the accumulator
+               acc)))
+         ;; 2. Initialize resultMap to an empty ordered map.
+         {:data (ordered-map)}
+         grouped-field-set)]
 
-      (cond-> result
-        ;; If any of the fields are invalid, this invalidates the field's
-        ;; parent's selection set. We nil it and clear the flag, letting its
-        ;; parent to set the flag based on whether this is acceptable or to
-        ;; proppagate in turn to it's parent.
-        (::invalid? result)
-        (-> (assoc :data nil)
-            (dissoc ::invalid?))))))
+    (cond-> result
+      ;; If any of the fields are invalid, this invalidates the field's
+      ;; parent's selection set. We nil it and clear the flag, letting its
+      ;; parent to set the flag based on whether this is acceptable or to
+      ;; proppagate in turn to it's parent.
+      (::invalid? result)
+      (-> (assoc :data nil)
+          (dissoc ::invalid?)))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
