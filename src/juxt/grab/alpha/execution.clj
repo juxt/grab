@@ -355,7 +355,7 @@
     :argument-values argument-values
     :path path}))
 
-(declare execute-selection-set-normally)
+(declare execute-selection-set)
 
 (defn coerce-result [result field-type]
   (case (::g/kind field-type)
@@ -502,7 +502,7 @@
                provided-types))
             sub-selection-set (merge-selection-sets {:fields fields})]
 
-        (execute-selection-set-normally
+        (execute-selection-set
          {:selection-set sub-selection-set
           :object-type object-type
           :object-value result
@@ -576,7 +576,7 @@
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.3"
     :juxt.grab.alpha.spec-ref/algorithm "ExecuteSelectionSet"}
-  execute-selection-set-normally
+  execute-selection-set
   "Return a map with :data and :errors."
   [{:keys [selection-set object-type object-value variable-values
            field-resolver abstract-type-resolver schema fragments-by-name path]}]
@@ -678,7 +678,7 @@
       ;; normally (allowing parallelization).
       ;; 5. Let errors be any field errors produced while executing the selection set.
       ;; 6. Return an unordered map containing data and errors.
-      (execute-selection-set-normally
+      (execute-selection-set
        {:selection-set selection-set
         :object-type query-type
         :object-value initial-value
@@ -711,10 +711,10 @@
           selection-set (::g/selection-set mutation)]
 
       ;; 4. Let data be the result of running ExecuteSelectionSet
-      ;; normally (allowing parallelization).
+      ;; normally serially.
       ;; 5. Let errors be any field errors produced while executing the selection set.
       ;; 6. Return an unordered map containing data and errors.
-      (execute-selection-set-normally
+      (execute-selection-set
        {:selection-set selection-set
         :object-type mutation-type
         :object-value initial-value
