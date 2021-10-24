@@ -436,9 +436,20 @@
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
+(defn compile-directive [directive]
+  (-> directive
+      (dissoc ::g/name)))
+
+(defn compile-argument-definition [argument-def]
+  (let [directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives argument-def)))]
+    (cond-> argument-def
+      (seq directives-by-name) (assoc ::directives-by-name directives-by-name))))
+
 (defn compile-field-definition [field-def]
-  (let [directives-by-name (into {} (map (juxt ::g/name identity) (::g/directives field-def)))]
+  (let [directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives field-def)))
+        arguments-definition (mapv compile-argument-definition (::g/arguments-definition field-def))]
     (cond-> field-def
+      (seq arguments-definition) (assoc ::g/arguments-definition arguments-definition)
       (seq directives-by-name) (assoc ::directives-by-name directives-by-name))))
 
 (defn provide-types
@@ -448,9 +459,11 @@
    (fn [acc {::g/keys [name] :as td}]
      (assoc-in
       acc [::types-by-name name]
-      (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))]
+      (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))
+            directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives td)))]
         (cond-> td
-          (seq fields-by-name) (assoc ::fields-by-name fields-by-name)))))
+          (seq fields-by-name) (assoc ::fields-by-name fields-by-name)
+          (seq directives-by-name) (assoc ::directives-by-name directives-by-name)))))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
