@@ -135,7 +135,7 @@
              ;; b. Let argumentType be the expected type of argumentDefinition.
              argument-type (::g/type argument-definition)
              ;; c. Let defaultValue be the default value for argumentDefinition.
-             default-value (find argument-definition ::g/default-value) ;; TODO
+             default-value (find argument-definition ::g/default-value)
              ;; d. Let hasValue be true if argumentValues provides
              ;; a value for the name argumentName.
              has-value (find argument-values argument-name)
