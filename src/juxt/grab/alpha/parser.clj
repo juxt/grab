@@ -201,7 +201,10 @@
        (apply merge)))
 
 (defmethod process :directives [[_ & directives]]
-  {::g/directives (keep process-child directives)})
+  {::g/directives
+   (->> directives
+        (keep process-child)
+        vec)})
 
 (defmethod process :operationDefinition [[_ & terms]]
   {::g/operation-definition (apply merge (keep process-child terms))})
