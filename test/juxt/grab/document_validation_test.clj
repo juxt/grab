@@ -1,6 +1,6 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.validation-test
+(ns juxt.grab.document-validation-test
   (:require
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.parser :refer [parse]]

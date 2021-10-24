@@ -1,11 +1,11 @@
 ;; Copyright © 2021, JUXT LTD.
 
-(ns juxt.grab.schema-test
+(ns juxt.grab.schema-validation-test
   (:require
    [clojure.test :refer [deftest is are testing]]
    [juxt.grab.alpha.schema :refer [compile-schema*] :as s]
    [juxt.grab.alpha.parser :refer [parse parse*]]
-   [juxt.grab.validation-test :refer [example example-schema]]
+   [juxt.grab.document-validation-test :refer [example example-schema]]
    [clojure.java.io :as io]
    [juxt.grab.alpha.schema :as schema]))
 
@@ -384,3 +384,6 @@
 
 
 ;; 3.8 Unions
+
+#_(-> (example "69")
+    compile-schema*)
