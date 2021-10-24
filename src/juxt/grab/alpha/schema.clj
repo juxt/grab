@@ -437,8 +437,9 @@
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
 (defn compile-field-definition [field-def]
-  (-> field-def
-      (assoc ::directives-by-name (into {} (map (juxt ::g/name identity) (::g/directives field-def))))))
+  (let [directives-by-name (into {} (map (juxt ::g/name identity) (::g/directives field-def)))]
+    (cond-> field-def
+      (seq directives-by-name) (assoc ::directives-by-name directives-by-name))))
 
 (defn provide-types
   "Creates the schema's 'provided-types' entry."
@@ -447,8 +448,9 @@
    (fn [acc {::g/keys [name] :as td}]
      (assoc-in
       acc [::provided-types name]
-      (assoc td ::fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td))))))
-
+      (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))]
+        (cond-> td
+          (seq fields-by-name) (assoc ::fields-by-name fields-by-name)))))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
