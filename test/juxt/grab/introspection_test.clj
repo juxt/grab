@@ -57,24 +57,11 @@ type Query {
           :document document
           :field-resolver
           (fn [args]
-            (let [provided-types (::schema/provided-types schema)]
-              (condp =
-                  [(get-in args [:object-type ::g/name])
-                   (get-in args [:field-name])]
-                  ["Root" "user"]
-                  {:name "Isaac Newton"}
-
-                  ["Person" "name"]
-                  (get-in args [:object-value :name])
-
-                  ["Person" "profilePic"]
-                  (format "https://profile.juxt.site/pic-%d.png" (get-in args [:argument-values "size"]))
-
-                  (throw
-                   (ex-info
-                    (str "TODO: " (pr-str [(get-in args [:object-type ::g/name])
-                                           (get-in args [:field-name])]))
-                    args)))))})))))
+            (throw
+             (ex-info
+              (str "FAIL: " (pr-str [(get-in args [:object-type ::g/name])
+                                     (get-in args [:field-name])]))
+              args)))})))))
 
 (deftest root-types-test
   (let [schema (schema/compile-schema (parser/parse "schema { query: TestQuery mutation: TestMutation subscription: TestSubscription } type TestQuery { foo: String } type TestMutation { test: String } type TestSubscription { bar: String }"))
