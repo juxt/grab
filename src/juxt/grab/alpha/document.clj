@@ -84,7 +84,7 @@
                                   %)))
 
 (defn scope-selection-set
-  [selection-set scoped-type-name {::schema/keys [provided-types] :as schema}]
+  [selection-set scoped-type-name {::schema/keys [types-by-name] :as schema}]
   (->>
    selection-set
    (mapv
@@ -93,7 +93,7 @@
           :as selection}]
       (case selection-type
         :field
-        (let [return-type (some-> scoped-type-name provided-types
+        (let [return-type (some-> scoped-type-name types-by-name
                                   ::schema/fields-by-name (get field-name) ::g/type-ref)]
           (-> selection
               (assoc ::scoped-type-name scoped-type-name)
@@ -157,15 +157,15 @@
 (defn validate-selection [{::g/keys [selection-type] :as selection}
                           ;; TODO: Do we still need to pass down parent-scoped-type?
                           parent-scoped-type
-                          {::schema/keys [provided-types] :as schema}
+                          {::schema/keys [types-by-name] :as schema}
                           path]
   (case selection-type
     :field
     (let [scoped-type-name (::scoped-type-name selection)
           field-name (::g/name selection)
           path (conj path (::g/name selection))
-          field-def (some-> scoped-type-name provided-types ::schema/fields-by-name (get field-name))
-          selection-type (some-> field-def ::g/type-ref schema/unwrapped-type ::g/name provided-types)
+          field-def (some-> scoped-type-name types-by-name ::schema/fields-by-name (get field-name))
+          selection-type (some-> field-def ::g/type-ref schema/unwrapped-type ::g/name types-by-name)
           subselection-set (::g/selection-set selection)]
 
       (cond
@@ -179,7 +179,7 @@
           :field-name (::g/name selection)
           :path path
           :scoped-type-name scoped-type-name
-          :type-ref (some-> scoped-type-name provided-types)}]
+          :type-ref (some-> scoped-type-name types-by-name)}]
 
         (and (#{:scalar :enum} (some-> selection-type ::g/kind)) subselection-set)
         [{:message "The subselection set of a scalar or enum must be empty"}]
@@ -233,10 +233,10 @@
                (or (get field ::g/alias) (get field ::g/name))))))
 
 (defn same-response-shape
-  [response-name fields {::schema/keys [provided-types]} path]
+  [response-name fields {::schema/keys [types-by-name]} path]
   ;; TODO: Non-null and lists
   ;;(throw (ex-info "Same response shape" {:fields fields}))
-  (let [kinds (mapv #(some-> % ::return-type schema/unwrapped-type ::g/name provided-types ::g/kind) fields)]
+  (let [kinds (mapv #(some-> % ::return-type schema/unwrapped-type ::g/name types-by-name ::g/kind) fields)]
     (cond
       (some #{:scalar :enum} kinds)
       (when (apply not= (map ::return-type fields))
@@ -246,7 +246,7 @@
          :fields fields}))))
 
 (defn fields-in-set-can-merge
-  [selection-set {::schema/keys [provided-types] :as schema}
+  [selection-set {::schema/keys [types-by-name] :as schema}
    parent-scoped-type path]
   (let [ ;; "1. Let fieldsForName be the set of selections with a given response
         ;; name in set including visiting fragments and inline fragments."
@@ -268,7 +268,7 @@
                      (map ::scoped-type-name)
                      (apply =))
                 (->> fields
-                     (map #(some-> % ::scoped-type-name provided-types ::g/kind))
+                     (map #(some-> % ::scoped-type-name types-by-name ::g/kind))
                      (some #(not= % :object))))
            (cond
              ;; "i. fieldA and fieldB must have identical field names."

@@ -213,28 +213,28 @@
   [delegate schema {:keys [object-type field-name object-value argument-values path] :as args}]
 
   (let [root-query-name (get-in schema [::schema/root-operation-type-names :query])
-        provided-types (::schema/provided-types schema)]
+        types-by-name (::schema/types-by-name schema)]
     (condp = [(::g/name object-type) field-name]
 
       [root-query-name "__type"]
-      (get-in schema [::schema/provided-types (get argument-values "name")])
+      (get-in schema [::schema/types-by-name (get argument-values "name")])
 
       [root-query-name "__schema"]
       schema
 
       ["__Schema" "types"]
-      (sort-by ::g/name (vals (::schema/provided-types schema)))
+      (sort-by ::g/name (vals (::schema/types-by-name schema)))
 
       ["__Schema" "queryType"]
-      (some-> root-query-name provided-types)
+      (some-> root-query-name types-by-name)
 
       ["__Schema" "mutationType"]
       (when-let [type-name (get-in schema [::schema/root-operation-type-names :mutation])]
-        (some-> type-name provided-types))
+        (some-> type-name types-by-name))
 
       ["__Schema" "subscriptionType"]
       (when-let [type-name (get-in schema [::schema/root-operation-type-names :subscription])]
-        (some-> type-name provided-types))
+        (some-> type-name types-by-name))
 
       ["__Schema" "directives"]
       []
@@ -262,7 +262,7 @@
           (::g/non-null-type type-ref) {::g/kind :non-null
                                         ::of-type-ref (::g/non-null-type type-ref)}
           :else
-          (let [typ (some-> type-ref ::g/name provided-types)]
+          (let [typ (some-> type-ref ::g/name types-by-name)]
             (when (nil? typ)
               (throw (ex-info "ofType is nil" {:object-value object-value}))
               )
@@ -281,7 +281,7 @@
           (::g/non-null-type type-ref) {::g/kind :non-null
                                         ::of-type-ref (::g/non-null-type type-ref)}
           :else
-          (let [typ (some-> type-ref ::g/name provided-types)]
+          (let [typ (some-> type-ref ::g/name types-by-name)]
             (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
             {::g/name (::g/name typ)
              ::g/kind (::g/kind typ)})))
@@ -319,7 +319,7 @@
           (::g/non-null-type type-ref) {::g/kind :non-null
                                         ::of-type-ref (::g/non-null-type type-ref)}
           :else
-          (let [typ (some-> type-ref ::g/name provided-types)]
+          (let [typ (some-> type-ref ::g/name types-by-name)]
             (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
             {::g/name (::g/name typ)
              ::g/kind (::g/kind typ)})))
@@ -398,8 +398,8 @@
   [{:keys [field-type-ref fields result variable-values field-resolver abstract-type-resolver
            schema fragments-by-name path] :as args}]
 
-  (let [{::schema/keys [provided-types]} schema
-        field-type (some-> field-type-ref schema/unwrapped-type ::g/name provided-types)
+  (let [{::schema/keys [types-by-name]} schema
+        field-type (some-> field-type-ref schema/unwrapped-type ::g/name types-by-name)
         kind (::g/kind field-type)]
 
     (cond
@@ -499,7 +499,7 @@
                 {:abstract-type field-type
                  :object-value result
                  :abstract-type-resolver abstract-type-resolver})
-               provided-types))
+               types-by-name))
             sub-selection-set (merge-selection-sets {:fields fields})]
 
         (execute-selection-set
@@ -657,7 +657,7 @@
 
   ;; 1. Let queryType be the root Query type in schema.
   (let [query-type-name (get-in schema [::schema/root-operation-type-names :query])
-        query-type (get-in schema [::schema/provided-types query-type-name])]
+        query-type (get-in schema [::schema/types-by-name query-type-name])]
 
     ;; 2. Assert: queryType is an Object type.
     (when-not (= (get query-type ::g/kind) :object)
@@ -693,7 +693,7 @@
   [{:keys [mutation schema variable-values initial-value field-resolver fragments-by-name]}]
 
   (let [mutation-type-name (get-in schema [::schema/root-operation-type-names :mutation])
-        mutation-type (get-in schema [::schema/provided-types mutation-type-name])]
+        mutation-type (get-in schema [::schema/types-by-name mutation-type-name])]
 
     ;; 2. Assert: mutationType is an Object type.
     (when-not (= (get mutation-type ::g/kind) :object)

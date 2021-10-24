@@ -90,9 +90,9 @@
 (defn input-type? [typ]
   (#{:scalar :enum :input-object} (::g/kind (unwrapped-type typ))))
 
-(defn check-object-field-argument-definition [{::keys [provided-types] :as acc} arg-def tf]
+(defn check-object-field-argument-definition [{::keys [types-by-name] :as acc} arg-def tf]
   (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
-        typ (get provided-types type-name)]
+        typ (get types-by-name type-name)]
     (cond-> acc
       (str/starts-with? (::g/name arg-def) "__")
       (add-error
@@ -118,10 +118,10 @@
 
 (defn resolve-named-type-ref
   "Return nil if no type found"
-  [{::keys [provided-types] :as acc} type-ref]
+  [{::keys [types-by-name] :as acc} type-ref]
   (assert type-ref)
   (assert (::g/name type-ref) (pr-str type-ref))
-  (get provided-types (::g/name type-ref)))
+  (get types-by-name (::g/name type-ref)))
 
 (defn check-object-field-definition [acc tf]
   (let [type-ref (some-> tf ::g/type-ref unwrapped-type)
@@ -163,11 +163,11 @@
     (check-duplicate-object-field-names % td)
     (reduce check-object-field-definition % field-definitions)))
 
-(defn check-object-interfaces-exist [{::keys [provided-types] :as acc}
+(defn check-object-interfaces-exist [{::keys [types-by-name] :as acc}
                                      {::g/keys [interfaces] :as td}]
   (reduce
    (fn [acc decl]
-     (let [ifc (get provided-types decl)]
+     (let [ifc (get types-by-name decl)]
        (cond-> acc
          (nil? ifc) (add-error {:message "Interface is declared but not provided." :interface decl}))))
    acc
@@ -285,11 +285,11 @@
    (::g/arguments-definition object-field)))
 
 (defn check-object-interface-fields
-  [{::keys [provided-types] :as acc}
+  [{::keys [types-by-name] :as acc}
    {::g/keys [interfaces field-definitions] :as td}]
 
   (let [object-fields-by-name (group-by ::g/name field-definitions)
-        interfaces (keep provided-types interfaces)
+        interfaces (keep types-by-name interfaces)
         interface-fields
         (for [i interfaces f (::g/field-definitions i)]
           (assoc f ::interface (::g/name i)))]
@@ -362,9 +362,9 @@
        {:message (format "Each field must have a unique name within the '%s' Object type; no two fields may share the same name." (::g/name td))
         :duplicates (vec duplicates)}))))
 
-(defn check-interface-field-argument-definition [{::keys [provided-types] :as acc} arg-def tf]
+(defn check-interface-field-argument-definition [{::keys [types-by-name] :as acc} arg-def tf]
   (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
-        typ (get provided-types type-name)]
+        typ (get types-by-name type-name)]
     (cond-> acc
       (str/starts-with? (::g/name arg-def) "__")
       (add-error
@@ -442,12 +442,12 @@
       (seq directives-by-name) (assoc ::directives-by-name directives-by-name))))
 
 (defn provide-types
-  "Creates the schema's 'provided-types' entry."
+  "Creates the schema's 'types-by-name' entry."
   [acc document]
   (reduce
    (fn [acc {::g/keys [name] :as td}]
      (assoc-in
-      acc [::provided-types name]
+      acc [::types-by-name name]
       (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))]
         (cond-> td
           (seq fields-by-name) (assoc ::fields-by-name fields-by-name)))))
@@ -458,7 +458,7 @@
   "Depends on validate-types."
   [acc _]
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
-        query-root-op-type (get-in acc [::provided-types query-root-op-type-name])]
+        query-root-op-type (get-in acc [::types-by-name query-root-op-type-name])]
     (assert query-root-op-type-name)
     (cond
       (nil? query-root-op-type)
@@ -473,7 +473,7 @@
 
 (defn inject-introspection-fields [acc _]
   (let [query-root-op-type-name (get-in acc [::root-operation-type-names :query])
-        query (get-in acc [::provided-types query-root-op-type-name])
+        query (get-in acc [::types-by-name query-root-op-type-name])
         __schema {::g/name "__schema"
                   ::g/type-ref {::g/non-null-type {::g/name "__Schema"}}}
         __type {::g/name "__type"
@@ -485,9 +485,9 @@
       query
       (->
        (assoc-in
-        [::provided-types query-root-op-type-name ::fields-by-name "__type"] __type)
+        [::types-by-name query-root-op-type-name ::fields-by-name "__type"] __type)
        (assoc-in
-        [::provided-types query-root-op-type-name ::fields-by-name "__schema"] __schema)))))
+        [::types-by-name query-root-op-type-name ::fields-by-name "__schema"] __schema)))))
 
 (defn check-schema-definition-count
   [acc document]
@@ -513,7 +513,7 @@
    (fn [acc f]
      (or (f acc document) acc))
    {::errors []
-    ::provided-types {}}
+    ::types-by-name {}}
    [provide-types
     check-unique-type-names
     check-unique-directive-names
@@ -614,7 +614,7 @@
 
 (defn process-object-type-extension [schema {::g/keys [name field-definitions directives interfaces]}]
   (def directives directives)
-  (let [existing-type (get (::provided-types schema) name)
+  (let [existing-type (get (::types-by-name schema) name)
         duplicates (duplicates-by ::g/name field-definitions)
         pre-existing-fields
         (seq

@@ -60,7 +60,7 @@
    (-> "type Query { foo: String @x }"
        parse
        compile-schema*
-       (get-in [::schema/provided-types "Query" ::schema/fields-by-name "foo" ::schema/directives-by-name "x"])
+       (get-in [::schema/types-by-name "Query" ::schema/fields-by-name "foo" ::schema/directives-by-name "x"])
        )))
 
 ;; "All types and directives defined within a schema must not have a name which
@@ -92,7 +92,7 @@
   (let [s (-> (example "37")
               compile-schema*)]
     (is (= "MyQueryRootType" (get-in s [::s/root-operation-type-names :query])))
-    (is (= :object (get-in s [::s/provided-types "MyQueryRootType" ::g/kind])))))
+    (is (= :object (get-in s [::s/types-by-name "MyQueryRootType" ::g/kind])))))
 
 ;; "When using the type system definition language, a document must include at most one schema definition."
 

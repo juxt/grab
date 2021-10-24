@@ -80,6 +80,35 @@ type Query {
     (is (= "TestMutation" (get-in response [:data :__schema :mutationType :name])))
     (is (= "TestSubscription" (get-in response [:data :__schema :subscriptionType :name])))))
 
+#_(deftest type-name-introspection-test
+  )
+
+#_(let [schema (schema/compile-schema (parser/parse "
+type Query { person: Person! } type Person { name: String! }"))
+      document (document/compile-document*
+                (parser/parse
+                 "
+{ person { __typename } }"
+                 )
+                schema)
+      response (execute-request
+                {:schema schema
+                 :document document
+                 :field-resolver
+                 (fn [args]
+                   (condp =
+                       [(get-in args [:object-type ::g/name])
+                        (get-in args [:field-name])]
+                       ["Query" "person"]
+                       {:name "Isaac Newton"}
+
+                       ["Person" "name"]
+                       (get-in args [:object-value :name])
+
+                       (throw (ex-info "Fail" args))))})]
+
+  response)
+
 
 #_(let [schema (schema/compile-schema
                     (parser/parse
@@ -100,30 +129,32 @@ type Query {
 "))
             document
       (document/compile-document
-       (parser/parse (slurp (io/resource "juxt/grab/example-87.graphql")))
+       (parser/parse "{
+  __type(name: \"User\") {
+    name
+    fields {
+      name
+      type {
+        name
+      }
+      args
+    }
+  }
+}
+")
         schema)]
 
   document)
 
 
-#_(let [schema (schema/compile-schema (parser/parse (slurp (io/resource "juxt/grab/schema-3.graphql"))))
-      document (document/compile-document*
-                (parser/parse
-                 (slurp (io/resource "juxt/grab/graphiql-introspection-query.graphql")))
-                schema)]
-  (execute-request
-   {:schema schema
-    :document document
-    :field-resolver
-    (fn [args]
-      (throw (ex-info "TODO" {:args args})))}))
+
 
 
 #_(let [schema (schema/compile-schema
-                    (parser/parse
-                     ;; We prepare schema which is a super-set of the schema in the text, because we
-                     ;; need to declare the scalar 'Date' and the Query type.
-                     "
+                (parser/parse
+                 ;; We prepare schema which is a super-set of the schema in the text, because we
+                 ;; need to declare the scalar 'Date' and the Query type.
+                 "
 scalar Date
 
 type User {
@@ -136,7 +167,7 @@ type Query {
   user: User
 }
 "))
-            document
-            (document/compile-document (example "87") schema)]
+        document
+        (document/compile-document (example "87") schema)]
 
-  )
+    )
