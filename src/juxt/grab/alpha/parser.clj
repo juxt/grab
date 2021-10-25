@@ -186,7 +186,7 @@
   (let [enum-val (::g/name (process-child nm))]
     (case (::g/name enum-val)
       ("true" "false" "nil") (throw (ex-info "Illegal enum value" {:enum-val enum-val}))
-      enum-val)))
+      (symbol enum-val))))
 
 (defmethod process :interfaceTypeDefinition [[_ & terms]]
   (->> terms
