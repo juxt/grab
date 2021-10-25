@@ -74,11 +74,45 @@ type Query {
                    :document document
                    :field-resolver
                    (fn [args]
-                     (throw (ex-info "TODO" {:args args})))})]
+                     (throw (ex-info "FAIL" {:args args})))})]
 
     (is (= "TestQuery" (get-in response [:data :__schema :queryType :name])))
     (is (= "TestMutation" (get-in response [:data :__schema :mutationType :name])))
     (is (= "TestSubscription" (get-in response [:data :__schema :subscriptionType :name])))))
+
+#_(deftest enums-test
+  (let [schema (schema/compile-schema (parser/parse "type Query { foo: String } type TestMutation { test: String } type TestSubscription { bar: String }"))
+        document (document/compile-document*
+                  (parser/parse
+                   (slurp (io/resource "juxt/grab/graphiql-introspection-query.graphql")))
+                  schema)
+        response (execute-request
+                  {:schema schema
+                   :document document
+                   :field-resolver
+                   (fn [args]
+                     (throw (ex-info "FAIL" {:args args})))})]
+
+    ))
+
+#_(schema/compile-schema
+ (parser/parse "type Query { status(a: String @foo): Status } enum Status { OPEN CLOSED @deprecated(reason: \"Unused\") }"))
+
+#_(let [schema (schema/compile-schema (parser/parse "type Query { status: Status } enum Status { \"open\" OPEN CLOSED }"))
+      document (document/compile-document*
+                (parser/parse
+                 "{ __schema { types { enumValues(includeDeprecated: true) { name description }  } } }")
+                schema)
+      response (execute-request
+                {:schema schema
+                 :document document
+                 :field-resolver
+                 (fn [args]
+                   (throw (ex-info "FAIL" {:args args})))})]
+
+  response
+
+  )
 
 #_(deftest type-name-introspection-test
   )

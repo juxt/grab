@@ -4,10 +4,14 @@
   (:require
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.schema :refer [compile-schema] :as schema]
-   [juxt.grab.alpha.parser :refer [parse]]))
+   [juxt.grab.alpha.parser :refer [parse]]
+   [clojure.java.io :as io]
+   [juxt.grab.alpha.parser :as parser]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
+
+
 
 (deftest directive-compilation-test
   (let [schema
@@ -22,3 +26,6 @@
     (is (= 10 (get-in schema [::schema/types-by-name "Query" ::schema/fields-by-name "someField" ::g/arguments-definition 0 ::schema/directives-by-name "a" ::g/arguments "alpha"])))
 
     (is (= 20 (get-in schema [::schema/types-by-name "Query" ::schema/fields-by-name "someField" ::g/arguments-definition 0 ::schema/directives-by-name "b" ::g/arguments "beta"])))))
+
+
+#_(parse (slurp (io/resource "juxt/grab/alpha/meta-schema.graphql")))
