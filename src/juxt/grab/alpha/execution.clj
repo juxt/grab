@@ -289,7 +289,8 @@
       ["__Type" "description"] (some-> object-value ::g/description)
       ["__Type" "interfaces"] []    ;; TODO
       ["__Type" "inputFields"] []   ;; TODO
-      ["__Type" "enumValues"] (some-> object-value ::g/enum-values)
+      ["__Type" "enumValues"] (or (some-> object-value ::g/enum-values) [])
+
       ["__Type" "possibleTypes"] [] ;; TODO
 
       ["__Field" "description"] (some-> object-value ::g/description)
@@ -298,7 +299,6 @@
                             {::g/name (::g/name arg-def)
                              ::g/description (::g/description arg-def)
                              ::g/type-ref (::g/type-ref arg-def)
-                             ::debug arg-def
                              ::g/default-value (::g/default-value arg-def)
                              ;; Add description, type defaultValue
                              })
@@ -307,10 +307,10 @@
       ["__Field" "isDeprecated"] false    ;; TODO
       ["__Field" "deprecationReason"] nil ;; TODO
 
-      ["__EnumValue" "name"] (some-> object-value ::g/name)
+      ["__EnumValue" "name"] (some-> object-value ::g/name) ;;"some-enum-value-name"
       ["__EnumValue" "description"] (some-> object-value ::g/description)
-      ["__EnumValue" "isDeprecated"] nil
-      ["__EnumValue" "deprecationReason"] nil
+      ["__EnumValue" "isDeprecated"] false
+      ["__EnumValue" "deprecationReason"] ""
 
       ["__InputValue" "name"] (some-> object-value ::g/name)
 
