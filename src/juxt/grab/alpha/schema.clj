@@ -460,7 +460,9 @@
      (assoc-in
       acc [::types-by-name name]
       (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))
-            directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives td)))]
+            directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives td)))
+            ;; TODO: process enum values, there may be some directives to index
+            ]
         (cond-> td
           (seq fields-by-name) (assoc ::fields-by-name fields-by-name)
           (seq directives-by-name) (assoc ::directives-by-name directives-by-name)))))
