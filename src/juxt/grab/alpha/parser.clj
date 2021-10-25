@@ -182,8 +182,11 @@
 (defmethod process :enumValueDefinition [[_ & terms]]
   (->> terms (keep process-child) (apply merge)))
 
-(defmethod process :enumValue [[_ & terms]]
-  (->> terms (keep process-child) (apply merge)))
+(defmethod process :enumValue [[_ nm]]
+  (let [enum-val (process-child nm)]
+    (case (::g/name enum-val)
+      ("true" "false" "nil") (throw (ex-info "Illegal enum value" {:enum-val enum-val}))
+      enum-val)))
 
 (defmethod process :interfaceTypeDefinition [[_ & terms]]
   (->> terms
