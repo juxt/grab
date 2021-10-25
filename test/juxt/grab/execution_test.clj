@@ -366,6 +366,25 @@
                                      :object-value object-value}))
           (assert abstract-type)
           (assert object-value)
-          (::type object-value)
-          )}))))
-  )
+          (::type object-value))})))))
+
+(deftest simple-enum-test
+  (let [schema
+        (schema/compile-schema
+         (parser/parse "
+type Query { choose(fruit: Fruit = ORANGE): Fruit }
+enum Fruit { APPLE ORANGE BANANA }"))
+        document (document/compile-document
+                  (parser/parse "{ choose }")
+                  schema)]
+    (is
+     (=
+      {:data {:choose "APPLE"}}
+      (execute-request
+       {:schema schema
+        :document document
+        :field-resolver
+        (fn [{:keys [field-name] :as args}]
+          (case field-name
+            "choose" "APPLE"
+            (throw (ex-info "TODO" {:args args}))))})))))

@@ -389,8 +389,7 @@
     (cond
       (coll? result)
       (throw (field-error (format "A collection (%s) is not coerceable to a enum" (type result))))
-      (string? result)
-      (keyword result)
+      (string? result) result
       :else result)
 
     (throw (ex-info "Cannot coerce result" {:kind (::g/kind field-type)}))))
