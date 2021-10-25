@@ -289,7 +289,7 @@
       ["__Type" "description"] (some-> object-value ::g/description)
       ["__Type" "interfaces"] []    ;; TODO
       ["__Type" "inputFields"] []   ;; TODO
-      ["__Type" "enumValues"] []    ;; TODO
+      ["__Type" "enumValues"] (some-> object-value ::g/enum-values)
       ["__Type" "possibleTypes"] [] ;; TODO
 
       ["__Field" "description"] (some-> object-value ::g/description)
@@ -306,6 +306,11 @@
                           (some-> object-value ::g/arguments-definition))
       ["__Field" "isDeprecated"] false    ;; TODO
       ["__Field" "deprecationReason"] nil ;; TODO
+
+      ["__EnumValue" "name"] (some-> object-value ::g/name)
+      ["__EnumValue" "description"] (some-> object-value ::g/description)
+      ["__EnumValue" "isDeprecated"] nil
+      ["__EnumValue" "deprecationReason"] nil
 
       ["__InputValue" "name"] (some-> object-value ::g/name)
 
