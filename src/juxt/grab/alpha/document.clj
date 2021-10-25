@@ -181,7 +181,7 @@
           :scoped-type-name scoped-type-name
           :type-ref (some-> scoped-type-name types-by-name)}]
 
-        (and (#{:scalar :enum} (some-> selection-type ::g/kind)) subselection-set)
+        (and (#{"SCALAR" "ENUM"} (some-> selection-type ::g/kind)) subselection-set)
         [{:message "The subselection set of a scalar or enum must be empty"}]
 
         subselection-set
@@ -238,7 +238,7 @@
   ;;(throw (ex-info "Same response shape" {:fields fields}))
   (let [kinds (mapv #(some-> % ::return-type schema/unwrapped-type ::g/name types-by-name ::g/kind) fields)]
     (cond
-      (some #{:scalar :enum} kinds)
+      (some #{"SCALAR" "ENUM"} kinds)
       (when (apply not= (map ::return-type fields))
         {:message "Fields have conflicting return types"
          :path path
@@ -269,7 +269,7 @@
                      (apply =))
                 (->> fields
                      (map #(some-> % ::scoped-type-name types-by-name ::g/kind))
-                     (some #(not= % :object))))
+                     (some #(not= % "OBJECT"))))
            (cond
              ;; "i. fieldA and fieldB must have identical field names."
              (not (apply = (map ::g/name fields)))

@@ -364,7 +364,7 @@
 
 (defn coerce-result [result field-type]
   (case (::g/kind field-type)
-    :scalar
+    "SCALAR"
     (if (coll? result)
       (throw (field-error (format "A collection (%s) is not coerceable to a %s scalar" (type result) (::g/name field-type))))
       (if (nil? result) nil
@@ -385,7 +385,7 @@
                     :else (throw (field-error "No coercion to Int")))
 
             result)))
-    :enum
+    "ENUM"
     (cond
       (coll? result)
       (throw (field-error (format "A collection (%s) is not coerceable to a enum" (type result))))
@@ -489,14 +489,14 @@
             (:some-nil result) (assoc :data nil))))
 
       ;; 4. If fieldType is a Scalar or Enum type:
-      (#{:scalar :enum} kind)
+      (#{"SCALAR" "ENUM"} kind)
       ;; a. Return the result of “coercing” result, ensuring it is a legal value of fieldType, otherwise null.
       {:data (coerce-result result field-type)}
 
       ;; 5. If fieldType is an Object, Interface, or Union type:
-      (#{:object :interface :union} kind)
+      (#{"OBJECT" "INTERFACE" "UNION"} kind)
       (let [object-type
-            (if (= kind :object)
+            (if (= kind "OBJECT")
               field-type
               (some->
                (resolve-abstract-type
@@ -664,7 +664,7 @@
         query-type (get-in schema [::schema/types-by-name query-type-name])]
 
     ;; 2. Assert: queryType is an Object type.
-    (when-not (= (get query-type ::g/kind) :object)
+    (when-not (= (get query-type ::g/kind) "OBJECT")
       (throw (ex-info
               "Query type must be an OBJECT"
               (into
@@ -700,7 +700,7 @@
         mutation-type (get-in schema [::schema/types-by-name mutation-type-name])]
 
     ;; 2. Assert: mutationType is an Object type.
-    (when-not (= (get mutation-type ::g/kind) :object)
+    (when-not (= (get mutation-type ::g/kind) "OBJECT")
       (throw (ex-info
               "Query type must be an OBJECT"
               (into

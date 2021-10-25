@@ -140,7 +140,7 @@
         (->> terms
              (keep process-child)
              (apply merge)
-             (into {::g/kind :object}))]
+             (into {::g/kind "OBJECT"}))]
     (cond-> res
       (::g/interfaces res)
       (assoc
@@ -158,13 +158,13 @@
   (->> inner
        (keep process-child)
        (apply merge)
-       (into {::g/kind :scalar})))
+       (into {::g/kind "SCALAR"})))
 
 (defmethod process :unionTypeDefinition [[_ & terms]]
   (->> terms
        (keep process-child)
        (apply merge)
-       (into {::g/kind :union})))
+       (into {::g/kind "UNION"})))
 
 (defmethod process :unionMemberTypes [[_ & terms]]
   {::g/member-types
@@ -174,7 +174,7 @@
   (->> terms
        (keep process-child)
        (apply merge)
-       (into {::g/kind :enum})))
+       (into {::g/kind "ENUM"})))
 
 (defmethod process :enumValuesDefinition [[_ & terms]]
   {::g/enum-values (vec (keep process-child (rest (butlast terms))))})
@@ -192,7 +192,7 @@
   (->> terms
        (keep process-child)
        (apply merge)
-       (into {::g/kind :interface})))
+       (into {::g/kind "INTERFACE"})))
 
 (defmethod process :implementsInterfaces [[_ & terms]]
   {::g/interfaces
@@ -290,7 +290,7 @@
   (->> terms
        (keep process-child)
        (apply merge)
-       (into {::g/kind :input-object})))
+       (into {::g/kind "INPUT_OBJECT"})))
 
 (defmethod process :inputFieldsDefinition [[_ & terms]]
   (into {::g/input-values

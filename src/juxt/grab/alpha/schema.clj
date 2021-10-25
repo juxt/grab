@@ -85,10 +85,10 @@
     :else typ))
 
 (defn output-type? [typ]
-  (#{:scalar :object :interface :union :enum} (::g/kind (unwrapped-type typ))))
+  (#{"SCALAR" "OBJECT" "INTERFACE" "UNION" "ENUM"} (::g/kind (unwrapped-type typ))))
 
 (defn input-type? [typ]
-  (#{:scalar :enum :input-object} (::g/kind (unwrapped-type typ))))
+  (#{"SCALAR" "ENUM" "INPUT_OBJECT"} (::g/kind (unwrapped-type typ))))
 
 (defn check-object-field-argument-definition [{::keys [types-by-name] :as acc} arg-def tf]
   (let [type-name (some-> arg-def ::g/type-ref unwrapped-type ::g/name)
@@ -202,10 +202,10 @@
        (::g/name object-field-type-ref)
        (::g/name interface-field-type-ref)
        (and
-        (= (::g/kind oft) :object)
+        (= (::g/kind oft) "OBJECT")
         (or
-         (= (::g/kind ift) :interface)
-         (= (::g/kind ift) :union))
+         (= (::g/kind ift) "INTERFACE")
+         (= (::g/kind ift) "UNION"))
         (contains? (set (::g/interfaces oft)) (::g/name ift))))
       acc
 
@@ -428,10 +428,10 @@
   (reduce
    (fn [acc td]
      (cond-> acc
-       (= (::g/kind td) :object)
+       (= (::g/kind td) "OBJECT")
        (check-object-type td)
 
-       (= (::g/kind td) :interface)
+       (= (::g/kind td) "INTERFACE")
        (check-interface-type td)))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
@@ -480,7 +480,7 @@
       (add-error acc
        {:message (format "The query root operation type must be provided: '%s'" query-root-op-type-name)})
 
-      (not= :object (get query-root-op-type ::g/kind))
+      (not= "OBJECT" (get query-root-op-type ::g/kind))
       (add-error
        acc {:message "The query root operation type must be an Object type"})
 
