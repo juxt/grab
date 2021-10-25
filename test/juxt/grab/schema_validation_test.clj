@@ -92,7 +92,7 @@
   (let [s (-> (example "37")
               compile-schema*)]
     (is (= "MyQueryRootType" (get-in s [::s/root-operation-type-names :query])))
-    (is (= "OBJECT" (get-in s [::s/types-by-name "MyQueryRootType" ::g/kind])))))
+    (is (= 'OBJECT (get-in s [::s/types-by-name "MyQueryRootType" ::g/kind])))))
 
 ;; "When using the type system definition language, a document must include at most one schema definition."
 
