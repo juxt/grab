@@ -321,7 +321,7 @@
         (cond
           (::g/list-type type-ref) {::g/kind 'LIST
                                     ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind 'NON-NULL
+          (::g/non-null-type type-ref) {::g/kind 'NON_NULL
                                         ::of-type-ref (::g/non-null-type type-ref)}
           :else
           (let [typ (some-> type-ref ::g/name types-by-name)]
