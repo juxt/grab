@@ -155,7 +155,7 @@
            ;; i. Otherwise if argumentType is a Non‐Nullable type,
            ;; and either hasValue is not true or value is null,
            ;; throw a field error.
-           (and (= (get argument-type "kind") "NON_NULL")
+           (and (= (get argument-type "kind") 'NON_NULL)
                 (or (not has-value)
                     (nil? (second has-value))))
            (throw (field-error "Field error, argument type is wrapped as non-null, but no argument value given"))
@@ -257,9 +257,9 @@
       ["__Type" "ofType"]
       (when-let [type-ref (::of-type-ref object-value)]
         (cond
-          (::g/list-type type-ref) {::g/kind :list
+          (::g/list-type type-ref) {::g/kind 'LIST
                                     ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind :non-null
+          (::g/non-null-type type-ref) {::g/kind 'NON_NULL
                                         ::of-type-ref (::g/non-null-type type-ref)}
           :else
           (let [typ (some-> type-ref ::g/name types-by-name)]
@@ -276,9 +276,9 @@
       ["__Field" "type"]
       (let [type-ref (some-> object-value ::g/type-ref)]
         (cond
-          (::g/list-type type-ref) {::g/kind :list
+          (::g/list-type type-ref) {::g/kind 'LIST
                                     ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind :non-null
+          (::g/non-null-type type-ref) {::g/kind 'NON_NULL
                                         ::of-type-ref (::g/non-null-type type-ref)}
           :else
           (let [typ (some-> type-ref ::g/name types-by-name)]
@@ -319,9 +319,9 @@
       ["__InputValue" "type"]
       (let [type-ref (some-> object-value ::g/type-ref)]
         (cond
-          (::g/list-type type-ref) {::g/kind :list
+          (::g/list-type type-ref) {::g/kind 'LIST
                                     ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind :non-null
+          (::g/non-null-type type-ref) {::g/kind 'NON-NULL
                                         ::of-type-ref (::g/non-null-type type-ref)}
           :else
           (let [typ (some-> type-ref ::g/name types-by-name)]
