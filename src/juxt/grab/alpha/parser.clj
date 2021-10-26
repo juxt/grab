@@ -180,7 +180,10 @@
   {::g/enum-values (vec (keep process-child (rest (butlast terms))))})
 
 (defmethod process :enumValueDefinition [[_ & terms]]
-  (->> terms (keep process-child) (apply merge)))
+  (let [l (->> terms (keep process-child))]
+    (assoc
+     (apply merge (filter map? l))
+     ::g/name (str (first (filter symbol? l))))))
 
 (defmethod process :enumValue [[_ nm]]
   (let [enum-val (::g/name (process-child nm))]

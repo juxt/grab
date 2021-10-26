@@ -307,7 +307,7 @@
       ["__Field" "isDeprecated"] false    ;; TODO
       ["__Field" "deprecationReason"] nil ;; TODO
 
-      ["__EnumValue" "name"] (some-> object-value ::g/name) ;;"some-enum-value-name"
+      ["__EnumValue" "name"] (some-> object-value ::g/name)
       ["__EnumValue" "description"] (some-> object-value ::g/description)
       ["__EnumValue" "isDeprecated"] false
       ["__EnumValue" "deprecationReason"] ""
