@@ -138,7 +138,7 @@
        {:message (str "A field must return a type that is known.")
         :field-name (::g/name tf)
         :field-type-name (::g/name type-ref)
-        ;;:location (::g/location tf)
+        :location (::g/location (meta tf))
         })
 
       (and typ (not (output-type? typ)))
