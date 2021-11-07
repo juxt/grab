@@ -15,9 +15,27 @@
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.3.2"
+    :juxt.grab.alpha.spec-ref/algorithm "DoesFragmentTypeApply"}
+  does-fragment-type-apply?
+  [object-type fragment-type]
+  (case (::g/kind fragment-type)
+    OBJECT (= object-type fragment-type)
+    INTERFACE (throw (ex-info "TODO" {}))
+    UNION (throw (ex-info "TODO" {}))
+    (throw
+     (ex-info
+      "Unexpected fragment type kind"
+      {:kind (::g/kind fragment-type)
+       :object-type object-type
+       :fragment-type fragment-type}))))
+
+(defn
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "6.3.2"
     :juxt.grab.alpha.spec-ref/algorithm "CollectFields"}
   collect-fields
-  [{:keys [object-type selection-set variable-values visited-fragments fragments-by-name]
+  [{:keys [object-type selection-set variable-values visited-fragments
+           fragments-by-name lookup-type]
     ;; 1. If visitedFragments if not provided, initialize it to the empty
     ;; set.
     :or {visited-fragments #{}}}]
@@ -53,7 +71,6 @@
          ;; ii. If fragmentSpreadName is in visitedFragments, continue with
          ;; the next selection in selectionSet.
 
-
          (if (contains? visited-fragments fragment-spread-name)
            grouped-fields
 
@@ -70,36 +87,72 @@
                grouped-fields
 
                ;; vi. Let fragmentType be the type condition on fragment.
-               (let [fragment-type (::g/type-condition fragment)]
+               (let [fragment-type (lookup-type (::g/type-condition fragment))]
 
                  (assert fragment-type (pr-str fragment))
 
                  ;; vii. If DoesFragmentTypeApply(objectType, fragmentType) is
-                 ;; false, continue with the next selection in selectionSet. (TODO)
+                 ;; false, ...
+                 (if (does-fragment-type-apply? object-type fragment-type)
+                   ;; ... continue with the next selection in selectionSet.
+                   grouped-fields
 
-                 (let [
-                       ;; viii. Let fragmentSelectionSet be the top‐level selection
-                       ;; set of fragment.
-                       fragment-selection-set (::g/selection-set fragment)
-                       ;; ix. Let fragmentGroupedFieldSet be the result of calling
-                       ;; CollectFields(objectType, fragmentSelectionSet,
-                       ;; visitedFragments).
-                       fragment-group-field-set
-                       (collect-fields
-                        {:object-type object-type
-                         :selection-set fragment-selection-set
-                         :variable-values variable-values
-                         :visited-fragments visited-fragments
-                         :fragments-by-name fragments-by-name})]
+                   ;; viii. Let fragmentSelectionSet be the top‐level selection
+                   ;; set of fragment.
+                   (let [fragment-selection-set (::g/selection-set fragment)
+                         ;; ix. Let fragmentGroupedFieldSet be the result of calling
+                         ;; CollectFields(objectType, fragmentSelectionSet,
+                         ;; visitedFragments).
+                         fragment-grouped-field-set
+                         (collect-fields
+                          {:object-type object-type
+                           :selection-set fragment-selection-set
+                           :variable-values variable-values
+                           :visited-fragments visited-fragments
+                           :fragments-by-name fragments-by-name
+                           :lookup-type lookup-type})]
 
-                   (reduce
-                    (fn [grouped-fields [response-key fragment-group]]
-                      (update grouped-fields response-key (fnil concat (list)) fragment-group))
-                    grouped-fields
-                    fragment-group-field-set)))))))
+                     (reduce
+                      (fn [grouped-fields [response-key fragment-group]]
+                        (update grouped-fields response-key (fnil concat (list)) fragment-group))
+                      grouped-fields
+                      fragment-grouped-field-set))))))))
 
        :inline-fragment
-       (throw (ex-info "TODO: inline-fragment" {:selection selection}))))
+       ;; e. If selection is an InlineFragment:
+       ;; i. Let fragmentType be the type condition on selection.
+       (let [fragment-type (lookup-type (::g/type-condition selection))]
+
+         ;; ii. If fragmentType is not null and
+         ;; DoesFragmentTypeApply(objectType, fragmentType) is false, ...
+         (if (and
+              (some? fragment-type)
+              (false? (does-fragment-type-apply? object-type fragment-type)))
+
+           ;; ... continue with the next selection in selectionSet.
+           grouped-fields
+
+           ;; iii. Let fragmentSelectionSet be the top‐level selection set of
+           ;; selection.
+           (let [fragment-selection-set (::g/selection-set selection)
+                 ;; iv. Let fragmentGroupedFieldSet be the result of calling
+                 ;; CollectFields(objectType, fragmentSelectionSet, variableValues,
+                 ;; visitedFragments).
+                 fragment-grouped-field-set
+                 (collect-fields
+                  {:object-type object-type
+                   :selection-set fragment-selection-set
+                   :variable-values variable-values
+                   :visited-fragments visited-fragments
+                   :fragments-by-name fragments-by-name
+                   :lookup-type lookup-type})]
+
+             (reduce
+              (fn [grouped-fields [response-key fragment-group]]
+                (update grouped-fields response-key (fnil concat (list)) fragment-group))
+              grouped-fields
+              fragment-grouped-field-set)
+             )))))
 
    ;; 2. Initialize groupedFields to an empty ordered map of lists.
    (ordered-map)
@@ -594,7 +647,8 @@
          {:object-type object-type
           :selection-set selection-set
           :variable-values variable-values
-          :fragments-by-name fragments-by-name})
+          :fragments-by-name fragments-by-name
+          :lookup-type (::schema/types-by-name schema)})
 
         result
         (reduce

@@ -388,3 +388,42 @@ enum Fruit { APPLE ORANGE BANANA }"))
           (case field-name
             "choose" "APPLE"
             (throw (ex-info "TODO" {:args args}))))})))))
+
+(deftest union-test
+  (is
+   (= {:data {:firstSearchResult {:name "Alex Davis"}}}
+      (let [schema
+            (schema/compile-schema
+             (parser/parse
+              (str
+               "schema { query: SearchQuery }\n"
+               (slurp (io/resource "juxt/grab/examples/example-69.graphql")))))
+            document
+            (document/compile-document
+             (parser/parse
+              (slurp (io/resource "juxt/grab/examples/example-71.graphql")))
+             schema)]
+
+        (execute-request
+         {:schema schema
+          :document document
+          :field-resolver
+          (fn [{:keys [object-type object-value field-name] :as args}]
+            (let [pair [(get-in args [:object-type ::g/name])
+                        (get-in args [:field-name])]]
+              (condp = pair
+
+                ["SearchQuery" "firstSearchResult"]
+                {:name "Alex Davis"
+                 :age 61
+                 ::type "Person"}
+
+                ["Person" "name"]
+                (get object-value :name)
+
+                (throw (ex-info "FAIL" {:args args
+                                        :pair pair})))))
+
+          :abstract-type-resolver
+          (fn [{:keys [object-value] :as args}]
+            (::type object-value))})))))
