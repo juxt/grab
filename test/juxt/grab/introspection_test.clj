@@ -63,7 +63,7 @@ type Query {
                                      (get-in args [:field-name])]))
               args)))})))))
 
-(deftest root-types-test
+(deftest full-introspection-query-test
   (let [schema (schema/compile-schema (parser/parse "schema { query: TestQuery mutation: TestMutation subscription: TestSubscription } type TestQuery { foo: String } type TestMutation { test: String } type TestSubscription { bar: String }"))
         document (document/compile-document*
                   (parser/parse
@@ -78,7 +78,10 @@ type Query {
 
     (is (= "TestQuery" (get-in response [:data :__schema :queryType :name])))
     (is (= "TestMutation" (get-in response [:data :__schema :mutationType :name])))
-    (is (= "TestSubscription" (get-in response [:data :__schema :subscriptionType :name])))))
+    (is (= "TestSubscription" (get-in response [:data :__schema :subscriptionType :name])))
+    (let [types (get-in response [:data :__schema :types])]
+      (is (= 16 (count types)))
+      )))
 
 (deftest type-name-introspection-test
   (is (=
@@ -127,21 +130,6 @@ type Query { person: Person } type Person { name: String }"))
 
 
 #_(parser/parse "type Query { relationship: Relationship } enum Relationship { \"A friend\" FRIEND @foo BROTHER SISTER }")
-
-#_(let [schema (schema/compile-schema (parser/parse "type Query { relationship: Relationship } enum Relationship { \"A friend in need\" FRIEND @foo BROTHER SISTER }"))
-      document (document/compile-document*
-                (parser/parse
-                 (slurp (io/resource "juxt/grab/graphiql-introspection-query.graphql")))
-                schema)
-      response (execute-request
-                {:schema schema
-                 :document document
-                 :field-resolver
-                 (fn [args]
-                   (throw (ex-info "FAIL" {:args args})))})]
-  response
-
-  )
 
 #_(schema/compile-schema
  (parser/parse "type Query { status(a: String @foo): Status } enum Status { OPEN CLOSED @deprecated(reason: \"Unused\") }"))

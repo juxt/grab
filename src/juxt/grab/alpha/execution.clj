@@ -93,7 +93,7 @@
 
                  ;; vii. If DoesFragmentTypeApply(objectType, fragmentType) is
                  ;; false, ...
-                 (if (does-fragment-type-apply? object-type fragment-type)
+                 (if (false? (does-fragment-type-apply? object-type fragment-type))
                    ;; ... continue with the next selection in selectionSet.
                    grouped-fields
 
