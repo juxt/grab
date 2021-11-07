@@ -163,12 +163,14 @@
     :field
     (let [scoped-type-name (::scoped-type-name selection)
           field-name (::g/name selection)
-          path (conj path (::g/name selection))
+          path (conj path field-name)
           field-def (some-> scoped-type-name types-by-name ::schema/fields-by-name (get field-name))
           selection-type (some-> field-def ::g/type-ref schema/unwrapped-type ::g/name types-by-name)
           subselection-set (::g/selection-set selection)]
 
       (cond
+        (= field-name "__typename") [] ; allow for introspection
+
         (nil? field-def)
         [{:message (format
                   "Field name '%s' not defined on type in scope '%s'"

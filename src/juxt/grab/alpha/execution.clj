@@ -49,7 +49,7 @@
              ;; i. Let responseKey be the response key of selection (the alias
              ;; if defined, otherwise the field name).
 
-             ;; TODO: The response-key will be the alias, if it exists
+             ;; The response-key will be the alias, if it exists
              (or (::g/alias selection) (::g/name selection))]
          (update
           grouped-fields
@@ -263,154 +263,159 @@
    fields))
 
 (defn introspection-field-resolver
-  [delegate schema {:keys [object-type field-name object-value argument-values path] :as args}]
+  [delegate {:keys [object-type field-name object-value argument-values schema path] :as args}]
 
   (let [root-query-name (get-in schema [::schema/root-operation-type-names :query])
         types-by-name (::schema/types-by-name schema)]
-    (condp = [(::g/name object-type) field-name]
 
-      [root-query-name "__type"]
-      (get-in schema [::schema/types-by-name (get argument-values "name")])
+    (case field-name
+      "__typename" (::g/name object-type)
 
-      [root-query-name "__schema"]
-      schema
+      (condp = [(::g/name object-type) field-name]
 
-      ["__Schema" "types"]
-      (sort-by ::g/name (vals (::schema/types-by-name schema)))
+        [root-query-name "__type"]
+        (get-in schema [::schema/types-by-name (get argument-values "name")])
 
-      ["__Schema" "queryType"]
-      (some-> root-query-name types-by-name)
+        [root-query-name "__schema"]
+        schema
 
-      ["__Schema" "mutationType"]
-      (when-let [type-name (get-in schema [::schema/root-operation-type-names :mutation])]
-        (some-> type-name types-by-name))
+        ["__Schema" "types"]
+        (sort-by ::g/name (vals (::schema/types-by-name schema)))
 
-      ["__Schema" "subscriptionType"]
-      (when-let [type-name (get-in schema [::schema/root-operation-type-names :subscription])]
-        (some-> type-name types-by-name))
+        ["__Schema" "queryType"]
+        (some-> root-query-name types-by-name)
 
-      ["__Schema" "directives"]
-      []
+        ["__Schema" "mutationType"]
+        (when-let [type-name (get-in schema [::schema/root-operation-type-names :mutation])]
+          (some-> type-name types-by-name))
 
-      ["__Type" "kind"]
-      (or
-       (some-> object-value ::g/kind)
-       (throw
-        (ex-info
-         "Type kind is nil!"
-         {:object-value object-value
-          :path path})))
+        ["__Schema" "subscriptionType"]
+        (when-let [type-name (get-in schema [::schema/root-operation-type-names :subscription])]
+          (some-> type-name types-by-name))
 
-      ["__Type" "name"]
-      (some-> object-value ::g/name)
+        ["__Schema" "directives"]
+        []
 
-      ["__Type" "fields"]
-      (some-> object-value ::g/field-definitions)
+        ["__Type" "kind"]
+        (or
+         (some-> object-value ::g/kind)
+         (throw
+          (ex-info
+           "Type kind is nil!"
+           {:object-value object-value
+            :path path})))
 
-      ["__Type" "ofType"]
-      (when-let [type-ref (::of-type-ref object-value)]
-        (cond
-          (::g/list-type type-ref) {::g/kind 'LIST
-                                    ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind 'NON_NULL
-                                        ::of-type-ref (::g/non-null-type type-ref)}
-          :else
-          (let [typ (some-> type-ref ::g/name types-by-name)]
-            (when (nil? typ)
-              (throw (ex-info "ofType is nil" {:object-value object-value}))
-              )
+        ["__Type" "name"]
+        (some-> object-value ::g/name)
 
-            {::g/kind (::g/kind typ)
-             ::g/name (::g/name typ)})))
+        ["__Type" "fields"]
+        (some-> object-value ::g/field-definitions)
 
-      ["__Field" "name"]
-      (some-> object-value ::g/name)
+        ["__Type" "ofType"]
+        (when-let [type-ref (::of-type-ref object-value)]
+          (cond
+            (::g/list-type type-ref) {::g/kind 'LIST
+                                      ::of-type-ref (::g/list-type type-ref)}
+            (::g/non-null-type type-ref) {::g/kind 'NON_NULL
+                                          ::of-type-ref (::g/non-null-type type-ref)}
+            :else
+            (let [typ (some-> type-ref ::g/name types-by-name)]
+              (when (nil? typ)
+                (throw (ex-info "ofType is nil" {:object-value object-value}))
+                )
 
-      ["__Field" "type"]
-      (let [type-ref (some-> object-value ::g/type-ref)]
-        (cond
-          (::g/list-type type-ref) {::g/kind 'LIST
-                                    ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind 'NON_NULL
-                                        ::of-type-ref (::g/non-null-type type-ref)}
-          :else
-          (let [typ (some-> type-ref ::g/name types-by-name)]
-            (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
-            {::g/name (::g/name typ)
-             ::g/kind (::g/kind typ)})))
+              {::g/kind (::g/kind typ)
+               ::g/name (::g/name typ)})))
 
-      ["__Type" "description"] (some-> object-value ::g/description)
-      ["__Type" "interfaces"] []    ;; TODO
-      ["__Type" "inputFields"] []   ;; TODO
-      ["__Type" "enumValues"] (or (some-> object-value ::g/enum-values) [])
+        ["__Field" "name"]
+        (some-> object-value ::g/name)
 
-      ["__Type" "possibleTypes"] [] ;; TODO
+        ["__Field" "type"]
+        (let [type-ref (some-> object-value ::g/type-ref)]
+          (cond
+            (::g/list-type type-ref) {::g/kind 'LIST
+                                      ::of-type-ref (::g/list-type type-ref)}
+            (::g/non-null-type type-ref) {::g/kind 'NON_NULL
+                                          ::of-type-ref (::g/non-null-type type-ref)}
+            :else
+            (let [typ (some-> type-ref ::g/name types-by-name)]
+              (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
+              {::g/name (::g/name typ)
+               ::g/kind (::g/kind typ)})))
 
-      ["__Field" "description"] (some-> object-value ::g/description)
-      ["__Field" "args"] (mapv
-                          (fn [arg-def]
-                            {::g/name (::g/name arg-def)
-                             ::g/description (::g/description arg-def)
-                             ::g/type-ref (::g/type-ref arg-def)
-                             ::g/default-value (::g/default-value arg-def)
-                             ;; Add description, type defaultValue
-                             })
+        ["__Type" "description"] (some-> object-value ::g/description)
+        ["__Type" "interfaces"] []  ;; TODO
+        ["__Type" "inputFields"] [] ;; TODO
+        ["__Type" "enumValues"] (or (some-> object-value ::g/enum-values) [])
 
-                          (some-> object-value ::g/arguments-definition))
-      ["__Field" "isDeprecated"] false    ;; TODO
-      ["__Field" "deprecationReason"] nil ;; TODO
+        ["__Type" "possibleTypes"] [] ;; TODO
 
-      ["__EnumValue" "name"] (some-> object-value ::g/name)
-      ["__EnumValue" "description"] (some-> object-value ::g/description)
-      ["__EnumValue" "isDeprecated"] false
-      ["__EnumValue" "deprecationReason"] ""
+        ["__Field" "description"] (some-> object-value ::g/description)
+        ["__Field" "args"] (mapv
+                            (fn [arg-def]
+                              {::g/name (::g/name arg-def)
+                               ::g/description (::g/description arg-def)
+                               ::g/type-ref (::g/type-ref arg-def)
+                               ::g/default-value (::g/default-value arg-def)
+                               ;; Add description, type defaultValue
+                               })
 
-      ["__InputValue" "name"] (some-> object-value ::g/name)
+                            (some-> object-value ::g/arguments-definition))
+        ["__Field" "isDeprecated"] false    ;; TODO
+        ["__Field" "deprecationReason"] nil ;; TODO
 
-      ["__InputValue" "description"] (some-> object-value ::g/description)
+        ["__EnumValue" "name"] (some-> object-value ::g/name)
+        ["__EnumValue" "description"] (some-> object-value ::g/description)
+        ["__EnumValue" "isDeprecated"] false
+        ["__EnumValue" "deprecationReason"] ""
 
-      ["__InputValue" "type"]
-      (let [type-ref (some-> object-value ::g/type-ref)]
-        (cond
-          (::g/list-type type-ref) {::g/kind 'LIST
-                                    ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind 'NON_NULL
-                                        ::of-type-ref (::g/non-null-type type-ref)}
-          :else
-          (let [typ (some-> type-ref ::g/name types-by-name)]
-            (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
-            {::g/name (::g/name typ)
-             ::g/kind (::g/kind typ)})))
+        ["__InputValue" "name"] (some-> object-value ::g/name)
 
-      ["__InputValue" "defaultValue"] (some-> object-value ::g/default-value)
+        ["__InputValue" "description"] (some-> object-value ::g/description)
+
+        ["__InputValue" "type"]
+        (let [type-ref (some-> object-value ::g/type-ref)]
+          (cond
+            (::g/list-type type-ref) {::g/kind 'LIST
+                                      ::of-type-ref (::g/list-type type-ref)}
+            (::g/non-null-type type-ref) {::g/kind 'NON_NULL
+                                          ::of-type-ref (::g/non-null-type type-ref)}
+            :else
+            (let [typ (some-> type-ref ::g/name types-by-name)]
+              (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
+              {::g/name (::g/name typ)
+               ::g/kind (::g/kind typ)})))
+
+        ["__InputValue" "defaultValue"] (some-> object-value ::g/default-value)
 
 
-      ;; Forward to resolver
-      (if (some-> object-type ::g/name (str/starts-with? "__"))
-        (throw
-         (ex-info
-          "Unhandled introspection"
-          {:object-value object-value
-           :object-type object-type
-           :field-name field-name}))
-        (delegate args)))))
+        ;; Forward to resolver
+        (if (some-> object-type ::g/name (str/starts-with? "__"))
+          (throw
+           (ex-info
+            "Unhandled introspection"
+            {:object-value object-value
+             :object-type object-type
+             :field-name field-name}))
+          (delegate args))))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.4.2"
     :juxt.grab.alpha.spec-ref/algorithm "ResolveFieldValue"}
   resolve-field-value
-  [{:keys [object-type object-value field-name argument-values field-resolver schema path] :as args}]
+  [{:keys [object-type object-value field-name argument-values
+           field-resolver schema path] :as args}]
   (assert field-name)
   (assert field-resolver)
 
   (introspection-field-resolver
    field-resolver
-   schema
    {:object-type object-type
     :field-name field-name
     :object-value object-value
     :argument-values argument-values
+    :schema schema
     :path path}))
 
 (declare execute-selection-set)
@@ -660,7 +665,10 @@
                  field-name (::g/name field)
                  ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
                  field-type-ref
-                 (get-in object-type [::schema/fields-by-name field-name ::g/type-ref])]
+                 (case field-name
+                   "__typename"
+                   {::g/non-null-type {::g/name "String"}}
+                   (get-in object-type [::schema/fields-by-name field-name ::g/type-ref]))]
 
              ;; c. If fieldType is defined:
              (if field-type-ref

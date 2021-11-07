@@ -80,6 +80,36 @@ type Query {
     (is (= "TestMutation" (get-in response [:data :__schema :mutationType :name])))
     (is (= "TestSubscription" (get-in response [:data :__schema :subscriptionType :name])))))
 
+(deftest type-name-introspection-test
+  (is (=
+       {:data {:person {:__typename "Person"}}}
+       (let [schema (schema/compile-schema
+                     (parser/parse "
+type Query { person: Person } type Person { name: String }"))
+             document (document/compile-document
+                       (parser/parse
+                        "
+{ person { __typename } }")
+                       schema)
+
+             response
+             (execute-request
+              {:schema schema
+               :document document
+               :field-resolver
+               (fn [args]
+                 (condp =
+                     [(get-in args [:object-type ::g/name])
+                      (get-in args [:field-name])]
+                     ["Query" "person"]
+                     {:name "Isaac Newton"}
+
+                     ["Person" "name"]
+                     (get-in args [:object-value :name])
+
+                     (throw (ex-info "Fail" args))))})]
+         response))))
+
 #_(deftest enums-test
     (let [schema (schema/compile-schema (parser/parse "type Query { foo: String } type TestMutation { test: String } type TestSubscription { bar: String }"))
         document (document/compile-document*
@@ -132,41 +162,14 @@ type Query {
 
   )
 
-#_(deftest type-name-introspection-test
-  )
 
-#_(let [schema (schema/compile-schema (parser/parse "
-type Query { person: Person! } type Person { name: String! }"))
-      document (document/compile-document*
-                (parser/parse
-                 "
-{ person { __typename } }"
-                 )
-                schema)
-      response (execute-request
-                {:schema schema
-                 :document document
-                 :field-resolver
-                 (fn [args]
-                   (condp =
-                       [(get-in args [:object-type ::g/name])
-                        (get-in args [:field-name])]
-                       ["Query" "person"]
-                       {:name "Isaac Newton"}
-
-                       ["Person" "name"]
-                       (get-in args [:object-value :name])
-
-                       (throw (ex-info "Fail" args))))})]
-
-  response)
 
 
 #_(let [schema (schema/compile-schema
-                    (parser/parse
-                     ;; We prepare schema which is a super-set of the schema in the text, because we
-                     ;; need to declare the scalar 'Date' and the Query type.
-                     "
+                (parser/parse
+                 ;; We prepare schema which is a super-set of the schema in the text, because we
+                 ;; need to declare the scalar 'Date' and the Query type.
+                 "
 scalar Date
 
 type User {
@@ -179,9 +182,9 @@ type Query {
   user: User
 }
 "))
-            document
-      (document/compile-document
-       (parser/parse "{
+        document
+        (document/compile-document
+         (parser/parse "{
   __type(name: \"User\") {
     name
     fields {
@@ -194,9 +197,9 @@ type Query {
   }
 }
 ")
-        schema)]
+         schema)]
 
-  document)
+    document)
 
 
 
