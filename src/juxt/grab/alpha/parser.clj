@@ -322,4 +322,7 @@
   (some-> s parser))
 
 (defn parse [s]
-  (some-> s parser process))
+  (try
+    (some-> s parser process)
+    (catch clj_antlr.ParseError e
+      (throw (ex-info "Failed to parse GraphQL" {:errors @e})))))
