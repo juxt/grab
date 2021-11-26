@@ -329,65 +329,97 @@
             (throw (ex-info "TODO: resolve field" {:args args}))))})))))
 
 (deftest interface-test
-  (is
-   (=
-    {:data {:entity {:name "JUXT LTD."}}}
-    (let [schema
-          (schema/compile-schema
+  (let [schema (schema/compile-schema
+                (parser/parse
+                 (str
+                  "schema { query: Contact }\n"
+                  (slurp (io/resource "juxt/grab/examples/example-62.graphql"))
+                  (slurp (io/resource "juxt/grab/examples/example-63.graphql")))))]
+    (let [document
+          (document/compile-document
            (parser/parse
-            (str/join
-             \newline
-             ["type Query { entity: NamedEntity }"
-              (slurp (io/resource "juxt/grab/examples/example-62.graphql"))])))
-          document (document/compile-document (parser/parse "{ entity { name } }") schema)]
+            (slurp (io/resource "juxt/grab/examples/example-64.graphql")))
+           schema)]
 
-      (execute-request
-       {:schema schema
-        :document document
-        :field-resolver
-        (fn [args]
-          (condp = [(get-in args [:object-type ::g/name])
-                    (get-in args [:field-name])]
+      (is
+       (=
+        {:data {:entity {:name "Alex Davis"}, :phoneNumber "888-123-4567"}}
+        (execute-request
+         {:schema schema
+          :document document
+          :field-resolver
+          (fn [{:keys [object-type object-value field-name] :as args}]
+            (let [pair [(get-in args [:object-type ::g/name])
+                        (get-in args [:field-name])]]
+              (condp = pair
 
-            ["Query" "entity"]
-            {:name "JUXT LTD."
-             :value 100
-             ::type "Business"
-             }
+                ["Contact" "entity"]
+                {:name "Alex Davis"
+                 :age 61
+                 ::type "Person"}
 
-            ["Business" "name"]
-            (get-in args [:object-value :name])
+                ["Contact" "phoneNumber"]
+                "888-123-4567"
 
-            (throw (ex-info "TODO" {:args args}))))
+                ["Person" "name"]
+                (get object-value :name)
 
-        :abstract-type-resolver
-        (fn [{:keys [abstract-type object-value]}]
-          #_(throw (ex-info "break" {:abstract-type abstract-type
-                                     :object-value object-value}))
-          (assert abstract-type)
-          (assert object-value)
-          (::type object-value))})))))
+                (throw (ex-info "FAIL" {:args args
+                                        :pair pair})))))
 
-(deftest simple-enum-test
-  (let [schema
-        (schema/compile-schema
-         (parser/parse "
-type Query { choose(fruit: Fruit = ORANGE): Fruit }
-enum Fruit { APPLE ORANGE BANANA }"))
-        document (document/compile-document
-                  (parser/parse "{ choose }")
-                  schema)]
-    (is
-     (=
-      {:data {:choose "APPLE"}}
-      (execute-request
-       {:schema schema
-        :document document
-        :field-resolver
-        (fn [{:keys [field-name] :as args}]
-          (case field-name
-            "choose" "APPLE"
-            (throw (ex-info "TODO" {:args args}))))})))))
+          :abstract-type-resolver
+          (fn [{:keys [object-value] :as args}]
+            (::type object-value))}))))
+
+    (let [document
+          (document/compile-document*
+           (parser/parse
+            (slurp (io/resource "juxt/grab/examples/example-65.graphql")))
+           schema)
+
+          errors (::document/errors document)]
+      (is (= 1 (count errors)))
+      (is (= "Field name 'age' not defined on type in scope 'NamedEntity'"
+             (get-in errors [0 :message]))))
+
+
+    (let [document
+          (document/compile-document
+           (parser/parse
+            (slurp (io/resource "juxt/grab/examples/example-66.graphql")))
+           schema)]
+
+      (is (=
+           {:data {:entity {:name "Alex Davis", :age 61}, :phoneNumber "888-123-4567"}}
+           (execute-request
+            {:schema schema
+             :document document
+             :field-resolver
+             (fn [{:keys [object-type object-value field-name] :as args}]
+               (let [pair [(get-in args [:object-type ::g/name])
+                           (get-in args [:field-name])]]
+                 (condp = pair
+
+                   ["Contact" "entity"]
+                   {:name "Alex Davis"
+                    :age 61
+                    ::type "Person"}
+
+                   ["Contact" "phoneNumber"]
+                   "888-123-4567"
+
+                   ["Person" "name"]
+                   (get object-value :name)
+
+                   ["Person" "age"]
+                   (get object-value :age)
+
+                   (throw (ex-info "FAIL" {:args args
+                                           :pair pair})))))
+
+             :abstract-type-resolver
+             (fn [{:keys [object-value] :as args}]
+               (::type object-value))}))))))
 
 (deftest union-test
   (is
@@ -427,3 +459,24 @@ enum Fruit { APPLE ORANGE BANANA }"))
           :abstract-type-resolver
           (fn [{:keys [object-value] :as args}]
             (::type object-value))})))))
+
+(deftest simple-enum-test
+  (let [schema
+        (schema/compile-schema
+         (parser/parse "
+type Query { choose(fruit: Fruit = ORANGE): Fruit }
+enum Fruit { APPLE ORANGE BANANA }"))
+        document (document/compile-document
+                  (parser/parse "{ choose }")
+                  schema)]
+    (is
+     (=
+      {:data {:choose "APPLE"}}
+      (execute-request
+       {:schema schema
+        :document document
+        :field-resolver
+        (fn [{:keys [field-name] :as args}]
+          (case field-name
+            "choose" "APPLE"
+            (throw (ex-info "TODO" {:args args}))))})))))

@@ -1,0 +1,7 @@
+{
+  entity {
+    name
+    age
+  }
+  phoneNumber
+}

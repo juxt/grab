@@ -1,0 +1,5 @@
+type Contact {
+  entity: NamedEntity
+  phoneNumber: String
+  address: String
+}
