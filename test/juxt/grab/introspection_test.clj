@@ -214,3 +214,22 @@ type Query {
         (document/compile-document (example "87") schema)]
 
     )
+
+(deftest possible-types-test
+  (is
+   (=
+    [{:name "Photo", :kind 'OBJECT} {:name "Person", :kind 'OBJECT}]
+    (let [schema
+          (schema/compile-schema
+           (parser/parse
+            (str "schema { query: SearchQuery } "
+                 (-> "juxt/grab/examples/example-69.graphql" io/resource slurp))))
+
+          document (document/compile-document
+                    (parser/parse "{ __type(name: \"SearchResult\") { name possibleTypes { name kind } }}")
+                    schema)]
+      (-> (execute-request
+           {:schema schema
+            :document document
+            :field-resolver (fn [_] (throw (ex-info "TODO" {})))})
+          (get-in [:data :__type :possibleTypes]))))))

@@ -327,6 +327,15 @@
               {::g/kind (::g/kind typ)
                ::g/name (::g/name typ)})))
 
+        ["__Type" "description"] (some-> object-value ::g/description)
+        ["__Type" "interfaces"] []  ;; TODO
+        ["__Type" "inputFields"] [] ;; TODO
+        ["__Type" "enumValues"] (or (some-> object-value ::g/enum-values) [])
+
+        ["__Type" "possibleTypes"]
+        (when (#{'UNION 'INTERFACE} (::g/kind object-value))
+          (mapv types-by-name (::g/member-types object-value)))
+
         ["__Field" "name"]
         (some-> object-value ::g/name)
 
@@ -342,13 +351,6 @@
               (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
               {::g/name (::g/name typ)
                ::g/kind (::g/kind typ)})))
-
-        ["__Type" "description"] (some-> object-value ::g/description)
-        ["__Type" "interfaces"] []  ;; TODO
-        ["__Type" "inputFields"] [] ;; TODO
-        ["__Type" "enumValues"] (or (some-> object-value ::g/enum-values) [])
-
-        ["__Type" "possibleTypes"] [] ;; TODO
 
         ["__Field" "description"] (some-> object-value ::g/description)
         ["__Field" "args"] (mapv
@@ -369,27 +371,22 @@
         ["__EnumValue" "isDeprecated"] false
         ["__EnumValue" "deprecationReason"] ""
 
-      ["__InputValue" "name"] (some-> object-value ::g/name)
-      ["__InputValue" "description"] (some-> object-value ::g/description)
-      ["__InputValue" "type"]
-      (let [type-ref (some-> object-value ::g/type-ref)]
-        (cond
-          (::g/list-type type-ref) {::g/kind 'LIST
-                                    ::of-type-ref (::g/list-type type-ref)}
-          (::g/non-null-type type-ref) {::g/kind 'NON_NULL
-                                        ::of-type-ref (::g/non-null-type type-ref)}
-          :else
-          (let [typ (some-> type-ref ::g/name types-by-name)]
-            (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
-            {::g/name (::g/name typ)
-             ::g/kind (::g/kind typ)})))
-
-
-
-
+        ["__InputValue" "name"] (some-> object-value ::g/name)
+        ["__InputValue" "description"] (some-> object-value ::g/description)
+        ["__InputValue" "type"]
+        (let [type-ref (some-> object-value ::g/type-ref)]
+          (cond
+            (::g/list-type type-ref) {::g/kind 'LIST
+                                      ::of-type-ref (::g/list-type type-ref)}
+            (::g/non-null-type type-ref) {::g/kind 'NON_NULL
+                                          ::of-type-ref (::g/non-null-type type-ref)}
+            :else
+            (let [typ (some-> type-ref ::g/name types-by-name)]
+              (assert typ (format "Failed to find field type: %s" (some-> type-ref ::g/name)))
+              {::g/name (::g/name typ)
+               ::g/kind (::g/kind typ)})))
 
         ["__InputValue" "defaultValue"] (some-> object-value ::g/default-value)
-
 
         ;; Forward to resolver
         (if (some-> object-type ::g/name (str/starts-with? "__"))
