@@ -131,9 +131,7 @@
 (defmethod process :inputValueDefinition [[_ & terms]]
   (-> terms
       (->> (keep process-child)
-           (apply merge))
-      ;;(update ::g/type-ref get ::g/name)
-      ))
+           (apply merge))))
 
 (defmethod process :objectTypeDefinition [[_ & terms]]
   (let [res
