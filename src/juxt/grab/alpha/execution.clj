@@ -574,6 +574,16 @@
           :fragments-by-name fragments-by-name
           :path path})))))
 
+(defn error-map [e]
+  (let [ex-data (ex-data e)
+        stack-trace (.getStackTrace e)
+        cause (.getCause e)]
+    (cond-> {:message (.getMessage e)}
+      (seq ex-data) (into ex-data)
+      stack-trace (assoc :stack-trace stack-trace)
+      cause (assoc :cause (error-map cause))
+      )))
+
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.4"
@@ -630,8 +640,12 @@
           (-> (if (::g/non-null-type field-type-ref)
                 {::invalid? true}
                 {:data nil})
-              (assoc :errors [(cond-> {:message (.getMessage e) :path path}
-                                (seq ex-data) (assoc :extensions ex-data))])))))))
+              (assoc :errors [{:message (.getMessage e)
+                               :path path
+                               :extensions
+                               (-> (error-map e)
+                                   ;; Don't duplicate message above
+                                   (dissoc :message))}])))))))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
