@@ -1,7 +1,14 @@
 = Grab
 
-A GraphQL implementation in Clojure.
+A minimal GraphQL implementation in Clojure.
 
-== Status
+Grab supports GraphQL's SDL language for defining schemas.
 
-ALPHA: work in progress
+== Specification
+
+The relevant GraphQL specification version is the
+https://spec.graphql.org/June2018/[June 2018 Edition].
+
+== Usage
+
+For now, inspect the tests for how to use the library.
