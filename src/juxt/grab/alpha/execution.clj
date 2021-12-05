@@ -697,6 +697,7 @@
   "Returns a map with :errors and :data"
   [{:keys [query schema initial-value]
     :as args}]
+  (assert query)
   (assert schema)
 
   ;; 1. Let queryType be the root Query type in schema.
@@ -775,6 +776,8 @@
   "Execute a request. Provide schema, document, operation-name, variable-values,
   initial-value and field-resolver. Returns a map with :errors and :data."
   [{:keys [document operation-name variable-values] :as args}]
+
+  (assert document)
 
   ;; 1. Let operation be the result of GetOperation(document, operationName).
   (let [operation (document/get-operation document operation-name)
