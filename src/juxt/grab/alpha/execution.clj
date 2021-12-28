@@ -413,8 +413,16 @@
 (defn coerce-result [result field-type]
   (case (::g/kind field-type)
     SCALAR
-    (if (coll? result)
+    (cond
+      ;; If scalar name is JSON, let it through
+      (and (coll? result)
+           (= (::g/name field-type) "JSON"))
+      result
+
+      (coll? result)
       (throw (field-error (format "A collection (%s) is not coerceable to a %s scalar" (type result) (::g/name field-type))))
+
+      :else
       (if (nil? result) nil
           (case (::g/name field-type)
             "String" (cond
