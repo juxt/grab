@@ -240,7 +240,7 @@
         (apply merge))))
 
 (defmethod process :fragmentName [[_ name]]
-  {::g/fragment-name (::g/name (process-child name))})
+  {::g/name (::g/name (process-child name))})
 
 (defmethod process :selection [[_ inner]]
   (process-child inner))

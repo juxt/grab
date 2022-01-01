@@ -48,7 +48,7 @@
   (assoc acc ::operations-grouped-by-name (group-by ::g/name operations)))
 
 (defn group-fragments-by-name [{::keys [fragments] :as acc}]
-  (assoc acc ::fragments-grouped-by-name (group-by ::g/fragment-name fragments)))
+  (assoc acc ::fragments-grouped-by-name (group-by ::g/name fragments)))
 
 (defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
   validate-anonymous
@@ -209,7 +209,7 @@
       error)
     (for [frag (::fragments acc)
           selection (::g/selection-set frag)
-          error (validate-selection selection (::scoped-type-name frag) schema [(::g/fragment-name frag)])
+          error (validate-selection selection (::scoped-type-name frag) schema [(::g/name frag)])
           :when error]
       error))))
 
@@ -223,7 +223,7 @@
     :fragment-spread
     ;; If we can't find the fragment, we don't error because this will be
     ;; spotted by another validator.
-    (when-let [fragment (get-in schema [::fragments-by-name (::g/fragment-name selection)])]
+    (when-let [fragment (get-in schema [::fragments-by-name (::g/name selection)])]
       (mapcat visit-fields (::g/selection-set fragment) (repeat schema)))
 
     (throw (ex-info "Unexpected selection type" {:selection selection}))))
@@ -303,19 +303,15 @@
 (defn validate-fields-in-set-can-merge [acc]
   (update
    acc ::errors into
-   (concat
-    (for [op (::operations acc)
-          :let [selection-set (::g/selection-set op)]
-          error (fields-in-set-can-merge selection-set (::schema acc) (::scoped-type-name op) [(::g/name op)])
-          :when error]
-      error)
-    (for [frag (::fragments acc)
-          ;; TODO: Also visit fragments and inline fragments as per spec "including visiting
-          ;; fragments and inline fragments."
-          :let [selection-set (::g/selection-set frag)]
-          error (fields-in-set-can-merge selection-set (::schema acc) (::scoped-type-name frag) [(::g/fragment-name frag)])
-          :when error]
-      error))))
+   (for [op (concat (::operations acc)
+                    (::fragments acc)
+                    ;; TODO: Also visit fragments and inline fragments as per spec "including visiting
+                    ;; fragments and inline fragments."
+                    )
+         :let [selection-set (::g/selection-set op)]
+         error (fields-in-set-can-merge selection-set (::schema acc) (::scoped-type-name op) [(::g/name op)])
+         :when error]
+     error)))
 
 (defn compile-document*
   "Compile a document with respect to the given schema, returning a structure that
