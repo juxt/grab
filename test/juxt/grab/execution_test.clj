@@ -487,3 +487,48 @@ enum Fruit { APPLE ORANGE BANANA }"))
           (case field-name
             "choose" "APPLE"
             (throw (ex-info "TODO" {:args args}))))})))))
+
+
+(deftest stacktrace-test
+  (let [schema
+        (schema/compile-schema
+         (parser/parse "
+type Query { error: Error }
+type Error { message: String stackTrace: [StackTraceElement] }
+type StackTraceElement { fileName: String className: String lineNumber: Int methodName: String }
+"))
+        document (document/compile-document
+                  (parser/parse "{ error { message stackTrace { fileName className lineNumber methodName}} }")
+                  schema)
+        result (execute-request
+                {:schema schema
+                 :document document
+                 :field-resolver
+                 (fn [{:keys [field-name object-type object-value] :as args}]
+
+                   (let [pair [(::g/name object-type) field-name]]
+                     (condp = pair
+
+                       ["Query" "error"]
+                       (ex-info "My message" {:foo "bar"})
+
+                       ["Error" "message"]
+                       (.getMessage object-value)
+
+                       ["Error" "stackTrace"]
+                       (map bean (.getStackTrace object-value))
+
+                       ["StackTraceElement" "fileName"]
+                       (:fileName object-value)
+
+                       ["StackTraceElement" "className"]
+                       (:className object-value)
+
+                       ["StackTraceElement" "lineNumber"]
+                       (:lineNumber object-value)
+
+                       ["StackTraceElement" "methodName"]
+                       (:methodName object-value))))})]
+
+    (is (some? (:data result)))
+    (is (nil? (:errors result)))))
