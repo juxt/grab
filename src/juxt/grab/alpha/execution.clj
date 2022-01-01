@@ -67,7 +67,7 @@
        ;; d. If selection is a FragmentSpread:
        ;; i. Let fragmentSpreadName be the name of selection.
 
-       (let [fragment-spread-name (::g/fragment-name selection)]
+       (let [fragment-spread-name (::g/name selection)]
          ;; ii. If fragmentSpreadName is in visitedFragments, continue with
          ;; the next selection in selectionSet.
 
