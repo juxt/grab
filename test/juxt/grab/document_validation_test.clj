@@ -174,28 +174,16 @@
       (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql"))))
       (expected-errors [])))
 
-#_(-> (example-schema)
-    (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql"))))
-    )
-
-#_(deftest example-116-test
+(deftest example-116-test
   (let [schema
         (-> (example-schema)
             (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql")))))]
     (->(example "116")
        (compile-document* schema)
-       (expected-errors [#"error"]))))
-
-
-(comment
-  (-> (example-schema)
-      (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql")))))
-
-  (example-schema)
-
-  ;; TODO: Support :typeSystemExtension
-)
-
+       (expected-errors
+        [#"Field name 'human' not defined on type in scope 'Query'"
+         #"Field name 'pet' not defined on type in scope 'Query'"
+         #"Field name 'catOrDog' not defined on type in scope 'Query'"]))))
 
 ;; Arguments
 
