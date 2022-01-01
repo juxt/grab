@@ -200,7 +200,7 @@
 
 (defn validate-selection-sets [{::keys [schema] :as acc}]
   (update
-   acc ::errors (comp vec concat)
+   acc ::errors into
    (concat
     (for [op (::operations acc)
           selection (::g/selection-set op)
@@ -302,7 +302,7 @@
 
 (defn validate-fields-in-set-can-merge [acc]
   (update
-   acc ::errors (comp vec concat)
+   acc ::errors into
    (concat
     (for [op (::operations acc)
           :let [selection-set (::g/selection-set op)]
