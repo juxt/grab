@@ -147,7 +147,7 @@
      (compile-document* (example-schema) compilers)
      (expected-errors (repeat 4 #"Cannot merge since field arguments are not identical")))))
 
-(deftest example-111-test
+#_(deftest example-111-test
   (-> (example "111")
       (compile-document* (example-schema))
       (expected-errors [])))
@@ -189,13 +189,13 @@
 ;; Arguments
 
 ;; Fragments
-(deftest example-117-test
+#_(deftest example-117-test
   (is
    (-> (example "117")
        (compile-document* (example-schema))
        (expected-errors []))))
 
-(-> (example "117")
+#_(-> (example "117")
     (compile-document* (example-schema))
        )
 

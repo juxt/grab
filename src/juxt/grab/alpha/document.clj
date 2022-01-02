@@ -102,7 +102,7 @@
           (as-> selection %
             (assoc % ::scoped-type-name scoped-type-name)
             (assoc % ::return-type return-type)
-            (assoc % ::argument-definitions-by-name
+            #_(assoc % ::argument-definitions-by-name
                    (reduce-kv
                     (fn [acc arg-name _]
                       (assoc acc arg-name
@@ -129,7 +129,20 @@
         :inline-fragment
         (-> selection
             (assoc ::scoped-type-name type-condition)
-            (update ::g/selection-set scope-selection-set type-condition schema))
+            (update ::g/selection-set scope-selection-set type-condition schema)
+            #_(assoc ::argument-definitions-by-name
+                   (reduce-kv
+                    (fn [acc arg-name _]
+                      (assoc acc arg-name
+                             (get-in
+                              schema
+                              [:juxt.grab.alpha.schema/types-by-name
+                               type-condition
+                               :juxt.grab.alpha.schema/fields-by-name
+                               field-name
+                               :juxt.grab.alpha.graphql/argument-definitions-by-name
+                               arg-name])))
+                    {} (:juxt.grab.alpha.graphql/arguments selection))))
 
         (throw
          (ex-info
@@ -344,6 +357,53 @@
   ;; TODO: directives
   )
 
+(defn argument-definitions-by-name [schema type-name field]
+  (reduce-kv
+   (fn [acc arg-name _]
+     (assoc acc arg-name
+            (get-in
+             schema
+             [::schema/types-by-name type-name
+              ::schema/fields-by-name (::g/name field)
+              ::g/argument-definitions-by-name arg-name])))
+   {} (::g/arguments field)))
+
+(defn decorate-document
+  "Decorate a document with information from the given schema."
+  [{::keys [schema] :as acc}]
+  (update
+   acc
+   ::document
+   (fn [document]
+     (->>
+      document
+      (postwalk
+       (fn [node]
+         (cond
+           (map? node)
+           (cond-> node
+             (= (::g/selection-type node) :inline-fragment)
+             (update
+              ::g/selection-set
+              (fn [selection-set]
+                (let [type-name (::g/type-condition node)]
+                  (->>
+                   selection-set
+                   (mapv
+                    (fn [{::g/keys [selection-type] :as field}]
+                      (cond-> field
+                        (and
+                         ;; if this is a field
+                         (= selection-type :field)
+                         ;; with arguments
+                         (::g/arguments field))
+                        ;; associate the argument definitions close to the
+                        ;; arguments
+                        (assoc
+                         ::argument-definitions-by-name
+                         (argument-definitions-by-name schema type-name field))))))))))
+           :else node)))))))
+
 (defn compile-document*
   "Compile a document with respect to the given schema, returning a structure that
   can be provided to the execution functions."
@@ -352,22 +412,23 @@
     document schema
     {:compilers
      [
-      add-operations
-      add-default-operation-type
-      add-fragments
-      add-scoped-types-to-operations
-      add-scoped-types-to-fragments
+      decorate-document
+      #_add-operations
+      #_add-default-operation-type
+      #_add-fragments
+      #_add-scoped-types-to-operations
+      #_add-scoped-types-to-fragments
 
-      group-operations-by-name
-      group-fragments-by-name
+      #_group-operations-by-name
+      #_group-fragments-by-name
 
-      validate-executable-definitions
-      validate-selection-sets
-      validate-anonymous
-      validate-operation-uniqueness
-      validate-fragment-uniqueness
-      validate-fields-in-set-can-merge
-      validate-arguments
+      #_validate-executable-definitions
+      #_validate-selection-sets
+      #_validate-anonymous
+      #_validate-operation-uniqueness
+      #_validate-fragment-uniqueness
+      #_validate-fields-in-set-can-merge
+      #_validate-arguments
       ]}))
 
   ([document schema {:keys [compilers]}]
