@@ -447,9 +447,11 @@
 
 (defn compile-field-definition [field-def]
   (let [directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives field-def)))
-        arguments-definition (mapv compile-argument-definition (::g/arguments-definition field-def))]
+        arguments-definition (mapv compile-argument-definition (::g/arguments-definition field-def))
+        argument-definitions-by-name (into {} (map (juxt ::g/name identity) arguments-definition))]
     (cond-> field-def
-      (seq arguments-definition) (assoc ::g/arguments-definition arguments-definition)
+      (seq arguments-definition) (assoc ::g/arguments-definition arguments-definition
+                                        ::g/argument-definitions-by-name argument-definitions-by-name)
       (seq directives-by-name) (assoc ::directives-by-name directives-by-name))))
 
 (defn provide-types

@@ -3,6 +3,7 @@
 (ns juxt.grab.document-validation-test
   (:require
    [clojure.test :refer [deftest is]]
+   [clojure.walk :refer [postwalk]]
    [juxt.grab.alpha.parser :refer [parse]]
    [juxt.grab.alpha.document :as doc :refer [compile-document*]]
    [juxt.grab.alpha.schema :refer [compile-schema extend-schema]]
@@ -188,6 +189,82 @@
 ;; Arguments
 
 ;; Fragments
-#_(-> (example "126")
-    (compile-document* (example-schema))
-    )
+(deftest example-117-test
+  (is
+   (-> (example "117")
+       (compile-document* (example-schema))
+       (expected-errors []))))
+
+
+(example "118")
+
+(let [schema (example-schema)
+      doc
+      (-> (example "118")
+          (compile-document* schema)
+          ;:juxt.grab.alpha.document/document
+          )]
+
+  schema
+
+  doc
+  #_schema
+  #_(->> doc
+       (tree-seq (every-pred seqable? (comp not string?)) seq)
+       ;; Find all arguments
+       (mapcat
+        (fn [x]
+          (when (vector? x)
+            (let [[k v] x]
+              (case k
+                :juxt.grab.alpha.graphql/fragment-definition
+                (for [field (:juxt.grab.alpha.graphql/selection-set v)
+                      :when (= (:juxt.grab.alpha.graphql/selection-type field) :field)
+                      argument (:juxt.grab.alpha.graphql/arguments field)]
+                  [k (-> v (assoc :field field :argument argument)
+                         (dissoc :juxt.grab.alpha.graphql/selection-set))])
+                nil)))))
+
+
+       (map (fn [[k v]]
+              (let [type-name (:juxt.grab.alpha.graphql/type-condition v)
+                    field-name (get-in v [:field :juxt.grab.alpha.graphql/name])
+                    arg-name (get-in v [:argument 0])
+                    arg-def
+                    (case k
+                      :juxt.grab.alpha.graphql/fragment-definition
+                      (get-in
+                       schema
+                       [:juxt.grab.alpha.schema/types-by-name
+                        type-name
+                        :juxt.grab.alpha.schema/fields-by-name
+                        field-name
+                        :juxt.grab.alpha.graphql/argument-definitions-by-name
+                        arg-name]))]
+                [k (assoc v :argument-definition arg-def)])
+
+              ))
+
+
+
+       ;; TODO: Marry them to their definitions
+
+       ;; TODO: Find missing definitions
+
+       #_(keep (fn [[k v]]
+                 (case k
+                   :juxt.grab.alpha.graphql/fragment-definition
+                   (let [t (:juxt.grab.alpha.graphql/type-condition v)]
+                     (when-not
+                         (get-in
+                          schema
+                          [:juxt.grab.alpha.schema/types-by-name t :juxt.grab.alpha.graphql/field-definitions]
+                          )
+                         :error
+                         ))
+                   nil)
+                 ;; convert into error
+                 ))
+       )
+
+  )

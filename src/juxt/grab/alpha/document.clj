@@ -1,7 +1,9 @@
 ;; Copyright © 2021, JUXT LTD.
 
 (ns juxt.grab.alpha.document
-  (:require [juxt.grab.alpha.schema :as schema]))
+  (:require
+   [juxt.grab.alpha.schema :as schema]
+   [clojure.walk :refer [postwalk]]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -313,6 +315,54 @@
          :when error]
      error)))
 
+(defn associate-argument-definitions [{::keys [schema] :as acc}]
+  (letfn [(transform-entry [[k v]]
+            (let [type-name (:juxt.grab.alpha.graphql/type-condition v)]
+              [k
+               (cond-> v
+                 (= k :juxt.grab.alpha.graphql/fragment-definition)
+                 (update
+                  :juxt.grab.alpha.graphql/selection-set
+                  (fn [selection-set]
+                    (->>
+                     selection-set
+                     (mapv
+                      (fn [field]
+                        (cond-> field
+                          (= (:juxt.grab.alpha.graphql/selection-type field) :field)
+                          (assoc
+                           ::argument-definitions-by-name
+                           (let [field-name (::g/name field)]
+                             (reduce-kv
+                              (fn [acc arg-name _]
+                                (assoc acc arg-name
+                                       (get-in
+                                        schema
+                                        [:juxt.grab.alpha.schema/types-by-name
+                                         type-name
+                                         :juxt.grab.alpha.schema/fields-by-name
+                                         field-name
+                                         :juxt.grab.alpha.graphql/argument-definitions-by-name
+                                         arg-name])))
+                              {} (:juxt.grab.alpha.graphql/arguments field)))))))))))]))
+
+          (entry? [e] (and (vector? e) (= (count e) 2)))
+
+          (transform-node [node] (cond-> node (entry? node) transform-entry))]
+
+    (update acc ::document (fn [doc] (postwalk transform-node doc)))))
+
+(defn validate-arguments [acc]
+  acc
+  #_(update
+     acc ::errors into
+     ;; selection sets
+     (for [op (concat (::operations acc)
+                      (::fragments acc))])
+     )
+  ;; TODO: directives
+  )
+
 (defn compile-document*
   "Compile a document with respect to the given schema, returning a structure that
   can be provided to the execution functions."
@@ -326,6 +376,8 @@
       add-fragments
       add-scoped-types-to-operations
       add-scoped-types-to-fragments
+      associate-argument-definitions
+
       group-operations-by-name
       group-fragments-by-name
 
@@ -334,7 +386,9 @@
       validate-anonymous
       validate-operation-uniqueness
       validate-fragment-uniqueness
-      validate-fields-in-set-can-merge]}))
+      validate-fields-in-set-can-merge
+      ;;validate-arguments
+      ]}))
 
   ([document schema {:keys [compilers]}]
    (reduce
