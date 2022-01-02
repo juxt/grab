@@ -7,6 +7,8 @@
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
+(defn entry? [e] (and (vector? e) (= (count e) 2)))
+
 (defn add-error [acc error]
   (update acc ::errors conj error))
 
@@ -97,12 +99,26 @@
         :field
         (let [return-type (some-> scoped-type-name types-by-name
                                   ::schema/fields-by-name (get field-name) ::g/type-ref)]
-          (-> selection
-              (assoc ::scoped-type-name scoped-type-name)
-              (assoc ::return-type return-type)
-              (cond-> selection-set
-                (update ::g/selection-set
-                        scope-selection-set (some-> return-type schema/unwrapped-type ::g/name) schema))))
+          (as-> selection %
+            (assoc % ::scoped-type-name scoped-type-name)
+            (assoc % ::return-type return-type)
+            (assoc % ::argument-definitions-by-name
+                   (reduce-kv
+                    (fn [acc arg-name _]
+                      (assoc acc arg-name
+                             (get-in
+                              schema
+                              [:juxt.grab.alpha.schema/types-by-name
+                               scoped-type-name
+                               :juxt.grab.alpha.schema/fields-by-name
+                               field-name
+                               :juxt.grab.alpha.graphql/argument-definitions-by-name
+                               arg-name])))
+                    {} (:juxt.grab.alpha.graphql/arguments selection)))
+            (cond-> %
+              selection-set
+              (update ::g/selection-set
+                      scope-selection-set (some-> return-type schema/unwrapped-type ::g/name) schema))))
 
         :fragment-spread
         ;; We don't need to do anything because scoped-types are added to
@@ -203,17 +219,11 @@
 (defn validate-selection-sets [{::keys [schema] :as acc}]
   (update
    acc ::errors into
-   (concat
-    (for [op (::operations acc)
-          selection (::g/selection-set op)
-          error (validate-selection selection (::scoped-type-name op) schema [(::g/name op)])
-          :when error]
-      error)
-    (for [frag (::fragments acc)
-          selection (::g/selection-set frag)
-          error (validate-selection selection (::scoped-type-name frag) schema [(::g/name frag)])
-          :when error]
-      error))))
+   (for [op-or-frag (concat (::operations acc) (::fragments acc))
+         selection (::g/selection-set op-or-frag)
+         error (validate-selection selection (::scoped-type-name op-or-frag) schema [(::g/name op-or-frag)])
+         :when error]
+     error)))
 
 (defn visit-fields [selection schema]
   (case (::g/selection-type selection)
@@ -315,51 +325,22 @@
          :when error]
      error)))
 
-(defn associate-argument-definitions [{::keys [schema] :as acc}]
-  (letfn [(transform-entry [[k v]]
-            (let [type-name (:juxt.grab.alpha.graphql/type-condition v)]
-              [k
-               (cond-> v
-                 (= k :juxt.grab.alpha.graphql/fragment-definition)
-                 (update
-                  :juxt.grab.alpha.graphql/selection-set
-                  (fn [selection-set]
-                    (->>
-                     selection-set
-                     (mapv
-                      (fn [field]
-                        (cond-> field
-                          (= (:juxt.grab.alpha.graphql/selection-type field) :field)
-                          (assoc
-                           ::argument-definitions-by-name
-                           (let [field-name (::g/name field)]
-                             (reduce-kv
-                              (fn [acc arg-name _]
-                                (assoc acc arg-name
-                                       (get-in
-                                        schema
-                                        [:juxt.grab.alpha.schema/types-by-name
-                                         type-name
-                                         :juxt.grab.alpha.schema/fields-by-name
-                                         field-name
-                                         :juxt.grab.alpha.graphql/argument-definitions-by-name
-                                         arg-name])))
-                              {} (:juxt.grab.alpha.graphql/arguments field)))))))))))]))
-
-          (entry? [e] (and (vector? e) (= (count e) 2)))
-
-          (transform-node [node] (cond-> node (entry? node) transform-entry))]
-
-    (update acc ::document (fn [doc] (postwalk transform-node doc)))))
-
-(defn validate-arguments [acc]
-  acc
-  #_(update
-     acc ::errors into
-     ;; selection sets
-     (for [op (concat (::operations acc)
-                      (::fragments acc))])
-     )
+(defn validate-arguments [{::keys [document] :as acc}]
+  (update
+   acc ::errors into
+   (->>
+    document
+    ;; Tree seq losses context unless we have a way we can restore it with children function
+    (tree-seq (every-pred seqable? (comp not string?)) seq)
+    (mapcat
+     (fn [m]
+       (when (and (map? m) (contains? m ::g/arguments))
+         (reduce-kv (fn [acc arg-name _]
+                      (let [arg-def (get-in m [::argument-definitions-by-name arg-name])]
+                        (when (nil? arg-def)
+                          (conj acc {:message "Argument not allowed here" :arg-name arg-name}
+                                ))))
+                    [] (::g/arguments m)))))))
   ;; TODO: directives
   )
 
@@ -376,7 +357,6 @@
       add-fragments
       add-scoped-types-to-operations
       add-scoped-types-to-fragments
-      associate-argument-definitions
 
       group-operations-by-name
       group-fragments-by-name
@@ -387,7 +367,7 @@
       validate-operation-uniqueness
       validate-fragment-uniqueness
       validate-fields-in-set-can-merge
-      ;;validate-arguments
+      validate-arguments
       ]}))
 
   ([document schema {:keys [compilers]}]
