@@ -368,47 +368,82 @@
               ::g/argument-definitions-by-name arg-name])))
    {} (::g/arguments field)))
 
+(defn decorate-selection [selection {::schema/keys [fields-by-name] :as type} schema]
+  (case (::g/selection-type selection)
+    :field
+    (let [{field-name ::g/name :as field} selection
+          field-definition (get fields-by-name field-name)
+          field-type (some-> field-definition ::g/type-ref)]
+      (cond-> selection
+        field-definition (assoc ::field-definition field-definition)
+        ;; TODO: Rename ::return-type to ::field-type or just ::type
+        field-type (assoc ::return-type field-type)
+
+        (::g/selection-set field)
+        (update
+         ::g/selection-set
+         (fn [selection-set]
+           (let [type-name (some-> field-type schema/unwrapped-type ::g/name)
+                 type (get-in schema [::schema/types-by-name type-name])]
+             (mapv #(decorate-selection % type schema)
+                   selection-set))))))
+    (throw
+     (ex-info
+      (format "TODO: add selection-type for %s" (::g/selection-type selection))
+      {:selection selection}))))
+
 (defn decorate-document
   "Decorate a document with information from the given schema."
-  [{::keys [schema] :as acc}]
-  (update
-   acc
-   ::document
-   (fn [document]
-     (->>
-      document
-      (postwalk
-       (fn [node]
-         (cond
-           (map? node)
-           (cond-> node
-             (= (::g/selection-type node) :inline-fragment)
-             (update
-              ::g/selection-set
-              (fn [selection-set]
-                (let [type-name (::g/type-condition node)]
-                  (->>
-                   selection-set
-                   (mapv
-                    (fn [{::g/keys [selection-type] :as field}]
-                      (cond-> field
-                        (and
-                         ;; if this is a field
-                         (= selection-type :field)
-                         ;; with arguments
-                         (::g/arguments field))
-                        ;; associate the argument definitions close to the
-                        ;; arguments
-                        (assoc
-                         ::argument-definitions-by-name
-                         (argument-definitions-by-name schema type-name field))))))))))
-           :else node)))))))
+  [document schema]
+  (->>
+   document
 
-(defn compile-document*
+   (postwalk
+    (fn [node]
+      (cond
+        (map? node)
+        (cond-> node
+          ;; Only occurs at the start of a executable definition
+          (#{:query :mutation :subscription} (::g/operation-type node))
+          (->
+           (assoc ::type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)]))
+           (update
+            ::g/selection-set
+            (fn [selection-set]
+              (let [type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
+                    type (get-in schema [::schema/types-by-name type-name])]
+                (mapv #(decorate-selection % type schema) selection-set)))))
+
+          #_#_(::g/type-condition node)
+          (assoc ::type (get-in schema [::schema/types-by-name (::g/type-condition node)]))
+
+          (= (::g/selection-type node) :inline-fragment)
+          (update
+           ::g/selection-set
+           (fn [selection-set]
+             (let [type-name (::g/type-condition node)]
+               (->>
+                selection-set
+                (mapv
+                 (fn [{::g/keys [selection-type] :as field}]
+                   (cond-> field
+                     (and
+                      ;; if this is a field
+                      (= selection-type :field)
+                      ;; with arguments
+                      (::g/arguments field))
+                     ;; associate the argument definitions close to the
+                     ;; arguments
+                     (assoc
+                      ::argument-definitions-by-name
+                      (argument-definitions-by-name schema type-name field))))))))))
+        :else node)))))
+
+(defn compile-document
   "Compile a document with respect to the given schema, returning a structure that
   can be provided to the execution functions."
   ([document schema]
-   (compile-document*
+   (compile-document
     document schema
     {:compilers
      [
@@ -433,17 +468,13 @@
 
   ([document schema {:keys [compilers]}]
    (reduce
-    (fn [acc f]
+    (fn [doc f]
       ;; Allow compilers to return nil (e.g. applicability guards)
-      (or (f acc) acc))
-
-    {::errors []
-     ::document document
-     ::schema schema}
-
+      (or (f doc schema) doc))
+    document
     compilers)))
 
-(defn compile-document [document schema]
+#_(defn compile-document [document schema]
   (let [acc (compile-document* document schema)]
     (when (seq (::errors acc))
       (throw
@@ -451,3 +482,9 @@
         "Failed to compile document due to errors"
         {:errors (::errors acc)})))
     acc))
+
+
+(defn validate-document [document]
+
+
+  )
