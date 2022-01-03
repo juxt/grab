@@ -368,16 +368,18 @@
               ::g/argument-definitions-by-name arg-name])))
    {} (::g/arguments field)))
 
-(defn decorate-selection [selection {::schema/keys [fields-by-name] :as type} schema]
+(defn decorate-selection [selection {:keys [type schema path] :as context}]
   (case (::g/selection-type selection)
     :field
     (let [{field-name ::g/name :as field} selection
-          field-definition (get fields-by-name field-name)
-          field-type (some-> field-definition ::g/type-ref)]
+          field-definition (get (::schema/fields-by-name schema) field-name)
+          field-type (some-> field-definition ::g/type-ref)
+          new-path (conj path (or (::g/alias selection) (::g/name selection)))]
       (cond-> selection
         field-definition (assoc ::field-definition field-definition)
-        ;; TODO: Rename ::return-type to ::field-type or just ::type
+        ;; TODO: Rename ::return-type to ::field-type, or just ::type
         field-type (assoc ::return-type field-type)
+        path (assoc ::path new-path)
 
         (::g/selection-set field)
         (update
@@ -385,8 +387,14 @@
          (fn [selection-set]
            (let [type-name (some-> field-type schema/unwrapped-type ::g/name)
                  type (get-in schema [::schema/types-by-name type-name])]
-             (mapv #(decorate-selection % type schema)
-                   selection-set))))))
+             (map
+              (fn [selection]
+                (decorate-selection
+                 selection
+                  (-> context
+                      (assoc :type type)
+                      (assoc :path new-path))))
+              selection-set))))))
     (throw
      (ex-info
       (format "TODO: add selection-type for %s" (::g/selection-type selection))
@@ -397,27 +405,34 @@
   [document schema]
   (->>
    document
-
    (postwalk
     (fn [node]
       (cond
+        (and
+         (vector? node)
+         (= (first node) :juxt.grab.alpha.graphql/operation-definition))
+
+        (let [[_ op-def] node]
+          ;; Only occurs at the start of a executable definition
+          (update
+           node 1
+           (fn [op-def]
+             (-> op-def
+              (assoc ::type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type op-def)]))
+              (update
+               ::g/selection-set
+               (fn [selection-set]
+                 (let [type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
+                       type (get-in schema [::schema/types-by-name type-name])]
+                   (mapv #(decorate-selection % {:type type :schena schema :path []}) selection-set))))))))
+
+
         (map? node)
         (cond-> node
-          ;; Only occurs at the start of a executable definition
-          (#{:query :mutation :subscription} (::g/operation-type node))
-          (->
-           (assoc ::type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)]))
-           (update
-            ::g/selection-set
-            (fn [selection-set]
-              (let [type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
-                    type (get-in schema [::schema/types-by-name type-name])]
-                (mapv #(decorate-selection % type schema) selection-set)))))
 
-          #_#_(::g/type-condition node)
-          (assoc ::type (get-in schema [::schema/types-by-name (::g/type-condition node)]))
 
           (= (::g/selection-type node) :inline-fragment)
+          ;; Use field information to decorate arguments
           (update
            ::g/selection-set
            (fn [selection-set]

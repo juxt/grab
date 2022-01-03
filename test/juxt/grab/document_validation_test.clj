@@ -99,8 +99,19 @@
       (expected-errors [#"Field name '.+' not defined on type in scope '.+'"])))
 
 (-> (parse "query { dog { name } }")
-    (compile-document (example-schema))
-    )
+    (compile-document (example-schema)))
+
+(-> (parse " query {
+  hero(episode: $episode) {
+    name
+    heroFriends: friends {
+      id
+      name
+    }
+  }
+}
+")
+    (compile-document (example-schema)))
 
 (deftest example-102-test
   (-> (example "102")
