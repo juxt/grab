@@ -411,20 +411,18 @@
         (and
          (vector? node)
          (= (first node) :juxt.grab.alpha.graphql/operation-definition))
-
-        (let [[_ op-def] node]
-          ;; Only occurs at the start of a executable definition
-          (update
-           node 1
-           (fn [op-def]
-             (-> op-def
-              (assoc ::type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type op-def)]))
-              (update
-               ::g/selection-set
-               (fn [selection-set]
-                 (let [type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
-                       type (get-in schema [::schema/types-by-name type-name])]
-                   (mapv #(decorate-selection % {:type type :schena schema :path []}) selection-set))))))))
+        ;; Only occurs at the start of a executable definition
+        (update
+         node 1
+         (fn [op-def]
+           (-> op-def
+               (assoc ::type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type op-def)]))
+               (update
+                ::g/selection-set
+                (fn [selection-set]
+                  (let [type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
+                        type (get-in schema [::schema/types-by-name type-name])]
+                    (mapv #(decorate-selection % {:type type :schena schema :path []}) selection-set)))))))
 
 
         (map? node)
