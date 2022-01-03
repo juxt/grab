@@ -5,7 +5,7 @@
    [clojure.test :refer [deftest is]]
    [clojure.walk :refer [postwalk]]
    [juxt.grab.alpha.parser :refer [parse]]
-   [juxt.grab.alpha.document :as doc :refer [compile-document]]
+   [juxt.grab.alpha.document :as doc :refer [compile-document validate-document]]
    [juxt.grab.alpha.schema :refer [compile-schema extend-schema]]
    [clojure.java.io :as io]))
 
@@ -98,10 +98,10 @@
       (compile-document (example-schema))
       (expected-errors [#"Field name '.+' not defined on type in scope '.+'"])))
 
-(-> (parse "query { dog { name } }")
+#_(-> (parse "query { dog { name } }")
     (compile-document (example-schema)))
 
-(-> (parse " query {
+#_(-> (parse " query {
   hero(episode: $episode) {
     name
     heroFriends: friends {
@@ -137,6 +137,14 @@
                         #"Field name 'barkVolume' not defined on type in scope 'CatOrDog'"])))
 
 ;; 5.3.2 Field Selection Merging
+
+(-> (parse
+    "fragment fieldNotDefined on Dog {
+  meowVolume
+}")
+    (compile-document (example-schema))
+    ;;(validate-document)
+    )
 
 (deftest field-merging-test
   (let [compilers {:compilers
@@ -223,4 +231,5 @@
 ;; inline fragments
 (-> (example "111")
     (compile-document (example-schema))
+    (validate-document)
     )

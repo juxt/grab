@@ -372,11 +372,11 @@
   (case (::g/selection-type selection)
     :field
     (let [{field-name ::g/name :as field} selection
-          field-definition (get (::schema/fields-by-name schema) field-name)
+          field-definition (get-in type [::schema/fields-by-name field-name])
           field-type (some-> field-definition ::g/type-ref)
           new-path (conj path (or (::g/alias selection) (::g/name selection)))]
       (cond-> selection
-        field-definition (assoc ::field-definition field-definition)
+        true (assoc ::field-definition field-definition)
         ;; TODO: Rename ::return-type to ::field-type, or just ::type
         field-type (assoc ::return-type field-type)
         path (assoc ::path new-path)
@@ -422,12 +422,25 @@
                 (fn [selection-set]
                   (let [type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
                         type (get-in schema [::schema/types-by-name type-name])]
-                    (mapv #(decorate-selection % {:type type :schena schema :path []}) selection-set)))))))
+                    (mapv #(decorate-selection % {:type type :schema schema :path []}) selection-set)))))))
 
+        (and
+         (vector? node)
+         (= (first node) :juxt.grab.alpha.graphql/fragment-definition))
+        (update
+         node 1
+         (fn [frag-def]
+           (let [type-name (::g/type-condition frag-def)]
+             (-> frag-def
+                 (assoc ::type-name type-name)
+                 (update
+                  ::g/selection-set
+                  (fn [selection-set]
+                    (let [type (get-in schema [::schema/types-by-name type-name])]
+                      (mapv #(decorate-selection % {:type type :schema schema :path []}) selection-set))))))))
 
         (map? node)
         (cond-> node
-
 
           (= (::g/selection-type node) :inline-fragment)
           ;; Use field information to decorate arguments
@@ -497,7 +510,8 @@
     acc))
 
 
-(defn validate-document [document]
-
-
+(defn validate-document
+  "Returns a collection of errors, if any.."
+  [document]
+  []
   )
