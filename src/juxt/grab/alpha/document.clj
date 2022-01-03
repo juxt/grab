@@ -430,14 +430,15 @@
         (update
          node 1
          (fn [frag-def]
-           (let [type-name (::g/type-condition frag-def)]
+           (let [frag-name (::g/name frag-def)
+                 type-name (::g/type-condition frag-def)]
              (-> frag-def
                  (assoc ::type-name type-name)
                  (update
                   ::g/selection-set
                   (fn [selection-set]
                     (let [type (get-in schema [::schema/types-by-name type-name])]
-                      (mapv #(decorate-selection % {:type type :schema schema :path []}) selection-set))))))))
+                      (mapv #(decorate-selection % {:type type :schema schema :path [frag-name]}) selection-set))))))))
 
         (map? node)
         (cond-> node
