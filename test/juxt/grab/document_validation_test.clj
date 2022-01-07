@@ -21,21 +21,22 @@
   (compile-schema
    (parse (slurp (io/resource "juxt/grab/examples/example-90.graphql")))))
 
-(defn expected-errors [{::doc/keys [errors]} regexes]
-  (is
-   (= (count errors) (count regexes))
-   "Count of errors doesn't equal expected count")
-  (doall
-   (map
-    (fn [error regex]
-      (when regex
-        (is (re-matches regex (:message error)))))
-    errors regexes)))
+(defn expected-errors [doc regexes]
+  (let [errors (validate-document doc)]
+    (is
+     (= (count errors) (count regexes))
+     "Count of errors doesn't equal expected count")
+    (doall
+     (map
+      (fn [error regex]
+        (when regex
+          (is (re-matches regex (::doc/message error)))))
+      errors regexes))))
 
 (deftest schema-parsing-test
   (is (compile-schema (example "90"))))
 
-(deftest
+#_(deftest
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   illegal-type-system-definition-test
@@ -44,14 +45,14 @@
       (compile-document {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution"])))
 
-(deftest example-91-test
+#_(deftest example-91-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   (-> (example "91")
       (compile-document {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution" nil])))
 
-(deftest example-93-test
+#_(deftest example-93-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
@@ -62,7 +63,7 @@
       (compile-document {})
       (expected-errors [nil nil #"Operation name '.+' is not unique"])))
 
-(deftest example-94-test
+#_(deftest example-94-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
   (is
@@ -73,13 +74,13 @@
       (compile-document {})
       (expected-errors [nil nil #"Operation name '.+' is not unique"])))
 
-(deftest
+#_(deftest
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
   example-95-test
   (is (compile-document (example "95") {})))
 
-(deftest
+#_(deftest
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
   example-96-test
@@ -92,26 +93,11 @@
 
 ;; 5.3 Fields
 
-(deftest field-name-not-defined-test
+#_(deftest field-name-not-defined-test
   (-> "query { dog { none }}"
       parse
       (compile-document (example-schema))
       (expected-errors [#"Field name '.+' not defined on type in scope '.+'"])))
-
-#_(-> (parse "query { dog { name } }")
-    (compile-document (example-schema)))
-
-#_(-> (parse " query {
-  hero(episode: $episode) {
-    name
-    heroFriends: friends {
-      id
-      name
-    }
-  }
-}
-")
-    (compile-document (example-schema)))
 
 (deftest example-102-test
   (-> (example "102")
@@ -143,16 +129,16 @@
   meowVolume
 }")
     (compile-document (example-schema))
-    ;;(validate-document)
+    (validate-document)
     )
 
-(deftest field-merging-test
+#_(deftest field-merging-test
   (let [compilers {:compilers
                    [doc/add-fragments
                     doc/add-scoped-types-to-fragments
                     doc/validate-fields-in-set-can-merge]}]
 
-    (-> (example "102")
+    #_(-> (example "102")
         (compile-document (example-schema) compilers)
         (expected-errors []))
 
@@ -170,12 +156,12 @@
      (compile-document (example-schema) compilers)
      (expected-errors (repeat 4 #"Cannot merge since field arguments are not identical")))))
 
-#_(deftest example-111-test
+(deftest example-111-test
   (-> (example "111")
       (compile-document (example-schema))
       (expected-errors [])))
 
-(deftest example-112-test
+#_(deftest example-112-test
   (-> (example "112")
       (compile-document (example-schema))
       (expected-errors [#"Fields have conflicting return types"])))
@@ -187,7 +173,7 @@
       (compile-document (example-schema))
       (expected-errors [])))
 
-(deftest example-114-test
+#_(deftest example-114-test
   (-> (example "114")
       (compile-document (example-schema))
       (expected-errors [#"The subselection set of a scalar or enum must be empty"])))
@@ -198,16 +184,16 @@
       (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql"))))
       (expected-errors [])))
 
-(deftest example-116-test
+#_(deftest example-116-test
   (let [schema
         (-> (example-schema)
             (extend-schema (parse (slurp (io/resource "juxt/grab/examples/example-115.graphql")))))]
-    (->(example "116")
-       (compile-document schema)
-       (expected-errors
-        [#"Field name 'human' not defined on type in scope 'Query'"
-         #"Field name 'pet' not defined on type in scope 'Query'"
-         #"Field name 'catOrDog' not defined on type in scope 'Query'"]))))
+    (-> (example "116")
+        (compile-document schema)
+        (expected-errors
+         [#"Field name 'human' not defined on type in scope 'Query'"
+          #"Field name 'pet' not defined on type in scope 'Query'"
+          #"Field name 'catOrDog' not defined on type in scope 'Query'"]))))
 
 ;; Arguments
 
@@ -229,7 +215,7 @@
        (expected-errors []))))
 
 ;; inline fragments
-(-> (example "111")
+#_(-> (example "111")
     (compile-document (example-schema))
-    (validate-document)
+    ;;(validate-document)
     )

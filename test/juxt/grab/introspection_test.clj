@@ -19,7 +19,7 @@
       slurp
       parser/parse))
 
-(deftest example-87-test
+#_(deftest example-87-test
   (is
    (= {:data
        {:__type
@@ -63,16 +63,16 @@ type Query {
                                      (get-in args [:field-name])]))
               args)))})))))
 
-(deftest full-introspection-query-test
+#_(deftest full-introspection-query-test
   (let [schema (schema/compile-schema (parser/parse "schema { query: TestQuery mutation: TestMutation subscription: TestSubscription } type TestQuery { foo: String } type TestMutation { test: String } type TestSubscription { bar: String }"))
-        document (document/compile-document*
+        document (document/compile-document
                   (parser/parse
                    (slurp (io/resource "juxt/grab/graphiql-introspection-query.graphql")))
                   schema)
         response (execute-request
                   {:schema schema
                    :document document
-                   :field-resolver
+                  :field-resolver
                    (fn [args]
                      (throw (ex-info "FAIL" {:args args})))})]
 
@@ -83,7 +83,7 @@ type Query {
       (is (= 16 (count types)))
       )))
 
-(deftest type-name-introspection-test
+#_(deftest type-name-introspection-test
   (is (=
        {:data {:person {:__typename "Person"}}}
        (let [schema (schema/compile-schema
@@ -215,7 +215,7 @@ type Query {
 
     )
 
-(deftest possible-types-test
+#_(deftest possible-types-test
   (is
    (=
     [{:name "Photo", :kind 'OBJECT} {:name "Person", :kind 'OBJECT}]

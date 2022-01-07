@@ -260,6 +260,9 @@
                (or (get field ::g/alias) (get field ::g/name))))))
 
 (defn same-response-shape
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "5.3.2"
+    :juxt.grab.alpha.spec-ref/algorithm "SameResponseShape"}
   [response-name fields {::schema/keys [types-by-name]} path]
   ;; TODO: Non-null and lists
   ;;(throw (ex-info "Same response shape" {:fields fields}))
@@ -272,7 +275,11 @@
          :response-name response-name
          :fields fields}))))
 
-(defn fields-in-set-can-merge
+(defn
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "5.3.2"
+    :juxt.grab.alpha.spec-ref/algorithm "FieldsInSetCanMerge"}
+  fields-in-set-can-merge
   [selection-set {::schema/keys [types-by-name] :as schema}
    parent-scoped-type path]
   (let [ ;; "1. Let fieldsForName be the set of selections with a given response
@@ -368,16 +375,17 @@
               ::g/argument-definitions-by-name arg-name])))
    {} (::g/arguments field)))
 
-(defn decorate-selection [selection {:keys [type schema path] :as context}]
+(defn decorate-selection [selection {:keys [scoped-type schema path] :as context}]
   (case (::g/selection-type selection)
     :field
     (let [{field-name ::g/name :as field} selection
-          field-definition (get-in type [::schema/fields-by-name field-name])
+          field-definition (get-in scoped-type [::schema/fields-by-name field-name])
           field-type (some-> field-definition ::g/type-ref)
           new-path (conj path (or (::g/alias selection) (::g/name selection)))]
       (cond-> selection
+        scoped-type (assoc ::scoped-type-name (::g/name scoped-type))
         true (assoc ::field-definition field-definition)
-        ;; TODO: Rename ::return-type to ::field-type, or just ::type
+        ;; TODO: Rename ::return-type to ::field-type?
         field-type (assoc ::return-type field-type)
         path (assoc ::path new-path)
 
@@ -386,15 +394,38 @@
          ::g/selection-set
          (fn [selection-set]
            (let [type-name (some-> field-type schema/unwrapped-type ::g/name)
-                 type (get-in schema [::schema/types-by-name type-name])]
-             (map
-              (fn [selection]
-                (decorate-selection
-                 selection
+                 scoped-type (get-in schema [::schema/types-by-name type-name])]
+             (->>
+              selection-set
+              (mapv
+               (fn [selection]
+                 (decorate-selection
+                  selection
                   (-> context
-                      (assoc :type type)
+                      (assoc :scoped-type scoped-type)
                       (assoc :path new-path))))
-              selection-set))))))
+               )))))))
+
+    :inline-fragment
+    (let [type-condition (::g/type-condition selection)
+          scoped-type (get-in schema [::schema/types-by-name type-condition])]
+      (cond-> selection
+        (::g/selection-set selection)
+        (update
+         ::g/selection-set
+         (fn [selection-set]
+           (->> selection-set
+                (mapv
+                 (fn [selection]
+                   (decorate-selection
+                    selection
+                    (assoc context :scoped-type scoped-type)))))))))
+
+    (throw
+     (ex-info
+      "TODO: Add selection-type for inline-fragment"
+      {:selection selection}))
+
     (throw
      (ex-info
       (format "TODO: add selection-type for %s" (::g/selection-type selection))
@@ -416,13 +447,24 @@
          node 1
          (fn [op-def]
            (-> op-def
-               (assoc ::type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type op-def)]))
+               (assoc ::scoped-type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type op-def)]))
                (update
                 ::g/selection-set
                 (fn [selection-set]
-                  (let [type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
-                        type (get-in schema [::schema/types-by-name type-name])]
-                    (mapv #(decorate-selection % {:type type :schema schema :path []}) selection-set)))))))
+                  (let [scoped-type-name (get-in schema [::schema/root-operation-type-names (::g/operation-type node)])
+                        scoped-type (get-in schema [::schema/types-by-name scoped-type-name])]
+                    (when-not scoped-type
+                      (throw
+                       (ex-info
+                        "No scoped-type"
+                        {:types (keys (::schema/types-by-name schema))
+                         :type-name scoped-type-name})))
+                    (mapv
+                     #(decorate-selection
+                       %
+                       {:scoped-type scoped-type
+                        :schema schema
+                        :path []}) selection-set)))))))
 
         (and
          (vector? node)
@@ -433,12 +475,23 @@
            (let [frag-name (::g/name frag-def)
                  type-name (::g/type-condition frag-def)]
              (-> frag-def
-                 (assoc ::type-name type-name)
+                 (assoc ::scoped-type-name type-name)
                  (update
                   ::g/selection-set
                   (fn [selection-set]
-                    (let [type (get-in schema [::schema/types-by-name type-name])]
-                      (mapv #(decorate-selection % {:type type :schema schema :path [frag-name]}) selection-set))))))))
+                    (let [scoped-type (get-in schema [::schema/types-by-name type-name])]
+                      (when-not scoped-type
+                        (throw
+                         (ex-info
+                          "No scoped-type"
+                          {:types (keys (::schema/types-by-name schema))
+                           :type-name type-name})))
+                      (mapv
+                       #(decorate-selection
+                         %
+                         {:scoped-type scoped-type
+                          :schema schema
+                          :path [frag-name]}) selection-set))))))))
 
         (map? node)
         (cond-> node
@@ -514,5 +567,17 @@
 (defn validate-document
   "Returns a collection of errors, if any.."
   [document]
-  []
-  )
+  (->>
+   document
+   (tree-seq (some-fn map? vector?) seq)
+   (mapcat
+    (fn [form]
+      (when (and (map? form)
+                 (= (find form ::field-definition) [::field-definition nil]))
+        [(assoc
+          form
+          ::message
+          (format
+           "Field name '%s' not defined on type in scope '%s'"
+           (::g/name form) (::scoped-type-name form)
+           ))])))))
