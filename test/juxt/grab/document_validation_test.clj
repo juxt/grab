@@ -3,7 +3,6 @@
 (ns juxt.grab.document-validation-test
   (:require
    [clojure.test :refer [deftest is]]
-   [clojure.walk :refer [postwalk]]
    [juxt.grab.alpha.parser :refer [parse]]
    [juxt.grab.alpha.document :as doc :refer [compile-document validate-document]]
    [juxt.grab.alpha.schema :refer [compile-schema extend-schema]]
@@ -124,12 +123,8 @@
 
 ;; 5.3.2 Field Selection Merging
 
-(-> (parse
-    "fragment fieldNotDefined on Dog {
-  meowVolume
-}")
+(-> (example "108")
     (compile-document (example-schema))
-    (validate-document)
     )
 
 #_(deftest field-merging-test

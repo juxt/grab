@@ -423,11 +423,6 @@
 
     (throw
      (ex-info
-      "TODO: Add selection-type for inline-fragment"
-      {:selection selection}))
-
-    (throw
-     (ex-info
       (format "TODO: add selection-type for %s" (::g/selection-type selection))
       {:selection selection}))))
 
