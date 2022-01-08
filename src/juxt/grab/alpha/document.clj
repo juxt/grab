@@ -9,10 +9,10 @@
 
 (defn entry? [e] (and (vector? e) (= (count e) 2)))
 
-(defn add-error [acc error]
+#_(defn add-error [acc error]
   (update acc ::errors conj error))
 
-(defn
+#_(defn
   ^{:graphql/name "GetOperation"}
   get-operation
   [doc operation-name]
@@ -35,26 +35,26 @@
         ;; c. Return operation.
         operation))))
 
-(defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
+#_(defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Executable-Definitions"}
   validate-executable-definitions [{::keys [document] :as acc}]
   (when-not (every? #(#{:executable-definition} (::g/definition-type %)) document)
     (add-error
      acc
      {:message "A document containing a type system definition or extension is invalid for execution"})))
 
-(defn add-operations [{::keys [document] :as acc}]
+#_(defn add-operations [{::keys [document] :as acc}]
   (assoc acc ::operations (vec (keep ::g/operation-definition document))))
 
-(defn add-fragments [{::keys [document] :as acc}]
+#_(defn add-fragments [{::keys [document] :as acc}]
   (assoc acc ::fragments (vec (keep ::g/fragment-definition document))))
 
-(defn group-operations-by-name [{::keys [operations] :as acc}]
+#_(defn group-operations-by-name [{::keys [operations] :as acc}]
   (assoc acc ::operations-grouped-by-name (group-by ::g/name operations)))
 
-(defn group-fragments-by-name [{::keys [fragments] :as acc}]
+#_(defn group-fragments-by-name [{::keys [fragments] :as acc}]
   (assoc acc ::fragments-grouped-by-name (group-by ::g/name fragments)))
 
-(defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
+#_(defn ^{:juxt/see "https://spec.graphql.org/June2018/#sec-Lone-Anonymous-Operation"}
   validate-anonymous
   [{::keys [operations operations-grouped-by-name] :as acc}]
   (assert operations)
@@ -62,7 +62,7 @@
     (when-not (empty? (get operations-grouped-by-name nil))
       (add-error acc {:message "When there are multiple operations in the document, none can be anonymous"}))))
 
-(defn validate-operation-uniqueness [{::keys [operations-grouped-by-name] :as acc}]
+#_(defn validate-operation-uniqueness [{::keys [operations-grouped-by-name] :as acc}]
   (reduce-kv
    (fn [acc n ops]
      (if (> (count ops) 1)
@@ -71,7 +71,7 @@
    acc
    operations-grouped-by-name))
 
-(defn validate-fragment-uniqueness [{::keys [fragments-grouped-by-name] :as acc}]
+#_(defn validate-fragment-uniqueness [{::keys [fragments-grouped-by-name] :as acc}]
   (reduce-kv
    (fn [acc n ops]
      (if (> (count ops) 1)
@@ -80,14 +80,14 @@
    acc
    fragments-grouped-by-name))
 
-(defn add-default-operation-type [acc]
+#_(defn add-default-operation-type [acc]
   (update acc ::operations #(mapv (fn [op]
                                     (cond-> op
                                       (not (find op ::g/operation-type))
                                       (assoc ::g/operation-type :query)))
                                   %)))
 
-(defn scope-selection-set
+#_(defn scope-selection-set
   [selection-set scoped-type-name {::schema/keys [types-by-name] :as schema}]
   (->>
    selection-set
@@ -152,7 +152,7 @@
            :scoped-type-name scoped-type-name
            :schema? (some? scoped-type-name)})))))))
 
-(defn add-scoped-types-to-operations [{::keys [schema] :as acc}]
+#_(defn add-scoped-types-to-operations [{::keys [schema] :as acc}]
   (update
    acc ::operations
    (fn [ops]
@@ -169,7 +169,7 @@
                 (fn [selection-set]
                   (scope-selection-set selection-set scoped-type-name schema)))))))))))
 
-(defn add-scoped-types-to-fragments [{::keys [schema] :as acc}]
+#_(defn add-scoped-types-to-fragments [{::keys [schema] :as acc}]
   (update
    acc ::fragments
    (fn [fragments]
@@ -185,7 +185,7 @@
                 (fn [selection-set]
                   (scope-selection-set selection-set scoped-type-name schema)))))))))))
 
-(defn validate-selection [{::g/keys [selection-type] :as selection}
+#_(defn validate-selection [{::g/keys [selection-type] :as selection}
                           ;; TODO: Do we still need to pass down parent-scoped-type?
                           parent-scoped-type
                           {::schema/keys [types-by-name] :as schema}
@@ -229,7 +229,7 @@
       (mapcat #(validate-selection % parent-scoped-type schema path)
               (::g/selection-set selection)))))
 
-(defn validate-selection-sets [{::keys [schema] :as acc}]
+#_(defn validate-selection-sets [{::keys [schema] :as acc}]
   (update
    acc ::errors into
    (for [op-or-frag (concat (::operations acc) (::fragments acc))
@@ -238,31 +238,11 @@
          :when error]
      error)))
 
-(defn visit-fields [selection schema]
-  (case (::g/selection-type selection)
-    :field [selection]
-
-    :inline-fragment
-    (mapcat visit-fields (::g/selection-set selection) (repeat schema))
-
-    :fragment-spread
-    ;; If we can't find the fragment, we don't error because this will be
-    ;; spotted by another validator.
-    (when-let [fragment (get-in schema [::fragments-by-name (::g/name selection)])]
-      (mapcat visit-fields (::g/selection-set fragment) (repeat schema)))
-
-    (throw (ex-info "Unexpected selection type" {:selection selection}))))
-
-(defn fields-by-name [selection-set schema]
-  (->>
-   (mapcat visit-fields selection-set (repeat schema))
-   (group-by (fn [field]
-               (or (get field ::g/alias) (get field ::g/name))))))
-
-(defn same-response-shape
-  ^{:juxt.grab.alpha.spec-ref/version "June2018"
-    :juxt.grab.alpha.spec-ref/section "5.3.2"
-    :juxt.grab.alpha.spec-ref/algorithm "SameResponseShape"}
+#_(defn ^{:juxt.grab.alpha.spec-ref/version "June2018"
+        :juxt.grab.alpha.spec-ref/section "5.3.2"
+        :juxt.grab.alpha.spec-ref/algorithm "SameResponseShape"
+        :deprecated true}
+  same-response-shape
   [response-name fields {::schema/keys [types-by-name]} path]
   ;; TODO: Non-null and lists
   ;;(throw (ex-info "Same response shape" {:fields fields}))
@@ -275,7 +255,7 @@
          :response-name response-name
          :fields fields}))))
 
-(defn
+#_(defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "5.3.2"
     :juxt.grab.alpha.spec-ref/algorithm "FieldsInSetCanMerge"}
@@ -284,7 +264,7 @@
    parent-scoped-type path]
   (let [ ;; "1. Let fieldsForName be the set of selections with a given response
         ;; name in set including visiting fragments and inline fragments."
-        fields-for-name (fields-by-name selection-set schema)]
+        fields-for-name (collect-fields-by-name selection-set schema)]
     (->>
      fields-for-name
      (mapcat
@@ -332,7 +312,7 @@
      (filter some?)
      )))
 
-(defn validate-fields-in-set-can-merge [acc]
+#_(defn validate-fields-in-set-can-merge [acc]
   (update
    acc ::errors into
    (for [op (concat (::operations acc)
@@ -345,7 +325,7 @@
          :when error]
      error)))
 
-(defn validate-arguments [{::keys [document] :as acc}]
+#_(defn validate-arguments [{::keys [document] :as acc}]
   (update
    acc ::errors into
    (->>
@@ -375,6 +355,66 @@
               ::g/argument-definitions-by-name arg-name])))
    {} (::g/arguments field)))
 
+(defn visit-fields [selection schema]
+  (case (::g/selection-type selection)
+    :field [selection]
+
+    :inline-fragment
+    (mapcat visit-fields (::g/selection-set selection) (repeat schema))
+
+    :fragment-spread
+    ;; If we can't find the fragment, we don't error because this will be
+    ;; spotted by another validator.
+    (when-let [fragment (get-in schema [::fragments-by-name (::g/name selection)])]
+      (mapcat visit-fields (::g/selection-set fragment) (repeat schema)))
+
+    (throw (ex-info "Unexpected selection type" {:selection selection}))))
+
+(defn collect-fields-by-name [selection-set schema]
+  (->>
+   (mapcat visit-fields selection-set (repeat schema))
+   (group-by (fn [field]
+               (or (get field ::g/alias) (get field ::g/name))))))
+
+(defn ^{:juxt.grab.alpha.spec-ref/version "June2018"
+        :juxt.grab.alpha.spec-ref/section "5.3.2"
+        :juxt.grab.alpha.spec-ref/algorithm "SameResponseShape"}
+  check-same-response-shape [fields schema]
+  (let [types (->>
+               fields
+               (map (fn [field]
+                      (if-let [typ (::return-type field)]
+                        typ
+                        (throw (ex-info "Field does not have a return type" {:field field}))))))]
+    ;; TODO: 3. Non-Null (test first)
+    ;; TODO: 4. Lists (test first)
+    ;; TODO: 5. Scalar/Enum (test first)
+    ;; TODO: 6. Composite type (test first)
+    ))
+
+(defn
+  ^{:juxt.grab.alpha.spec-ref/version "June2018"
+    :juxt.grab.alpha.spec-ref/section "5.3.2"
+    :juxt.grab.alpha.spec-ref/algorithm "FieldsInSetCanMerge"}
+  check-fields-in-set-can-merge [{::g/keys [selection-set] :as node} schema]
+  (if-let [errors
+           (->> (collect-fields-by-name selection-set schema)
+                (mapcat
+                 (fn [[response-name fields]]
+                   (try
+                     (check-same-response-shape fields schema) ; a.
+                     ;; TODO: Get parent type of field
+
+                     (catch Exception e
+                       [{:message (.getMessage e)
+                         :response-name response-name
+                         :fields fields
+                         :ex-data (ex-data e)}]))))
+                seq
+                )]
+    (assoc node ::fields-in-set-can-merge-errors errors)
+    (assoc node ::fields-in-set-can-merge? true)))
+
 (defn decorate-selection [selection {:keys [scoped-type schema path] :as context}]
   (case (::g/selection-type selection)
     :field
@@ -390,36 +430,39 @@
         path (assoc ::path new-path)
 
         (::g/selection-set field)
-        (update
-         ::g/selection-set
-         (fn [selection-set]
-           (let [type-name (some-> field-type schema/unwrapped-type ::g/name)
-                 scoped-type (get-in schema [::schema/types-by-name type-name])]
-             (->>
-              selection-set
-              (mapv
-               (fn [selection]
-                 (decorate-selection
-                  selection
-                  (-> context
-                      (assoc :scoped-type scoped-type)
-                      (assoc :path new-path))))
-               )))))))
+        (->
+         (update
+          ::g/selection-set
+          (fn [selection-set]
+            (let [type-name (some-> field-type schema/unwrapped-type ::g/name)
+                  scoped-type (get-in schema [::schema/types-by-name type-name])]
+              (->>
+               selection-set
+               (mapv
+                (fn [selection]
+                  (decorate-selection
+                   selection
+                   (-> context
+                       (assoc :scoped-type scoped-type)
+                       (assoc :path new-path)))))))))
+         (check-fields-in-set-can-merge schema))))
 
     :inline-fragment
     (let [type-condition (::g/type-condition selection)
           scoped-type (get-in schema [::schema/types-by-name type-condition])]
       (cond-> selection
         (::g/selection-set selection)
-        (update
-         ::g/selection-set
-         (fn [selection-set]
-           (->> selection-set
-                (mapv
-                 (fn [selection]
-                   (decorate-selection
-                    selection
-                    (assoc context :scoped-type scoped-type)))))))))
+        (->
+         (update
+          ::g/selection-set
+          (fn [selection-set]
+            (->> selection-set
+                 (mapv
+                  (fn [selection]
+                    (decorate-selection
+                     selection
+                     (assoc context :scoped-type scoped-type)))))))
+         (check-fields-in-set-can-merge schema))))
 
     (throw
      (ex-info
@@ -486,32 +529,35 @@
                          %
                          {:scoped-type scoped-type
                           :schema schema
-                          :path [frag-name]}) selection-set))))))))
+                          :path [frag-name]}) selection-set))))
+                 (check-fields-in-set-can-merge schema)))))
 
         (map? node)
         (cond-> node
 
           (= (::g/selection-type node) :inline-fragment)
           ;; Use field information to decorate arguments
-          (update
-           ::g/selection-set
-           (fn [selection-set]
-             (let [type-name (::g/type-condition node)]
-               (->>
-                selection-set
-                (mapv
-                 (fn [{::g/keys [selection-type] :as field}]
-                   (cond-> field
-                     (and
-                      ;; if this is a field
-                      (= selection-type :field)
-                      ;; with arguments
-                      (::g/arguments field))
-                     ;; associate the argument definitions close to the
-                     ;; arguments
-                     (assoc
-                      ::argument-definitions-by-name
-                      (argument-definitions-by-name schema type-name field))))))))))
+          (->
+           (update
+            ::g/selection-set
+            (fn [selection-set]
+              (let [type-name (::g/type-condition node)]
+                (->>
+                 selection-set
+                 (mapv
+                  (fn [{::g/keys [selection-type] :as field}]
+                    (cond-> field
+                      (and
+                       ;; if this is a field
+                       (= selection-type :field)
+                       ;; with arguments
+                       (::g/arguments field))
+                      ;; associate the argument definitions close to the
+                      ;; arguments
+                      (assoc
+                       ::argument-definitions-by-name
+                       (argument-definitions-by-name schema type-name field)))))))))
+           (check-fields-in-set-can-merge schema)))
         :else node)))))
 
 (defn compile-document
@@ -521,8 +567,7 @@
    (compile-document
     document schema
     {:compilers
-     [
-      decorate-document
+     [decorate-document
       #_add-operations
       #_add-default-operation-type
       #_add-fragments
@@ -548,16 +593,6 @@
       (or (f doc schema) doc))
     document
     compilers)))
-
-#_(defn compile-document [document schema]
-  (let [acc (compile-document* document schema)]
-    (when (seq (::errors acc))
-      (throw
-       (ex-info
-        "Failed to compile document due to errors"
-        {:errors (::errors acc)})))
-    acc))
-
 
 (defn validate-document
   "Returns a collection of errors, if any.."
