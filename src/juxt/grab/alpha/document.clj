@@ -114,7 +114,10 @@
                      (cond
                        ;; i. fieldA and fieldB must have identical field names
                        (not= (::g/name field-a) (::g/name field-b))
-                       [{:message "Fields must have identical field names"
+                       [{:message (format
+                                   "Cannot merge fields of the response name '%s' as they must have identical field names ('%s' is not identical to '%s')"
+                                   response-name (::g/name field-a) (::g/name field-b))
+                         :path (::path node)
                          :response-name response-name
                          :field-a-name (::g/name field-a)
                          :field-b-name (::g/name field-b)
@@ -139,7 +142,7 @@
         true (assoc ::type-kind (::g/kind type))
         true (assoc ::field-definition field-definition)
         return-type (assoc ::return-type return-type)
-        path (assoc ::path new-path)
+        new-path (assoc ::path new-path)
 
         (::g/selection-set field)
         (->
@@ -200,6 +203,7 @@
                  type (get-in schema [::schema/types-by-name type-name])]
              (cond-> op-def
                type-name (assoc ::type-name type-name)
+               true (assoc ::path [type-name])
                type
                (update
                 ::g/selection-set
@@ -222,6 +226,7 @@
                  type-in-scope (get-in schema [::schema/types-by-name type-name])]
              (cond-> frag-def
                type-name (assoc ::type-name type-name)
+               true (assoc ::path [frag-name])
                type-in-scope
                (->
                 (update
