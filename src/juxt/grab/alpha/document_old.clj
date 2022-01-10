@@ -6,8 +6,6 @@
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
-#_(defn entry? [e] (and (vector? e) (= (count e) 2)))
-
 #_(defn add-error [acc error]
   (update acc ::errors conj error))
 

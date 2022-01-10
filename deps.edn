@@ -1,6 +1,7 @@
 {:paths ["src"]
  :deps {org.flatland/ordered {:mvn/version "1.5.9"}
-        clj-antlr/clj-antlr {:mvn/version "0.2.9"}}
+        clj-antlr/clj-antlr {:mvn/version "0.2.9"}
+        org.clojure/math.combinatorics {:mvn/version "0.1.6"}}
 
  :aliases
  {:dev

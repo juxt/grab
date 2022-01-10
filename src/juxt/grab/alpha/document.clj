@@ -3,7 +3,8 @@
 (ns juxt.grab.alpha.document
   (:require
    [juxt.grab.alpha.schema :as schema]
-   [clojure.walk :refer [postwalk]]))
+   [clojure.walk :refer [postwalk]]
+   [clojure.math.combinatorics :as combo]))
 
 (alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
@@ -65,8 +66,8 @@
 (defn ^{:juxt.grab.alpha.spec-ref/version "June2018"
         :juxt.grab.alpha.spec-ref/section "5.3.2"
         :juxt.grab.alpha.spec-ref/algorithm "SameResponseShape"}
-  check-same-response-shape [fields schema]
-  (let [types (->>
+  check-same-response-shape [field-a field-b schema]
+  #_(let [types (->>
                fields
                (map (fn [field]
                       (if-let [typ (::return-type field)]
@@ -78,27 +79,51 @@
     ;; TODO: 6. Composite type (test first)
     ))
 
+(defn ->location [m]
+  (let [line (some-> m meta ::g/location :line)
+        column (some-> m meta ::g/location :column)]
+    (cond-> {}
+      line (assoc :line line)
+      column (assoc :column column))))
+
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "5.3.2"
     :juxt.grab.alpha.spec-ref/algorithm "FieldsInSetCanMerge"}
   check-fields-in-set-can-merge [{::g/keys [selection-set] :as node} schema]
   (if-let [errors
-           (->> (collect-fields-by-name selection-set schema)
-                (mapcat
-                 (fn [[response-name fields]]
-                   (try
-                     (check-same-response-shape fields schema) ; a.
-                     ;; TODO: Get parent type of field
-
-                     (catch Exception e
-                       [{:message (.getMessage e)
-                         :response-name response-name
-                         :fields fields
-                         :ex-data (ex-data e)}]))))
+           (->>
+            (collect-fields-by-name selection-set schema)
+            (mapcat
+             (fn [[response-name fields]]
+               (mapcat
                 seq
-                )]
-    (assoc node ::fields-in-set-can-merge-errors errors)
+                (for [[field-a field-b] (combo/combinations fields 2)]
+                  (concat
+                   (check-same-response-shape field-a field-b schema)
+
+                   ;; b. If the parent types of fieldA and fieldB are equal
+                   ;; or if either is not an Object Type:
+                   (when (or
+                          (and
+                           (some? (::type-name field-a))
+                           (= (::type-name field-a) (::type-name field-b)))
+                          (not= (::type-kind field-a) 'OBJECT)
+                          (not= (::type-kind field-b) 'OBJECT))
+
+                     (cond
+                       ;; i. fieldA and fieldB must have identical field names
+                       (not= (::g/name field-a) (::g/name field-b))
+                       [{:message "Fields must have identical field names"
+                         :response-name response-name
+                         :field-a-name (::g/name field-a)
+                         :field-b-name (::g/name field-b)
+                         :locations [(->location field-a)
+                                     (->location field-b)]
+                         :field-a field-a
+                         :field-b field-b}])))))))
+            seq)]
+    (assoc node ::fields-in-set-can-merge-errors (vec errors))
     (assoc node ::fields-in-set-can-merge? true)))
 
 (defn decorate-selection [selection {:keys [type schema path] :as context}]
@@ -111,6 +136,7 @@
           new-path (conj path (or (::g/alias selection) (::g/name selection)))]
       (cond-> selection
         true (assoc ::type-name (::g/name type))
+        true (assoc ::type-kind (::g/kind type))
         true (assoc ::field-definition field-definition)
         return-type (assoc ::return-type return-type)
         path (assoc ::path new-path)
@@ -255,6 +281,8 @@
     document
     compilers)))
 
+(defn entry? [e] (and (vector? e) (= (count e) 2)))
+
 (defn validate-document
   "Returns a collection of errors, if any.."
   [document]
@@ -263,12 +291,22 @@
    (tree-seq (some-fn map? vector?) seq)
    (mapcat
     (fn [form]
-      (when (and (map? form)
-                 (= (find form ::field-definition) [::field-definition nil]))
-        [(assoc
-          form
-          ::message
-          (format
-           "Field name '%s' not defined on type in scope '%s'"
-           (::g/name form) (::type-name form)
-           ))])))))
+      (when (map? form)
+        (cond
+          (= (find form ::field-definition) [::field-definition nil])
+          [(assoc
+            form
+            ::message
+            (format
+             "Field name '%s' not defined on type in scope '%s'"
+             (::g/name form) (::type-name form)))]
+
+          ;; 5.3.2
+          (and
+           (find form ::g/selection-set)
+           (not (::fields-in-set-can-merge? form)))
+          [(assoc form ::message "FieldsInSetCanMerge(set) must be true")]
+
+
+          ))))
+   ))
