@@ -233,3 +233,22 @@ type Query {
             :document document
             :field-resolver (fn [_] (throw (ex-info "TODO" {})))})
           (get-in [:data :__type :possibleTypes]))))))
+
+(deftest input-types-test
+  (is
+   (=
+    [{:name "height", :description "Height of image"}
+     {:name "width", :description "Width of image"}]
+    (let [schema
+          (schema/compile-schema
+           (parser/parse
+            (-> "juxt/grab/examples/input-type-example.graphql" io/resource slurp)))
+
+          document (document/compile-document
+                    (parser/parse "{ __type(name: \"PhotoInput\") { name inputFields { name description }}}")
+                    schema)]
+      (-> (execute-request
+           {:schema schema
+            :document document
+            :field-resolver (fn [_] (throw (ex-info "TODO" {})))})
+          (get-in [:data :__type :inputFields]))))))
