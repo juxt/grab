@@ -329,7 +329,15 @@
 
         ["__Type" "description"] (some-> object-value ::g/description)
         ["__Type" "interfaces"] []  ;; TODO
-        ["__Type" "inputFields"] [] ;; TODO
+        ["__Type" "inputFields"]
+        (when (= 'INPUT_OBJECT (::g/kind object-value))
+          (mapv
+           (fn [input-value]
+             {::g/name (::g/name input-value)
+              ::g/description (::g/description input-value)
+              ::g/type-ref (::g/type-ref input-value)
+              ::g/default-value (::g/default-value input-value)})
+           (some-> object-value ::g/input-values)))
         ["__Type" "enumValues"] (or (some-> object-value ::g/enum-values) [])
 
         ["__Type" "possibleTypes"]

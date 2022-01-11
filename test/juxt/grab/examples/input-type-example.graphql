@@ -1,0 +1,24 @@
+schema {
+  mutation: Mutation
+  query: Query
+}
+
+type Query {
+  photos: [Photo]
+}
+
+type Mutation {
+  addPhoto(photo: PhotoInput): Photo
+}
+
+input PhotoInput {
+  "Height of image"
+  height: Int
+  "Width of image"
+  width: Int
+}
+
+type Photo {
+  height: Int
+  width: Int
+}
