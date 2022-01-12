@@ -114,17 +114,18 @@
                      (cond
                        ;; i. fieldA and fieldB must have identical field names
                        (not= (::g/name field-a) (::g/name field-b))
-                       [{:message (format
+                       [{::message (format
                                    "Cannot merge fields of the response name '%s' as they must have identical field names ('%s' is not identical to '%s')"
                                    response-name (::g/name field-a) (::g/name field-b))
-                         :path (::path node)
-                         :response-name response-name
-                         :field-a-name (::g/name field-a)
-                         :field-b-name (::g/name field-b)
-                         :locations [(->location field-a)
-                                     (->location field-b)]
-                         :field-a field-a
-                         :field-b field-b}])))))))
+                         ::path (::path node)
+                         ::response-name response-name
+                         ::field-a-name (::g/name field-a)
+                         ::field-b-name (::g/name field-b)
+                         ::locations [(->location field-a)
+                                      (->location field-b)]
+                         ::references {::url "https://spec.graphql.org/June2018/#sec-Field-Selection-Merging"}
+                         ::field-a field-a
+                         ::field-b field-b}])))))))
             seq)]
     (assoc node ::fields-in-set-can-merge-errors (vec errors))
     (assoc node ::fields-in-set-can-merge? true)))
@@ -310,7 +311,7 @@
           (and
            (find form ::g/selection-set)
            (not (::fields-in-set-can-merge? form)))
-          [(assoc form ::message "FieldsInSetCanMerge(set) must be true")]
+          (:juxt.grab.alpha.document/fields-in-set-can-merge-errors form)
 
 
           ))))

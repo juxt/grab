@@ -10,6 +10,7 @@
 
 (set! clojure.core/*print-namespace-maps* false)
 
+
 (defn example [n]
   (-> (format "juxt/grab/examples/example-%s.graphql" n)
       io/resource
@@ -28,8 +29,11 @@
     (doall
      (map
       (fn [error regex]
-        (when regex
-          (is (re-matches regex (::doc/message error)))))
+        (cond
+          (instance? java.util.regex.Pattern regex)
+          (is (re-matches regex (::doc/message error)))
+          (instance? String regex)
+          (is (= regex (::doc/message error)))))
       errors regexes))))
 
 (deftest schema-parsing-test
@@ -123,9 +127,15 @@
 
 ;; 5.3.2 Field Selection Merging
 
-(-> (example "108")
-    (compile-document (example-schema))
-    )
+#_(expected-errors ["Cannot merge fields of the response name 'name' as they must have identical field names ('nickname' is not identical to 'name')"])
+
+(deftest field-merging-test
+  (let [results (-> (example "108")
+                    (compile-document (example-schema))
+                    validate-document)
+        result (first results)]
+    (is (= 1 (count results)))
+    (is (= "Cannot merge fields of the response name 'name' as they must have identical field names ('nickname' is not identical to 'name')" (::doc/message result)))))
 
 #_(deftest field-merging-test
   (let [compilers {:compilers
