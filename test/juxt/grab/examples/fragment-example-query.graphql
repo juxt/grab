@@ -1,0 +1,15 @@
+{
+  heros {
+    ...heroFields
+  }
+}
+
+fragment heroFields on Hero {
+  ... on Alien {
+    name
+    tentacles
+  }
+  ... on Human {
+    name
+  }
+}
