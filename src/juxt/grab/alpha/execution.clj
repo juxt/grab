@@ -747,7 +747,7 @@
               :path []})))))
 
 (defn execute-mutation
-  [{:keys [mutation schema variable-values initial-value field-resolver fragments-by-name]}]
+  [{:keys [mutation schema initial-value] :as args}]
 
   (let [mutation-type-name (get-in schema [::schema/root-operation-type-names :mutation])
         mutation-type (get-in schema [::schema/types-by-name mutation-type-name])]
@@ -772,14 +772,11 @@
       ;; 5. Let errors be any field errors produced while executing the selection set.
       ;; 6. Return an unordered map containing data and errors.
       (execute-selection-set
-       {:selection-set selection-set
-        :object-type mutation-type
-        :object-value initial-value
-        :variable-values variable-values
-        :schema schema
-        :field-resolver field-resolver
-        :fragments-by-name fragments-by-name
-        :path []}))))
+       (into args
+             {:selection-set selection-set
+              :object-type mutation-type
+              :object-value initial-value
+              :path []})))))
 
 (defn execute-subscription [_]
   (throw (ex-info "Subscriptions are not currently supported" {})))
