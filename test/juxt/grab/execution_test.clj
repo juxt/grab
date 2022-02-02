@@ -2,7 +2,7 @@
 
 (ns juxt.grab.execution-test
   (:require
-   [clojure.test :refer [deftest is]]
+   [clojure.test :refer [deftest is testing]]
    [juxt.grab.alpha.execution :refer [execute-request]]
    [juxt.grab.alpha.parser :as parser]
    [clojure.java.io :as io]
@@ -246,6 +246,72 @@
        "  name: String!"
        "  friends: [Person!]!"
        "}"])))))
+
+(defn execute-fragment-example-query [schema-str]
+  (let [schema (schema/compile-schema (parser/parse schema-str))
+        document (document/compile-document
+                  (parser/parse
+                   (slurp (io/resource "juxt/grab/examples/fragment-example-query.graphql")))
+                  schema)]
+
+    (->
+     (execute-request
+      {:schema schema
+       :document document
+       :abstract-type-resolver (fn [{:keys [object-value] :as args}] (get object-value :type))
+       :field-resolver
+       (fn [{:keys [object-type object-value field-name] :as args}]
+         (def foo [(::g/name object-type) field-name])
+         (condp = [(::g/name object-type) field-name]
+           ["Query" "heros"]
+           [{:name "Octoman"
+             :id 1
+             :type "Alien"
+             :tentacles 5}
+            {:name "Superman"
+             :id 2
+             :type "Human"}]
+
+           (get object-value (keyword field-name))))})
+     remove-error-extensions)))
+
+(deftest fragment-collection-test
+  (testing "happy case"
+    (is (=
+         {:data {:heros [{:name "Octoman", :tentacles 5} {:name "Superman"}]},
+          :errors []}
+         (execute-fragment-example-query
+          (str/join
+           \newline
+           ["type Query { heros: [Hero]}"
+            "union Hero = Alien | Human"
+            "type Alien {"
+            "  id: ID!"
+            "  name: String"
+            " tentacles: Int"
+            "}"
+            "type Human {"
+            "  id: ID!"
+            "  name: String"
+            "}"])))))
+  (testing "Union does not contain requested type"
+    (is (=
+         {:data {:heros [{:name "Octoman", :tentacles 5} {}]},
+          :errors []}
+         (execute-fragment-example-query
+          (str/join
+           \newline
+           ["type Query { heros: [Hero]}"
+            "union Hero = Alien"
+            "type Alien {"
+            "  id: ID!"
+            "  name: String"
+            " tentacles: Int"
+            "}"
+            "type Human {"
+            "  id: ID!"
+            "  name: String"
+            "}"]))))))
 
 ;; TODO: Coercion errors with propagation
 

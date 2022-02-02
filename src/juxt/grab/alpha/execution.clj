@@ -21,7 +21,7 @@
   (case (::g/kind fragment-type)
     OBJECT (= object-type fragment-type)
     INTERFACE (throw (ex-info "TODO" {}))
-    UNION (throw (ex-info "TODO" {}))
+    UNION (boolean ((set (::g/member-types fragment-type)) (::g/name object-type)))
     (throw
      (ex-info
       "Unexpected fragment type kind"
