@@ -22,8 +22,8 @@
   (def fragment-type fragment-type)
   (case (::g/kind fragment-type)
     OBJECT (= object-type fragment-type)
-    INTERFACE (boolean ((set (::g/interfaces object-type)) (::g/name fragment-type)))
-    UNION (boolean ((set (::g/member-types fragment-type)) (::g/name object-type)))
+    INTERFACE (contains? (set (::g/interfaces object-type)) (::g/name fragment-type))
+    UNION (contains? (set (::g/member-types fragment-type)) (::g/name object-type))
     (throw
      (ex-info
       "Unexpected fragment type kind"
