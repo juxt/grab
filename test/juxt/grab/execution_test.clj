@@ -306,11 +306,31 @@
             "type Alien {"
             "  id: ID!"
             "  name: String"
-            " tentacles: Int"
+            "  tentacles: Int"
             "}"
             "type Human {"
             "  id: ID!"
             "  name: String"
+            "}"])))))
+  (testing "Interface implementation not found in type"
+    (is (=
+         {:data {:heros [{} {:name "Superman"}]},
+          :errors []}
+         (execute-fragment-example-query
+          (str/join
+           \newline
+           ["type Query { heros: [Hero]}"
+            "interface Hero {"
+            "  name: String"
+            "}"
+            "type Human implements Hero {"
+            "  name: String"
+            "  id: ID!"
+            "}"
+            "type Alien {"
+            "  name: String"
+            "  id: ID!"
+            "  tentacles: Int"
             "}"]))))))
 
 ;; TODO: Coercion errors with propagation

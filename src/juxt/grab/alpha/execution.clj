@@ -18,9 +18,11 @@
     :juxt.grab.alpha.spec-ref/algorithm "DoesFragmentTypeApply"}
   does-fragment-type-apply?
   [object-type fragment-type]
+  (def object-type object-type)
+  (def fragment-type fragment-type)
   (case (::g/kind fragment-type)
     OBJECT (= object-type fragment-type)
-    INTERFACE (throw (ex-info "TODO" {}))
+    INTERFACE (boolean ((set (::g/interfaces object-type)) (::g/name fragment-type)))
     UNION (boolean ((set (::g/member-types fragment-type)) (::g/name object-type)))
     (throw
      (ex-info
