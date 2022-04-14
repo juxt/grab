@@ -386,5 +386,33 @@
 
 ;; 3.8 Unions
 
-#_(-> (example "69")
-    compile-schema*)
+(deftest union-type-valid-test
+  ;; 1. A union type must include one or more unique member types
+  (-> (str " union SearchResult ")
+      (str " type Query { searchResult: SearchResult }")
+      parse
+      compile-schema*
+      (expected-errors [#"A union type must include one or more unique member types"]))
+  (-> (str " union SearchResult = Page | Page ")
+      (str " type Query { searchResult: SearchResult }")
+      parse
+      compile-schema*
+      (expected-errors [#"A union type must include one or more unique member types"])))
+
+;; TODO: Union extensions (3.8.1)
+
+;; 3.9 Enums
+(deftest enum-type-valid-test
+  ;; 1. An enum type must include one or more unique member types
+  (-> (str " enum Animals ")
+      (str " type Query { animals: Animals }")
+      parse
+      compile-schema*
+      (expected-errors [#"An enum type must include one or more unique member types"]))
+  (-> (str " enum Animals { Cat, Cat, AlsoCat } ")
+      (str " type Query { animals: Animals }")
+      parse
+      compile-schema*
+      (expected-errors [#"An enum type must include one or more unique member types"])))
+
+;; TODO: Enum extensions (3.9.1)
