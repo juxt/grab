@@ -5,4 +5,4 @@
    [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.parser :as parser]))
 
-;;(parser/parse "{ foo(b: 4) @abc(a: [1 2 3 4.3]) } ")
+;; (parser/parse "{ foo(b: 4) @abc(a: [1 2 3 4.3]) } ")

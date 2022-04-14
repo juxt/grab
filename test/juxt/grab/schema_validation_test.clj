@@ -13,6 +13,7 @@
 
 (set! clojure.core/*print-namespace-maps* false)
 
+
 (defn expected-errors [{::s/keys [errors]} regexes]
   (assert errors)
   (is

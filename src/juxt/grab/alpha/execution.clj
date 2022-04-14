@@ -167,7 +167,6 @@
     :juxt.grab.alpha.spec-ref/algorithm "CoerceArgumentValues"}
   coerce-argument-values
   [{:keys [object-type field variable-values]}]
-
   (let [
         ;; 1. Let coercedValues be an empty unordered Map.
         coerced-values {}
