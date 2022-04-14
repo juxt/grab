@@ -20,8 +20,8 @@
   [object-type fragment-type]
   (case (::g/kind fragment-type)
     OBJECT (= object-type fragment-type)
-    INTERFACE (throw (ex-info "TODO" {}))
-    UNION (boolean ((set (::g/member-types fragment-type)) (::g/name object-type)))
+    INTERFACE (contains? (set (::g/interfaces object-type)) (::g/name fragment-type))
+    UNION (contains? (set (::g/member-types fragment-type)) (::g/name object-type))
     (throw
      (ex-info
       "Unexpected fragment type kind"
@@ -165,7 +165,6 @@
     :juxt.grab.alpha.spec-ref/algorithm "CoerceArgumentValues"}
   coerce-argument-values
   [{:keys [object-type field variable-values]}]
-
   (let [
         ;; 1. Let coercedValues be an empty unordered Map.
         coerced-values {}

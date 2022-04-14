@@ -452,6 +452,7 @@
       (seq arguments-definition) (assoc ::g/arguments-definition arguments-definition)
       (seq directives-by-name) (assoc ::directives-by-name directives-by-name))))
 
+
 (defn provide-types
   "Creates the schema's 'types-by-name' entry."
   [acc document]
@@ -461,11 +462,13 @@
       acc [::types-by-name name]
       (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))
             directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives td)))
+            enum-values-by-name (into {} (map (juxt ::g/name compile-argument-definition) (::g/enum-values td)))
             ;; TODO: process enum values, there may be some directives to index
             ]
         (cond-> td
           (seq fields-by-name) (assoc ::fields-by-name fields-by-name)
-          (seq directives-by-name) (assoc ::directives-by-name directives-by-name)))))
+          (seq directives-by-name) (assoc ::directives-by-name directives-by-name)
+          (seq enum-values-by-name) (assoc ::directives-by-name directives-by-name)))))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
