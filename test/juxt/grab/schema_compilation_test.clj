@@ -16,7 +16,6 @@
         parse
         compile-schema)))
 
-
 (defn get-or-nth-in [coll ks]
   (if (seq ks)
     (condp instance? (first ks)
@@ -34,7 +33,6 @@
     (is (= 10 (get-in schema [::schema/types-by-name "Query" ::schema/fields-by-name "someField" ::g/arguments-definition 0 ::schema/directives-by-name "a" ::g/arguments "alpha"])))
 
     (is (= 20 (get-in schema [::schema/types-by-name "Query" ::schema/fields-by-name "someField" ::g/arguments-definition 0 ::schema/directives-by-name "b" ::g/arguments "beta"])))))
-
 
 (deftest enum-values-compilation-test
   (with-schema-compile [schema "type Query { dog: DogCommand }

@@ -128,6 +128,7 @@
         typ (resolve-named-type-ref acc type-ref)
         arg-defs (::g/arguments-definition tf)]
     (cond-> acc
+      ;; 2. The field must not have a name which begins with the characters "__" (two underscores).
       (str/starts-with? (::g/name tf) "__")
       (add-error
        {:message "A field must not have a name which begins with two underscores."
@@ -141,6 +142,7 @@
         :location (::g/location (meta tf))
         })
 
+      ;; 4. The field must return a type where IsOutputType(fieldType) returns *true*.
       (and typ (not (output-type? typ)))
       (add-error
        {:message "A field must return a type that is an output type."
@@ -159,7 +161,9 @@
         :duplicates (vec duplicates)}))))
 
 (defn check-object-type-fields [acc {::g/keys [field-definitions] :as td}]
+  ;; 3.6.2 For each field of an object-type:
   (as-> acc %
+    ;; 1. Each field must have a unique name within that Object type; no two fields may share the same name
     (check-duplicate-object-field-names % td)
     (reduce check-object-field-definition % field-definitions)))
 
@@ -422,17 +426,49 @@
   (cond-> acc
     true (check-interface-type-fields td)))
 
+(defn check-union-type [acc td]
+  (cond-> acc
+    ;; 1. A union type must include one or more unique member types
+    (nil? (::g/member-types td))
+    (add-error {:message "A union type must include one or more unique member types"
+                :td td})
+    (not=
+     (count (set (::g/member-types td)))
+     (count (::g/member-types td)))
+    (add-error {:message "A union type must include one or more unique member types"
+                :members (::g/member-types td)
+                :td td})
+    ;; 2. The member types of a Union type must be all Object base types; Scalar, Interface, and Union types must not be member types of a Union. Similarly, wrapping types must not be member types of a Union. (TODO)
+    ))
+
+(defn check-enum-type [acc td]
+  ;; 1. An enum type must include one or more unique member types
+  (cond-> acc
+    (nil? (::g/enum-values td))
+    (add-error {:message "An enum type must include one or more unique member types"
+                :td td})
+    (not=
+     (count (set (map ::g/name (::g/enum-values td))))
+     (count (map ::g/name (::g/enum-values td))))
+    (add-error {:message "An enum type must include one or more unique member types"
+                :members (map ::g/name (::g/enum-values td))
+                :td td})))
+
 ;; See Type Validation sub-section of https://spec.graphql.org/June2018/#sec-Objects
 (defn check-types
   [acc document]
   (reduce
    (fn [acc td]
-     (cond-> acc
-       (= (::g/kind td) 'OBJECT)
-       (check-object-type td)
-
-       (= (::g/kind td) 'INTERFACE)
-       (check-interface-type td)))
+     (condp = (::g/kind td)
+       'OBJECT
+       (check-object-type acc td)
+       'INTERFACE
+       (check-interface-type acc td)
+       'UNION
+       (check-union-type acc td)
+       'ENUM
+       (check-enum-type acc td)
+       acc))
    acc
    (filter #(= (::g/definition-type %) :type-definition) document)))
 
@@ -463,7 +499,6 @@
       (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))
             directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives td)))
             enum-values-by-name (into {} (map (juxt ::g/name compile-argument-definition) (::g/enum-values td)))
-            ;; TODO: process enum values, there may be some directives to index
             ]
         (cond-> td
           (seq fields-by-name) (assoc ::fields-by-name fields-by-name)
@@ -548,46 +583,44 @@
 ;; Break schema process into construction (build) and validation
 
 ;; WIP
+(def build-functions
+  [process-schema-definition
+   provide-types
+   inject-introspection-fields])
+
+(def validation-functions
+  [check-unique-type-names
+   check-no-conflicts-with-built-in-types
+   check-unique-directive-names
+   check-reserved-names
+   check-types
+   check-schema-definition-count
+   check-root-operation-type])
+
+(defn apply-to-schema
+  ([document base xs]
+   (reduce
+    (fn [acc f]
+      (or (f acc document) acc))
+    base xs))
+  ([document xs]
+   (reduce
+    (fn [acc f]
+      (or (f acc document) acc))
+    document xs)))
+
 (defn build-schema [document]
-  (reduce
-   (fn [acc f]
-     (or (f acc document) acc))
-   (schema-base)
-   [process-schema-definition
-    provide-types
-    inject-introspection-fields]))
+  (apply-to-schema document (schema-base) build-functions))
 
 ;; WIP
 (defn validate-schema [schema]
-  (mapcat
-   (fn [check]
-     (check schema))
-   [check-unique-type-names
-    check-no-conflicts-with-built-in-types
-    check-unique-directive-names
-    check-reserved-names
-    check-types
-    check-schema-definition-count
-    check-root-operation-type]))
+  (apply-to-schema schema validation-functions))
+
 
 (defn compile-schema*
   "Create a schema from the parsed document."
   ([document base]
-   (reduce
-    (fn [acc f]
-      (or (f acc document) acc))
-    base
-    [process-schema-definition
-     provide-types
-     inject-introspection-fields
-     check-unique-type-names
-     check-no-conflicts-with-built-in-types
-     check-unique-directive-names
-     check-reserved-names
-     check-types
-     check-schema-definition-count
-     check-root-operation-type
-     ]))
+   (apply-to-schema document base (into build-functions validation-functions)))
   ([document]
    (compile-schema* document (schema-base))))
 
