@@ -426,7 +426,7 @@
   (cond-> acc
     true (check-interface-type-fields td)))
 
-(defn check-union-type [acc td]
+(defn check-union-type [acc td document]
   (cond-> acc
     ;; 1. A union type must include one or more unique member types
     (nil? (::g/member-types td))
@@ -435,10 +435,30 @@
     (not=
      (count (set (::g/member-types td)))
      (count (::g/member-types td)))
+    
     (add-error {:message "A union type must include one or more unique member types"
                 :members (::g/member-types td)
                 :td td})
-    ;; 2. The member types of a Union type must be all Object base types; Scalar, Interface, and Union types must not be member types of a Union. Similarly, wrapping types must not be member types of a Union. (TODO)
+    ;; 2. The member types of a Union type must be all Object base types; Scalar, Interface, and Union types must not be member types of a Union. Similarly, wrapping types must not be member types of a Union.
+    (::g/member-types td)
+    ((fn [acc]
+       (def td td)
+       (reduce (fn [acc member]
+                 (let [member-defs (filter #(and
+                                             (= (::g/definition-type %) :type-definition)
+                                             (= (::g/name %) member)) document)]
+                   (if member-defs
+                     (let [member-def (first member-defs)]
+                       (if (not= (::g/kind member-def) 'OBJECT)
+                         (add-error acc {:message "Member types of a Union type must all be Object base types"
+                                         :name (::g/name member-def)
+                                         :kind (::g/kind member-def)
+                                         :td td})
+                         acc))
+                     
+                     (add-error acc {:message "Member types of a Union type must all be Object base types" 
+                                     :name member}))))
+               acc (::g/member-types td))))
     ))
 
 (defn check-enum-type [acc td]
@@ -465,7 +485,7 @@
        'INTERFACE
        (check-interface-type acc td)
        'UNION
-       (check-union-type acc td)
+       (check-union-type acc td document)
        'ENUM
        (check-enum-type acc td)
        acc))

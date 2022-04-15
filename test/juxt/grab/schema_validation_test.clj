@@ -394,10 +394,25 @@
       compile-schema*
       (expected-errors [#"A union type must include one or more unique member types"]))
   (-> (str " union SearchResult = Page | Page ")
+      (str " type Page { words: Int } ")
       (str " type Query { searchResult: SearchResult }")
       parse
       compile-schema*
-      (expected-errors [#"A union type must include one or more unique member types"])))
+      (expected-errors [#"A union type must include one or more unique member types"]))
+  (-> (str " union SearchResult = TwoHundred | FourohFour ")
+      (str " type Query { searchResult: SearchResult }")
+      (str " type TwoHundred { code: Int }")
+      parse
+      compile-schema*
+      (expected-errors [#"Member types of a Union type must all be Object base types"]))
+  (-> (str " union SearchResult = TwoHundred | FourohFour ")
+      (str " type Query { searchResult: SearchResult }")
+      (str " type TwoHundred { code: Int }")
+      (str " enum FourohFour { Code }")
+      parse
+      compile-schema*
+      (expected-errors [#"Member types of a Union type must all be Object base types"]))
+  )
 
 ;; TODO: Union extensions (3.8.1)
 
