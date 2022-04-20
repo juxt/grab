@@ -755,17 +755,21 @@
           field-definitions
           (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
         leftover-interface-fields
-        (filter (fn [interface]
-                   (map (fn [field]
-                          (not (contains? (get-in validated-schema [::types-by-name name ::g/field-definitions]) field)))
-                        (get-in schema [::types-by-name interface ::g/field-definitions])))
-                (get-in validated-schema [::types-by-name name ::g/interfaces]))]
+        (seq
+         (filter (fn [interface]
+                   (not
+                    (= (clojure.set/union
+                        (set (map ::g/name (get-in validated-schema [::types-by-name interface ::g/field-definitions])))
+                        (set (map ::g/name (get-in validated-schema [::types-by-name name ::g/field-definitions]))))
+                       (set (map ::g/name (get-in validated-schema [::types-by-name name ::g/field-definitions]))))))
+                 (set (get-in validated-schema [::types-by-name name ::g/interfaces]))))]
     ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
-  (if leftover-interface-fields
+    (if leftover-interface-fields
       (add-error validated-schema
                  {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
-                  :missing-fields leftover-interface-fields})
+                  :problem-interfaces (vec leftover-interface-fields)})
       validated-schema)))
+
 
 (defn process-over-filter [predicate function]
   (fn [schema document]

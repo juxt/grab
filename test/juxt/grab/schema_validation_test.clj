@@ -400,6 +400,10 @@
 
 ;; TODO: Interface extensions (3.7.1)
 
+;; (deftest interface-extension-test
+;;   (-> (example-schema)
+;;       (s/extend-schema
+;;        (parse "extend interface DoesntExist @foo"))))
 
 ;; 3.8 Unions
 

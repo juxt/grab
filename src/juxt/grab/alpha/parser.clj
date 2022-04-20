@@ -58,6 +58,12 @@
        (apply merge)
        (into {::g/type-extension-type :object-type-extension})))
 
+(defmethod process :interfaceTypeExtension [[_ & terms]]
+  (->> terms
+       (keep process-child)
+       (apply merge)
+       (into {::g/type-extension-type :interface-type-extension})))
+
 (defmethod process :typeDefinition [[_ inner]]
   (into
    {::g/definition-type :type-definition}
