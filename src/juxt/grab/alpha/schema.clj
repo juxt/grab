@@ -746,27 +746,31 @@
           pre-existing-interfaces
           (add-error
            {:message "Any interfaces provided must not be already implemented by the original Object type."
-            :pre-existing-interfaces pre-existing-interfaces})
-
-          directives
-          (update-in [::types-by-name name ::g/directives] into directives)
-          interfaces
-          (update-in [::types-by-name name ::g/interfaces] into (map ::g/name interfaces))
-          field-definitions
-          (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
+            :pre-existing-interfaces pre-existing-interfaces}))
+        built-schema
+        (if (empty (::errors validated-schema))
+          (cond-> validated-schema
+            directives
+            (update-in [::types-by-name name ::g/directives] into directives)
+            interfaces
+            (update-in [::types-by-name name ::g/interfaces] into (map ::g/name interfaces))
+            field-definitions
+            (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
+          validated-schema)
         leftover-interfaces
         (seq
          (filter (fn [interface]
                    (not (clojure.set/subset?
-                         (set (map ::g/name (get-in validated-schema [::types-by-name interface ::g/field-definitions])))
-                         (set (map ::g/name (get-in validated-schema [::types-by-name name ::g/field-definitions]))))))
-                 (set (get-in validated-schema [::types-by-name name ::g/interfaces]))))]
+                         (set (map ::g/name (get-in built-schema [::types-by-name interface ::g/field-definitions])))
+                         (set (map ::g/name (get-in built-schema [::types-by-name name ::g/field-definitions]))))))
+                 (set (get-in built-schema [::types-by-name name ::g/interfaces]))))]
+    
     ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
     (if leftover-interfaces
       (add-error validated-schema
                  {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
                   :problem-interfaces (vec leftover-interfaces)})
-      validated-schema)))
+      built-schema)))
 
 
 (defn process-over-filter [predicate function]
