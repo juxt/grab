@@ -757,11 +757,9 @@
         leftover-interface-fields
         (seq
          (filter (fn [interface]
-                   (not
-                    (= (clojure.set/union
-                        (set (map ::g/name (get-in validated-schema [::types-by-name interface ::g/field-definitions])))
-                        (set (map ::g/name (get-in validated-schema [::types-by-name name ::g/field-definitions]))))
-                       (set (map ::g/name (get-in validated-schema [::types-by-name name ::g/field-definitions]))))))
+                   (not (clojure.set/subset?
+                         (set (map ::g/name (get-in validated-schema [::types-by-name interface ::g/field-definitions])))
+                         (set (map ::g/name (get-in validated-schema [::types-by-name name ::g/field-definitions]))))))
                  (set (get-in validated-schema [::types-by-name name ::g/interfaces]))))]
     ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
     (if leftover-interface-fields
