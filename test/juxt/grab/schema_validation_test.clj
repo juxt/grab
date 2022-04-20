@@ -403,7 +403,7 @@
 (deftest interface-extension-test
   (-> (example-schema)
       (s/extend-schema
-       (parse "extend interface DoesntExist @foo"))
+       (parse "extend interface DoesntExist { fieldOne: String }"))
       (expected-errors [#"The named type must already be defined and must be an Interface type."]))
   (-> (example-schema)
       (s/extend-schema
@@ -421,6 +421,15 @@
       (s/extend-schema
        (parse "extend interface Pet { name: String }]"))
       (expected-errors [#"Any fields of an Interface type extension must not be already defined on the original Interface type."]))
+  (-> (parse "type Query { name: String }
+interface Pet @foo")
+   (compile-schema*)
+   (schema/extend-schema (parse "extend type Pet @foo"))
+   (expected-errors [#"Any directives provided must not already apply to the original Object type."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend interface Pet @foo { favouriteFood: String }"))
+      (expected-errors [#"Any Object type which implemented the original Interface type must also be a super‐set of the fields of the Interface type extension (which may be due to Object type extension)."]))
   )
 
 ;; 3.8 Unions

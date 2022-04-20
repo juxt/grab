@@ -695,8 +695,30 @@
           directives (add-directives directives)
           operation-types (add-operation-types operation-types))))
 
+(defn build-object-type-extension [schema {::g/keys [name field-definitions directives interfaces]}]
+  (let [built-schema
+        (cond-> schema
+          directives
+          (update-in [::types-by-name name ::g/directives] into directives)
+          interfaces
+          (update-in [::types-by-name name ::g/interfaces] into (map ::g/name interfaces))
+          field-definitions
+          (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
+        
+        leftover-interfaces
+        (seq
+         (filter (fn [interface]
+                   (not (clojure.set/subset?
+                         (set (map ::g/name (get-in built-schema [::types-by-name interface ::g/field-definitions])))
+                         (set (map ::g/name (get-in built-schema [::types-by-name name ::g/field-definitions]))))))
+                 (set (get-in built-schema [::types-by-name name ::g/interfaces]))))]
+    (if leftover-interfaces
+          (add-error built-schema
+               {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
+                :problem-interfaces (vec leftover-interfaces)})
+          built-schema)))
 
-(defn process-object-type-extension [schema {::g/keys [name field-definitions directives interfaces]}]
+(defn process-object-type-extension [schema {::g/keys [name field-definitions directives interfaces] :as extension}]
   (let [existing-type (get (::types-by-name schema) name)
         duplicates (duplicates-by ::g/name field-definitions)
         pre-existing-fields
@@ -722,8 +744,7 @@
            {:message "The named type must already be defined and must be an Object type"
             :name name})
 
-          ;; 2. The fields of an Object type extension must have unique names; no
-          ;; two fields may share the same name.
+          ;; 2. The fields of an Object type extension must have unique names; no two fields may share the same name.
           duplicates
           (add-error
            {:message "The fields of an Object type extension must have unique names; no two fields may share the same name."
@@ -742,39 +763,40 @@
             :pre-existing-directives pre-existing-directives})
 
           ;; 5. Any interfaces provided must not be already implemented by the original Object type
-
           pre-existing-interfaces
           (add-error
            {:message "Any interfaces provided must not be already implemented by the original Object type."
-            :pre-existing-interfaces pre-existing-interfaces}))
-        
-        built-schema
-        (if (empty (::errors validated-schema))
-          (cond-> validated-schema
-            directives
-            (update-in [::types-by-name name ::g/directives] into directives)
-            interfaces
-            (update-in [::types-by-name name ::g/interfaces] into (map ::g/name interfaces))
-            field-definitions
-            (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
-          validated-schema)
-        
-        leftover-interfaces
-        (seq
-         (filter (fn [interface]
-                   (not (clojure.set/subset?
-                         (set (map ::g/name (get-in built-schema [::types-by-name interface ::g/field-definitions])))
-                         (set (map ::g/name (get-in built-schema [::types-by-name name ::g/field-definitions]))))))
-                 (set (get-in built-schema [::types-by-name name ::g/interfaces]))))]
+            :pre-existing-interfaces pre-existing-interfaces}))]
     
     ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
-    (if leftover-interfaces
-      (add-error validated-schema
-                 {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
-                  :problem-interfaces (vec leftover-interfaces)})
+    (if (seq (::errors validated-schema))
+      validated-schema
+      (build-object-type-extension validated-schema extension))))
+
+
+(defn build-interface-type-extension [schema {::g/keys [name directives field-definitions]}]
+  (let [built-schema
+        (cond-> schema
+          directives
+          (update-in [::types-by-name name ::g/directives] into directives)
+          field-definitions
+          (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
+        invalid-objects
+        (seq
+         (filter (fn [object]
+                   (not (clojure.set/subset?
+                         (set (map ::g/name field-definitions))
+                         (set (map ::g/name (::g/field-definitions object))))))
+                 (filter (fn [defined-type]
+                           (and (= (::g/kind defined-type) 'OBJECT)
+                                (some (fn [interface] (= name interface)) (::g/interfaces defined-type))))
+                         (map second (vec (::types-by-name schema))))))]
+    (if invalid-objects
+      (add-error built-schema {:message "Any Object type which implemented the original Interface type must also be a super‐set of the fields of the Interface type extension which may be due to Object type extension."
+                               :invalid-objects (map ::g/name invalid-objects)})
       built-schema)))
 
-(defn process-interface-type-extension [schema {::g/keys [name directives field-definitions]}]
+(defn process-interface-type-extension [schema {::g/keys [name directives field-definitions] :as extension}]
   (let [existing-type (get-in schema [::types-by-name name])
         duplicate-fields-in-extension (duplicates-by ::g/name field-definitions)
         duplicate-fields-on-object (when existing-type
@@ -785,22 +807,41 @@
                                       (->> existing-type
                                            ::g/field-definitions
                                            (map ::g/name)
-                                           (set))))]
-    (cond-> schema
-      (nil? existing-type)
-      (add-error {:message "The named type must already be defined and must be an Interface type."
-                  :extension-name name})
-      (and existing-type (not= (::g/kind existing-type) 'INTERFACE))
-      (add-error {:message "The named type must already be defined and must be an Interface type."
-                  :extension-name name
-                  :existing-type-kind (::g/kind existing-type)})
-      (seq duplicate-fields-in-extension)
-      (add-error {:message "The fields of an Interface type extension must have unique names; no two fields may share the same name."
-                  :duplicate-fields (vec duplicate-fields-in-extension)})
-      (seq duplicate-fields-on-object)
-      (add-error {:message "Any fields of an Interface type extension must not be already defined on the original Interface type."
-                  :duplicate-fields (vec duplicate-fields-on-object)})
-      )))
+                                           (set))))
+        duplicate-directives (when existing-type
+                               (clojure.set/intersection
+                                (->> directives
+                                     (map ::g/name)
+                                     (set))
+                                (->> existing-type
+                                     ::g/directives
+                                     (map ::g/name)
+                                     (set))))
+        validated-schema
+        (cond-> schema
+          ;; 1. The named type must already be defined and must be an Interface type.
+          (nil? existing-type)
+          (add-error {:message "The named type must already be defined and must be an Interface type."
+                      :extension-name name})
+          (and existing-type (not= (::g/kind existing-type) 'INTERFACE))
+          (add-error {:message "The named type must already be defined and must be an Interface type."
+                      :extension-name name
+                      :existing-type-kind (::g/kind existing-type)})
+          ;; 2. The fields of an Interface type extension must have unique names; no two fields may share the same name.
+          (seq duplicate-fields-in-extension)
+          (add-error {:message "The fields of an Interface type extension must have unique names; no two fields may share the same name."
+                      :duplicate-fields (vec duplicate-fields-in-extension)})
+          ;; 3. Any fields of an Interface type extension must not be already defined on the original Interface type.
+          (seq duplicate-fields-on-object)
+          (add-error {:message "Any fields of an Interface type extension must not be already defined on the original Interface type."
+                      :duplicate-fields (vec duplicate-fields-on-object)})
+          ;; 5. Any directives provided must not already apply to the original Interface type.
+          (seq duplicate-directives)
+          (add-error {:message "Any directives provided must not already apply to the original Interface type."
+                      :duplicate-directives (vec duplicate-directives)}))]
+    (if (seq (::errors validated-schema))
+      validated-schema
+      (build-interface-type-extension validated-schema extension))))
 
 
 (defn process-over-filter [predicate function]
@@ -822,7 +863,6 @@
                                                         (= (::g/type-extension-type definition) :interface-type-extension))
                                                       process-interface-type-extension)
                                  ;; Tests mention that we are to leave out scalar extensions for now
-                                 ;; 3.7.1 Interface Extensions TODO
                                  ;; 3.8.1 Union Extensions TODO
                                  ;; 3.9.1 Enum Extensions TODO
                                  ;; 3.10.1 Input Object Extensions TODO
