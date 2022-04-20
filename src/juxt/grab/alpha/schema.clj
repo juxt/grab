@@ -653,9 +653,19 @@
         {:errors (::errors result)})))
     result))
 
+
+
+(defmacro flet [bindings & body]
+  "Common Lisp's flet"
+  `((fn [~@(map first (partition 2 bindings))] ~@body)
+    ~@(map (fn [expr]
+             `(fn [~@(first (second expr))]
+                ~@(rest (second expr)))) (partition 2 bindings))))
+
+
 (defn process-schema-extension [schema {::g/keys [directives operation-types]}]
-  (let [add-directives
-        (fn [schema directives]
+  (flet [add-directives
+         ([schema directives]
           (let [existing-directives
                 (for [existing (some->> schema ::directives keys)
                       dir (map ::g/name directives)
@@ -667,8 +677,9 @@
                {:message "Any directives provided must not already apply to the original Schema"
                 :existing-directives existing-directives})
               (update schema ::directives merge (into {} (map (juxt ::g/name identity) directives))))))
-        add-operation-types
-        (fn [schema operation-types]
+         
+         add-operation-types
+         ([schema operation-types]
           (let [duplicates
                 (set/intersection
                  (some-> schema ::root-operation-type-names keys set)
@@ -679,69 +690,107 @@
                {:message "Schema extension attempting to add root operation types that already exist"
                 :duplicates duplicates})
               (update schema ::root-operation-type-names merge operation-types))))]
-    (cond-> schema
-      directives (add-directives directives)
-      operation-types (add-operation-types operation-types))))
+        
+        (cond-> schema
+          directives (add-directives directives)
+          operation-types (add-operation-types operation-types))))
+
 
 (defn process-object-type-extension [schema {::g/keys [name field-definitions directives interfaces]}]
-  (def directives directives)
   (let [existing-type (get (::types-by-name schema) name)
         duplicates (duplicates-by ::g/name field-definitions)
         pre-existing-fields
         (seq
          (for [i (->> existing-type ::g/field-definitions (map ::g/name))
-               j (->> field-definitions (map ::g/name))
+               j (map ::g/name field-definitions)
                :when (= i j)] i))
         pre-existing-directives
         (seq
          (for [i (->> existing-type ::g/directives (map ::g/name))
                j (map ::g/name directives)
-               :when (= i j)] i))]
+               :when (= i j)] i))
+        pre-existing-interfaces
+        (seq
+         (for [i (::g/interfaces existing-type)
+               j (map ::g/name interfaces)
+               :when (= i j)] i))
+        validated-schema
+        (cond-> schema
+          ;; 1. The named type must already be defined and must be an Object type.
+          (nil? existing-type)
+          (add-error
+           {:message "The named type must already be defined and must be an Object type"
+            :name name})
 
-    (cond-> schema
-      ;; 1. The named type must already be defined and must be an Object type.
-      (nil? existing-type)
-      (add-error
-       {:message "The named type must already be defined and must be an Object type"
-        :name name})
+          ;; 2. The fields of an Object type extension must have unique names; no
+          ;; two fields may share the same name.
+          duplicates
+          (add-error
+           {:message "The fields of an Object type extension must have unique names; no two fields may share the same name."
+            :duplicates duplicates})
 
-      ;; 2. The fields of an Object type extension must have unique names; no
-      ;; two fields may share the same name.
-      duplicates
-      (add-error
-       {:message "The fields of an Object type extension must have unique names; no two fields may share the same name."
-        :duplicates duplicates})
+          ;; 3. Any fields of an Object type extension must not be already defined on the original Object type.
+          pre-existing-fields
+          (add-error
+           {:message "Any fields of an Object type extension must not be already defined on the original Object type."
+            :pre-existing-fields pre-existing-fields})
 
-      ;; 3. Any fields of an Object type extension must not be already defined on the original Object type.
-      pre-existing-fields
-      (add-error
-       {:message "Any fields of an Object type extension must not be already defined on the original Object type."
-        :pre-existing-fields pre-existing-fields})
+          ;; 4. Any directives provided must not already apply to the original Object type.
+          pre-existing-directives
+          (add-error
+           {:message "Any directives provided must not already apply to the original Object type."
+            :pre-existing-directives pre-existing-directives})
 
-      ;; 4. Any directives provided must not already apply to the original Object type.
-      pre-existing-directives
-      (add-error
-       {:message "Any directives provided must not already apply to the original Object type."
-        :pre-existing-directives pre-existing-directives})
+          ;; 5. Any interfaces provided must not be already implemented by the original Object type
 
-      ;; 5. Any interfaces provided must not be already implemented by the original Object type
-      ;; TODO
+          pre-existing-interfaces
+          (add-error
+           {:message "Any interfaces provided must not be already implemented by the original Object type."
+            :pre-existing-interfaces pre-existing-interfaces})
 
-      ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
-      ;; TODO
-      )))
+          directives
+          (update-in [::types-by-name name ::g/directives] into directives)
+          interfaces
+          (update-in [::types-by-name name ::g/interfaces] into (map ::g/name interfaces))
+          field-definitions
+          (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
+        leftover-interface-fields
+        (filter (fn [interface]
+                   (map (fn [field]
+                          (not (contains? (get-in validated-schema [::types-by-name name ::g/field-definitions]) field)))
+                        (get-in schema [::types-by-name interface ::g/field-definitions])))
+                (get-in validated-schema [::types-by-name name ::g/interfaces]))]
+    ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
+  (if leftover-interface-fields
+      (add-error validated-schema
+                 {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
+                  :missing-fields leftover-interface-fields})
+      validated-schema)))
+
+(defn process-over-filter [predicate function]
+  (fn [schema document]
+    (reduce
+     (fn [schema definition]
+       (function schema definition))
+     schema
+     (filter predicate document))))
+
+
+(def schema-extension-functions [(process-over-filter (fn [definition]
+                                                        (= (::g/definition-type definition) :schema-extension))
+                                                      process-schema-extension)
+                                 (process-over-filter (fn [definition]
+                                                        (= (::g/type-extension-type definition) :object-type-extension))
+                                                      process-object-type-extension)
+                                 ;; Tests mention that we are to leave out scalar extensions for now
+                                 ;; 3.7.1 Interface Extensions TODO
+                                 ;; 3.8.1 Union Extensions TODO
+                                 ;; 3.9.1 Enum Extensions TODO
+                                 ;; 3.10.1 Input Object Extensions TODO
+                                 ])
 
 (defn extend-schema
   "Extend a schema"
   [schema document]
   (assert (empty? (::errors schema)) "Cannot extend schema when there are pre-existing errors")
-  (reduce
-   (fn [schema definition]
-     (cond-> schema
-       (= (::g/definition-type definition) :schema-extension)
-       (process-schema-extension definition)
-       (= (::g/type-extension-type definition) :object-type-extension)
-       (process-object-type-extension definition)
-       ))
-   schema
-   document))
+  (apply-to-schema document schema schema-extension-functions))

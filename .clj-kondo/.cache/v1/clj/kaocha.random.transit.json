@@ -1,0 +1,1 @@
+["^ ","~$rng",["^ ","~:row",3,"~:col",1,"~:fixed-arities",["~#set",[1]],"~:name","^0","~:ns","~$kaocha.random","~:top-ns","^7","~:arities",["^ ","~i1",["^ ","~:ret","~:fn"]]],"~$randomize-tests",["^ ","^1",7,"^2",1,"^3",["^4",[2]],"^5","^<","^6","^7","^8","^7"],"~:filename","/home/jam/.m2/repository/lambdaisland/kaocha/1.0.887/kaocha-1.0.887.jar:kaocha/random.clj"]

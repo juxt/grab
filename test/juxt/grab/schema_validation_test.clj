@@ -331,9 +331,26 @@
    (compile-schema*)
    (schema/extend-schema (parse "extend type Query @foo"))
    (expected-errors [#"Any directives provided must not already apply to the original Object type."]))
-  ;; 5. Any interfaces provided must not be already implemented by the original Object type. (TODO)
-  ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements. (TODO)
+  (-> (example-schema)
+      (schema/extend-schema
+       (parse "extend type Cat implements Pet"))
+      (expected-errors [#"Any interfaces provided must not be already implemented by the original Object type."]))
+  ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements. (TODO not sure how to make this give an error even since the other validation rules as well as the build covers these exceptions)
   )
+
+(deftest object-extension-sanity-test
+  (let [extension-example
+        (-> (example-schema)
+            (schema/extend-schema
+             (parse "extend type Cat implements Sentient @foo {
+                             exampleField: String }")))]
+    (is (= ["Pet" "Sentient"]
+           (get-in extension-example [::s/types-by-name "Cat" ::g/interfaces])))
+    (is (= ["foo"]
+           (map ::g/name (get-in extension-example [::s/types-by-name "Cat" ::g/directives]))))
+    (is (= ["name" "nickname" "doesKnowCommand" "meowVolume" "exampleField"]
+           (map ::g/name (get-in extension-example [::s/types-by-name "Cat" ::g/field-definitions]))))))
+
 
 ;; 3.7  Interfaces
 
