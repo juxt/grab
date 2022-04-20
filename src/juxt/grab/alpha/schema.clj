@@ -747,6 +747,7 @@
           (add-error
            {:message "Any interfaces provided must not be already implemented by the original Object type."
             :pre-existing-interfaces pre-existing-interfaces}))
+        
         built-schema
         (if (empty (::errors validated-schema))
           (cond-> validated-schema
@@ -757,6 +758,7 @@
             field-definitions
             (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
           validated-schema)
+        
         leftover-interfaces
         (seq
          (filter (fn [interface]
@@ -771,6 +773,34 @@
                  {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
                   :problem-interfaces (vec leftover-interfaces)})
       built-schema)))
+
+(defn process-interface-type-extension [schema {::g/keys [name directives field-definitions]}]
+  (let [existing-type (get-in schema [::types-by-name name])
+        duplicate-fields-in-extension (duplicates-by ::g/name field-definitions)
+        duplicate-fields-on-object (when existing-type
+                                     (clojure.set/intersection
+                                      (->> field-definitions
+                                           (map ::g/name)
+                                           (set))
+                                      (->> existing-type
+                                           ::g/field-definitions
+                                           (map ::g/name)
+                                           (set))))]
+    (cond-> schema
+      (nil? existing-type)
+      (add-error {:message "The named type must already be defined and must be an Interface type."
+                  :extension-name name})
+      (and existing-type (not= (::g/kind existing-type) 'INTERFACE))
+      (add-error {:message "The named type must already be defined and must be an Interface type."
+                  :extension-name name
+                  :existing-type-kind (::g/kind existing-type)})
+      (seq duplicate-fields-in-extension)
+      (add-error {:message "The fields of an Interface type extension must have unique names; no two fields may share the same name."
+                  :duplicate-fields (vec duplicate-fields-in-extension)})
+      (seq duplicate-fields-on-object)
+      (add-error {:message "Any fields of an Interface type extension must not be already defined on the original Interface type."
+                  :duplicate-fields (vec duplicate-fields-on-object)})
+      )))
 
 
 (defn process-over-filter [predicate function]
@@ -788,6 +818,9 @@
                                  (process-over-filter (fn [definition]
                                                         (= (::g/type-extension-type definition) :object-type-extension))
                                                       process-object-type-extension)
+                                 (process-over-filter (fn [definition]
+                                                        (= (::g/type-extension-type definition) :interface-type-extension))
+                                                      process-interface-type-extension)
                                  ;; Tests mention that we are to leave out scalar extensions for now
                                  ;; 3.7.1 Interface Extensions TODO
                                  ;; 3.8.1 Union Extensions TODO

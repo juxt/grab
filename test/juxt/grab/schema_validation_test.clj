@@ -400,10 +400,28 @@
 
 ;; TODO: Interface extensions (3.7.1)
 
-;; (deftest interface-extension-test
-;;   (-> (example-schema)
-;;       (s/extend-schema
-;;        (parse "extend interface DoesntExist @foo"))))
+(deftest interface-extension-test
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend interface DoesntExist @foo"))
+      (expected-errors [#"The named type must already be defined and must be an Interface type."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend interface Dog @foo"))
+      (expected-errors [#"The named type must already be defined and must be an Interface type."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend interface Pet @foo"))
+      (expected-errors []))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend interface Pet { favouriteFood: String, favouriteFood: String }"))
+      (expected-errors [#"The fields of an Interface type extension must have unique names; no two fields may share the same name."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend interface Pet { name: String }]"))
+      (expected-errors [#"Any fields of an Interface type extension must not be already defined on the original Interface type."]))
+  )
 
 ;; 3.8 Unions
 
