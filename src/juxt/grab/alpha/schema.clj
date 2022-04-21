@@ -664,32 +664,31 @@
 
 
 (defn process-schema-extension [schema {::g/keys [directives operation-types]}]
-  (flet [add-directives
-         ([schema directives]
-          (let [existing-directives
-                (for [existing (some->> schema ::directives keys)
-                      dir (map ::g/name directives)
-                      :when (= existing dir)]
-                  existing)]
-            (if (seq existing-directives)
-              (add-error
-               schema
-               {:message "Any directives provided must not already apply to the original Schema"
-                :existing-directives existing-directives})
-              (update schema ::directives merge (into {} (map (juxt ::g/name identity) directives))))))
-         
-         add-operation-types
-         ([schema operation-types]
-          (let [duplicates
-                (set/intersection
-                 (some-> schema ::root-operation-type-names keys set)
-                 (some-> operation-types keys set))]
-            (if (seq duplicates)
-              (add-error
-               schema
-               {:message "Schema extension attempting to add root operation types that already exist"
-                :duplicates duplicates})
-              (update schema ::root-operation-type-names merge operation-types))))]
+  (letfn [(add-directives
+            [schema directives]
+            (let [existing-directives
+                  (for [existing (some->> schema ::directives keys)
+                        dir (map ::g/name directives)
+                        :when (= existing dir)]
+                    existing)]
+              (if (seq existing-directives)
+                (add-error
+                 schema
+                 {:message "Any directives provided must not already apply to the original Schema"
+                  :existing-directives existing-directives})
+                (update schema ::directives merge (into {} (map (juxt ::g/name identity) directives))))))
+          (add-operation-types
+            [schema operation-types]
+            (let [duplicates
+                  (set/intersection
+                   (some-> schema ::root-operation-type-names keys set)
+                   (some-> operation-types keys set))]
+              (if (seq duplicates)
+                (add-error
+                 schema
+                 {:message "Schema extension attempting to add root operation types that already exist"
+                  :duplicates duplicates})
+                (update schema ::root-operation-type-names merge operation-types))))]
         
         (cond-> schema
           directives (add-directives directives)
@@ -800,23 +799,25 @@
   (let [existing-type (get-in schema [::types-by-name name])
         duplicate-fields-in-extension (duplicates-by ::g/name field-definitions)
         duplicate-fields-on-object (when existing-type
-                                     (clojure.set/intersection
-                                      (->> field-definitions
-                                           (map ::g/name)
-                                           (set))
-                                      (->> existing-type
-                                           ::g/field-definitions
-                                           (map ::g/name)
-                                           (set))))
+                                     (seq
+                                      (clojure.set/intersection
+                                       (->> field-definitions
+                                            (map ::g/name)
+                                            (set))
+                                       (->> existing-type
+                                            ::g/field-definitions
+                                            (map ::g/name)
+                                            (set)))))
         duplicate-directives (when existing-type
-                               (clojure.set/intersection
-                                (->> directives
-                                     (map ::g/name)
-                                     (set))
-                                (->> existing-type
-                                     ::g/directives
-                                     (map ::g/name)
-                                     (set))))
+                               (seq
+                                (clojure.set/intersection
+                                 (->> directives
+                                      (map ::g/name)
+                                      (set))
+                                 (->> existing-type
+                                      ::g/directives
+                                      (map ::g/name)
+                                      (set)))))
         validated-schema
         (cond-> schema
           ;; 1. The named type must already be defined and must be an Interface type.
@@ -828,15 +829,15 @@
                       :extension-name name
                       :existing-type-kind (::g/kind existing-type)})
           ;; 2. The fields of an Interface type extension must have unique names; no two fields may share the same name.
-          (seq duplicate-fields-in-extension)
+          duplicate-fields-in-extension
           (add-error {:message "The fields of an Interface type extension must have unique names; no two fields may share the same name."
                       :duplicate-fields (vec duplicate-fields-in-extension)})
           ;; 3. Any fields of an Interface type extension must not be already defined on the original Interface type.
-          (seq duplicate-fields-on-object)
+          duplicate-fields-on-object
           (add-error {:message "Any fields of an Interface type extension must not be already defined on the original Interface type."
                       :duplicate-fields (vec duplicate-fields-on-object)})
           ;; 5. Any directives provided must not already apply to the original Interface type.
-          (seq duplicate-directives)
+          duplicate-directives
           (add-error {:message "Any directives provided must not already apply to the original Interface type."
                       :duplicate-directives (vec duplicate-directives)}))]
     (if (seq (::errors validated-schema))
