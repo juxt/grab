@@ -462,7 +462,38 @@ interface Pet @foo")
       (expected-errors [#"Member types of a Union type must all be Object base types"]))
   )
 
-;; TODO: Union extensions (3.8.1)
+(deftest union-type-extension-test
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend union Doesntexist @foo"))
+      (expected-errors [#"The named type must already be defined and must be a Union type."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend union Pet @foo"))
+      (expected-errors [#"The named type must already be defined and must be a Union type."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend union DogOrHuman @foo"))
+      (expected-errors []))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend union DogOrHuman = Pet"))
+      (expected-errors [#"The member types of a Union type extension must all be Object base types; Scalar, Interface and Union types must not be member types of a Union. Similarly, wrapping types must not be member types of a Union."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend union DogOrHuman = Cat | Cat "))
+      (expected-errors [#"All member types of a Union type extension must be unique."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend union DogOrHuman = Dog"))
+      (expected-errors [#"All member types of a Union type extension must not already be a member of the original Union type."]))
+  (-> (parse "type Query { name: String }
+type Dog { name : String }
+type Human { name : String }
+union DogOrHuman @foo = Dog | Human @foo")
+   (compile-schema*)
+   (schema/extend-schema (parse "extend union DogOrHuman @foo"))
+   (expected-errors [#"Any directives provided must not already apply to the original Union type."])))
 
 ;; 3.9 Enums
 (deftest enum-type-valid-test
@@ -477,5 +508,30 @@ interface Pet @foo")
       parse
       compile-schema*
       (expected-errors [#"An enum type must include one or more unique member types"])))
+
+(deftest enum-type-extension-test
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend enum RabbitCommand @foo"))
+      (expected-errors [#"The named type must already be defined and must be an Enum type."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend enum Sentient @foo"))
+      (expected-errors [#"The named type must already be defined and must be an Enum type."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend enum DogCommand { SPEAK, PAW, SPEAK }"))
+      (expected-errors [#"All values of an Enum type extension must be unique."]))
+  (-> (example-schema)
+      (s/extend-schema
+       (parse "extend enum DogCommand { SIT }"))
+      (expected-errors [#"All values of an Enum type extension must not already be a value of the original Enum."]))
+  (-> (str " enum Animals @foo { Cat, Dog } ")
+      (str " type Query { animals: Animals }")
+      parse
+      compile-schema*
+      (s/extend-schema
+       (parse "extend enum Animals @foo"))
+      (expected-errors [#"Any directives provided must not already apply to the original Enum type."])))
 
 ;; TODO: Enum extensions (3.9.1)

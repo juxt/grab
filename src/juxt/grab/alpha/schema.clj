@@ -139,10 +139,9 @@
        {:message (str "A field must return a type that is known.")
         :field-name (::g/name tf)
         :field-type-name (::g/name type-ref)
-        :location (::g/location (meta tf))
-        })
+        :location (::g/location (meta tf))})
 
-      ;; 4. The field must return a type where IsOutputType(fieldType) returns *true*.
+;; 4. The field must return a type where IsOutputType(fieldType) returns *true*.
       (and typ (not (output-type? typ)))
       (add-error
        {:message "A field must return a type that is an output type."
@@ -435,7 +434,7 @@
     (not=
      (count (set (::g/member-types td)))
      (count (::g/member-types td)))
-    
+
     (add-error {:message "A union type must include one or more unique member types"
                 :members (::g/member-types td)
                 :td td})
@@ -455,11 +454,10 @@
                                          :kind (::g/kind member-def)
                                          :td td})
                          acc))
-                     
-                     (add-error acc {:message "Member types of a Union type must all be Object base types" 
+
+                     (add-error acc {:message "Member types of a Union type must all be Object base types"
                                      :name member}))))
-               acc (::g/member-types td))))
-    ))
+               acc (::g/member-types td))))))
 
 (defn check-enum-type [acc td]
   ;; 1. An enum type must include one or more unique member types
@@ -508,7 +506,6 @@
       (seq arguments-definition) (assoc ::g/arguments-definition arguments-definition)
       (seq directives-by-name) (assoc ::directives-by-name directives-by-name))))
 
-
 (defn provide-types
   "Creates the schema's 'types-by-name' entry."
   [acc document]
@@ -518,8 +515,7 @@
       acc [::types-by-name name]
       (let [fields-by-name (into {} (map (juxt ::g/name compile-field-definition) (::g/field-definitions td)))
             directives-by-name (into {} (map (juxt ::g/name compile-directive) (::g/directives td)))
-            enum-values-by-name (into {} (map (juxt ::g/name compile-argument-definition) (::g/enum-values td)))
-            ]
+            enum-values-by-name (into {} (map (juxt ::g/name compile-argument-definition) (::g/enum-values td)))]
         (cond-> td
           (seq fields-by-name) (assoc ::fields-by-name fields-by-name)
           (seq directives-by-name) (assoc ::directives-by-name directives-by-name)
@@ -536,7 +532,7 @@
     (cond
       (nil? query-root-op-type)
       (add-error acc
-       {:message (format "The query root operation type must be provided: '%s'" query-root-op-type-name)})
+                 {:message (format "The query root operation type must be provided: '%s'" query-root-op-type-name)})
 
       (not= 'OBJECT (get query-root-op-type ::g/kind))
       (add-error
@@ -636,7 +632,6 @@
 (defn validate-schema [schema]
   (apply-to-schema schema validation-functions))
 
-
 (defn compile-schema*
   "Create a schema from the parsed document."
   ([document base]
@@ -653,15 +648,12 @@
         {:errors (::errors result)})))
     result))
 
-
-
 (defmacro flet [bindings & body]
   "Common Lisp's flet"
   `((fn [~@(map first (partition 2 bindings))] ~@body)
     ~@(map (fn [expr]
              `(fn [~@(first (second expr))]
                 ~@(rest (second expr)))) (partition 2 bindings))))
-
 
 (defn process-schema-extension [schema {::g/keys [directives operation-types]}]
   (letfn [(add-directives
@@ -689,21 +681,17 @@
                  {:message "Schema extension attempting to add root operation types that already exist"
                   :duplicates duplicates})
                 (update schema ::root-operation-type-names merge operation-types))))]
-        
-        (cond-> schema
-          directives (add-directives directives)
-          operation-types (add-operation-types operation-types))))
+
+    (cond-> schema
+      directives (add-directives directives)
+      operation-types (add-operation-types operation-types))))
 
 (defn build-object-type-extension [schema {::g/keys [name field-definitions directives interfaces]}]
   (let [built-schema
-        (cond-> schema
-          directives
-          (update-in [::types-by-name name ::g/directives] into directives)
-          interfaces
-          (update-in [::types-by-name name ::g/interfaces] into (map ::g/name interfaces))
-          field-definitions
-          (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
-        
+        (-> schema
+            (update-in [::types-by-name name ::g/directives] into directives)
+            (update-in [::types-by-name name ::g/interfaces] into (vec (map ::g/name interfaces)))
+            (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
         leftover-interfaces
         (seq
          (filter (fn [interface]
@@ -712,10 +700,10 @@
                          (set (map ::g/name (get-in built-schema [::types-by-name name ::g/field-definitions]))))))
                  (set (get-in built-schema [::types-by-name name ::g/interfaces]))))]
     (if leftover-interfaces
-          (add-error built-schema
-               {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
-                :problem-interfaces (vec leftover-interfaces)})
-          built-schema)))
+      (add-error built-schema
+                 {:message "The resulting extended object type must be a super‐set of all interfaces it implements."
+                  :problem-interfaces (vec leftover-interfaces)})
+      built-schema)))
 
 (defn process-object-type-extension [schema {::g/keys [name field-definitions directives interfaces] :as extension}]
   (let [existing-type (get (::types-by-name schema) name)
@@ -766,26 +754,23 @@
           (add-error
            {:message "Any interfaces provided must not be already implemented by the original Object type."
             :pre-existing-interfaces pre-existing-interfaces}))]
-    
+
     ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements.
     (if (seq (::errors validated-schema))
       validated-schema
       (build-object-type-extension validated-schema extension))))
 
-
 (defn build-interface-type-extension [schema {::g/keys [name directives field-definitions]}]
   (let [built-schema
-        (cond-> schema
-          directives
-          (update-in [::types-by-name name ::g/directives] into directives)
-          field-definitions
-          (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
+        (-> schema
+            (update-in [::types-by-name name ::g/directives] into directives)
+            (update-in [::types-by-name name ::g/field-definitions] into field-definitions))
         invalid-objects
         (seq
          (filter (fn [object]
                    (not (clojure.set/subset?
                          (set (map ::g/name field-definitions))
-                         (set (map ::g/name (::g/field-definitions object))))))
+                         (->> object ::g/field-definitions (map ::g/name) set))))
                  (filter (fn [defined-type]
                            (and (= (::g/kind defined-type) 'OBJECT)
                                 (some (fn [interface] (= name interface)) (::g/interfaces defined-type))))
@@ -801,23 +786,13 @@
         duplicate-fields-on-object (when existing-type
                                      (seq
                                       (clojure.set/intersection
-                                       (->> field-definitions
-                                            (map ::g/name)
-                                            (set))
-                                       (->> existing-type
-                                            ::g/field-definitions
-                                            (map ::g/name)
-                                            (set)))))
+                                       (->> field-definitions (map ::g/name) set)
+                                       (->> existing-type ::g/field-definitions (map ::g/name) set))))
         duplicate-directives (when existing-type
                                (seq
                                 (clojure.set/intersection
-                                 (->> directives
-                                      (map ::g/name)
-                                      (set))
-                                 (->> existing-type
-                                      ::g/directives
-                                      (map ::g/name)
-                                      (set)))))
+                                 (->> directives (map ::g/name) set)
+                                 (->> existing-type ::g/directives (map ::g/name) set))))
         validated-schema
         (cond-> schema
           ;; 1. The named type must already be defined and must be an Interface type.
@@ -844,6 +819,91 @@
       validated-schema
       (build-interface-type-extension validated-schema extension))))
 
+(defn build-union-type-extension [schema {::g/keys [name directives member-types]}]
+  (-> schema
+      (update-in [name member-types] into member-types)
+      (update-in [name directives] into directives)))
+
+(defn process-union-type-extension [schema {::g/keys [name directives member-types] :as extension}]
+  (let [existing-type (get-in schema [::types-by-name name])
+        invalid-members (seq
+                         (filter (fn [member-type]
+                                   (not= 'OBJECT (get-in schema [::types-by-name member-type ::g/kind])))
+                                 member-types))
+        duplicate-extension-members (duplicates-by identity member-types)
+        duplicates-on-original (when existing-type
+                                 (seq
+                                  (clojure.set/intersection
+                                   (set member-types)
+                                   (->> existing-type ::g/member-types set))))
+        duplicate-directives (when existing-type
+                               (seq
+                                (clojure.set/intersection
+                                 (->> directives (map ::g/name) set)
+                                 (->> existing-type ::g/directives (map ::g/name) set))))
+        validated-schema
+        (cond-> schema
+          (nil? existing-type)
+          (add-error {:message "The named type must already be defined and must be a Union type."
+                      :extension-name name})
+          (and existing-type (not= (::g/kind existing-type) 'UNION))
+          (add-error {:message "The named type must already be defined and must be a Union type."
+                      :extension-name name
+                      :existing-type-kind (::g/kind existing-type)})
+          invalid-members
+          (add-error {:message "The member types of a Union type extension must all be Object base types; Scalar, Interface and Union types must not be member types of a Union. Similarly, wrapping types must not be member types of a Union."
+                      :invalid-members (vec invalid-members)})
+          duplicate-extension-members
+          (add-error {:message "All member types of a Union type extension must be unique."
+                      :duplicate-extension-members duplicate-extension-members})
+          duplicates-on-original
+          (add-error {:message "All member types of a Union type extension must not already be a member of the original Union type."
+                      :duplicate-members duplicates-on-original})
+          duplicate-directives
+          (add-error {:message "Any directives provided must not already apply to the original Union type."
+                      :duplicate-directives duplicate-directives}))]
+    (if (seq (::errors validated-schema))
+      validated-schema
+      (build-union-type-extension schema extension))))
+
+(defn build-enum-type-extension [schema {::g/keys [name directives enum-values]}]
+  (-> schema
+      (update-in [::types-by-name name ::g/directives] into directives)
+      (update-in [::types-by-name name ::g/enum-values] into enum-values)))
+
+(defn process-enum-type-extensions [schema {::g/keys [name directives enum-values] :as extension}]
+  (let [existing-type (get-in schema [::types-by-name name])
+        extension-duplicates (duplicates-by identity enum-values)
+        duplicates-on-original (when existing-type
+                                 (seq (clojure.set/intersection
+                                       (->> enum-values (map ::g/name) set)
+                                       (->> existing-type ::g/enum-values (map ::g/name) set))))
+        duplicate-directives (when existing-type
+                               (seq (clojure.set/intersection
+                                     (->> directives (map ::g/name) set)
+                                     (->> existing-type ::g/directives (map ::g/name) set))))
+
+        validated-schema
+        (cond-> schema
+          (nil? existing-type)
+          (add-error {:message "The named type must already be defined and must be an Enum type."
+                      :extension-name name})
+          (and existing-type (not= (::g/kind existing-type) 'ENUM))
+          (add-error {:message "The named type must already be defined and must be an Enum type."
+                      :original-type-name name
+                      :original-type-kind (::g/kind existing-type)})
+          extension-duplicates
+          (add-error {:message "All values of an Enum type extension must be unique."
+                      :extension-duplicates extension-duplicates})
+          duplicates-on-original
+          (add-error {:message "All values of an Enum type extension must not already be a value of the original Enum."
+                      :duplicate-values duplicates-on-original})
+          duplicate-directives
+          (add-error {:message "Any directives provided must not already apply to the original Enum type."
+                      :duplicate-directives duplicate-directives}))]
+    (if (seq (::errors validated-schema))
+      validated-schema
+      (build-enum-type-extension schema extension))))
 
 (defn process-over-filter [predicate function]
   (fn [schema document]
@@ -853,22 +913,24 @@
      schema
      (filter predicate document))))
 
-
 (def schema-extension-functions [(process-over-filter (fn [definition]
                                                         (= (::g/definition-type definition) :schema-extension))
                                                       process-schema-extension)
+                                 ;; Tests mention that we are to leave out scalar extensions for now
                                  (process-over-filter (fn [definition]
                                                         (= (::g/type-extension-type definition) :object-type-extension))
                                                       process-object-type-extension)
                                  (process-over-filter (fn [definition]
                                                         (= (::g/type-extension-type definition) :interface-type-extension))
                                                       process-interface-type-extension)
-                                 ;; Tests mention that we are to leave out scalar extensions for now
-                                 ;; 3.8.1 Union Extensions TODO
-                                 ;; 3.9.1 Enum Extensions TODO
+                                 (process-over-filter (fn [definition]
+                                                        (= (::g/type-extension-type definition) :union-type-extension))
+                                                      process-union-type-extension)
+                                 (process-over-filter (fn [definition]
+                                                        (= (::g/type-extension-type definition) :enum-type-extension))
+                                                      process-enum-type-extensions)
                                  ;; 3.10.1 Input Object Extensions TODO
                                  ])
-
 (defn extend-schema
   "Extend a schema"
   [schema document]

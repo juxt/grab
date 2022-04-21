@@ -79,7 +79,7 @@
 (defn add-default-operation-type [acc]
   (update acc ::operations #(mapv (fn [op]
                                     (cond-> op
-                                      (not (find op ::g/operation-type))
+                                      (not (::g/operation-type op))
                                       (assoc ::g/operation-type :query)))
                                   %)))
 
@@ -124,35 +124,29 @@
 (defn add-scoped-types-to-operations [{::keys [schema] :as acc}]
   (update
    acc ::operations
-   (fn [ops]
-     (->>
-      ops
-      (mapv
-       (fn [op]
-         (let [op-type (::g/operation-type op)
-               scoped-type-name (get-in acc [::schema ::schema/root-operation-type-names op-type])]
-           (-> op
-               (assoc ::scoped-type-name scoped-type-name)
-               (update
-                ::g/selection-set
-                (fn [selection-set]
-                  (scope-selection-set selection-set scoped-type-name schema)))))))))))
+   #(mapv
+     (fn [op]
+       (let [op-type (::g/operation-type op)
+             scoped-type-name (get-in acc [::schema ::schema/root-operation-type-names op-type])]
+         (-> op
+             (assoc ::scoped-type-name scoped-type-name)
+             (update
+              ::g/selection-set
+              (fn [selection-set]
+                (scope-selection-set selection-set scoped-type-name schema)))))) %)))
 
 (defn add-scoped-types-to-fragments [{::keys [schema] :as acc}]
   (update
    acc ::fragments
-   (fn [fragments]
-     (->>
-      fragments
-      (mapv
-       (fn [fragment]
-         (let [scoped-type-name (::g/type-condition fragment)]
-           (-> fragment
-               (assoc ::scoped-type-name scoped-type-name)
-               (update
-                ::g/selection-set
-                (fn [selection-set]
-                  (scope-selection-set selection-set scoped-type-name schema)))))))))))
+   #(mapv
+     (fn [fragment]
+       (let [scoped-type-name (::g/type-condition fragment)]
+         (-> fragment
+             (assoc ::scoped-type-name scoped-type-name)
+             (update
+              ::g/selection-set
+              (fn [selection-set]
+                (scope-selection-set selection-set scoped-type-name schema)))))) %)))
 
 (defn validate-selection [{::g/keys [selection-type] :as selection}
                           ;; TODO: Do we still need to pass down parent-scoped-type?
@@ -169,13 +163,13 @@
           subselection-set (::g/selection-set selection)]
 
       (cond
-        (= field-name "__typename") [] ; allow for introspection
+        (= field-name "__typename") []  ; allow for introspection
 
         (nil? field-def)
         [{:message (format
-                  "Field name '%s' not defined on type in scope '%s'"
-                  (::g/name selection)
-                  scoped-type-name)
+                    "Field name '%s' not defined on type in scope '%s'"
+                    (::g/name selection)
+                    scoped-type-name)
           :selection selection
           :parent-scoped-type parent-scoped-type
           :field-name (::g/name selection)
@@ -199,19 +193,19 @@
               (::g/selection-set selection)))))
 
 (defn validate-selection-sets [{::keys [schema] :as acc}]
-  (update
-   acc ::errors into
-   (concat
-    (for [op (::operations acc)
-          selection (::g/selection-set op)
-          error (validate-selection selection (::scoped-type-name op) schema [(::g/name op)])
-          :when error]
-      error)
-    (for [frag (::fragments acc)
-          selection (::g/selection-set frag)
-          error (validate-selection selection (::scoped-type-name frag) schema [(::g/name frag)])
-          :when error]
-      error))))
+  (letfn [(aux
+            [kw]
+            (filter identity
+                    (mapcat (fn [submap]
+                              (mapcat (fn [selection]
+                                        (validate-selection selection (::scoped-type-name submap) schema [(::g/name submap)]))
+                                      (::g/selection-set submap)))
+                            (kw acc))))]
+    (update
+     acc ::errors into
+     (concat
+      (aux ::operations)
+      (aux ::fragments)))))
 
 (defn visit-fields [selection schema]
   (case (::g/selection-type selection)
@@ -301,17 +295,21 @@
      )))
 
 (defn validate-fields-in-set-can-merge [acc]
-  (update
-   acc ::errors into
-   (for [op (concat (::operations acc)
-                    (::fragments acc)
-                    ;; TODO: Also visit fragments and inline fragments as per spec "including visiting
-                    ;; fragments and inline fragments."
-                    )
-         :let [selection-set (::g/selection-set op)]
-         error (fields-in-set-can-merge selection-set (::schema acc) (::scoped-type-name op) [(::g/name op)])
-         :when error]
-     error)))
+  (letfn [(aux
+            [kw]
+            (mapcat (fn [submap]
+                      (fields-in-set-can-merge (::g/selection-set submap)
+                                               (::schema acc)
+                                               (::scoped-type-name submap)
+                                               [(::g/name submap)]))
+                    (kw acc)))]
+    (update
+     acc ::errors into                       ;; TODO: Also visit fragments and inline fragments as per spec "including visiting
+                      ;; fragments and inline fragments."
+
+     (concat 
+      (aux ::operations)
+      (aux ::fragments)))))
 
 (defn compile-document*
   "Compile a document with respect to the given schema, returning a structure that
