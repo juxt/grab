@@ -159,40 +159,57 @@
    ;; 3. For each selection in selectionSet:
    selection-set))
 
-(defn map-walk-and-get
-  "Proof of concept of useful depth-first map traversal (with vectors and lists and normal variables). This will be useful later for coerce-variable-values but will need to store other values that are necessary for continuing with the definition in spec"
-  ([m desired-key path]
+(defn i-reduce
+  ([f acc coll]
+   (i-reduce f acc 0 coll))
+  ([f acc i coll]
+   (cond
+     (nil? (seq coll))
+     acc
+     :else
+     (i-reduce f (f acc i (first coll)) (+ i 1) (rest coll)))))
+
+(declare map-df-filter)
+
+(defn vector-df-filter
+  "depth first filtering, retrieving value and path"
+  ([v predicate path]
+   (i-reduce (fn [acc i x]
+               (cond
+                 (predicate i x)
+                 (conj acc {::value x ::path (conj path i)})
+                 (map? x)
+                 (into acc (map-df-filter x predicate (conj path i)))
+                 (vector? x)
+                 (into acc (vector-df-filter x predicate (conj path i)))
+                 :else
+                 acc))
+             [] v))
+  ([v predicate]
+   (vector-df-filter v predicate [])))
+
+(defn map-df-filter
+  "depth first filtering, retrieving value and path"
+  ([m predicate path]
    (reduce-kv (fn [acc k v]
-                (letfn [(traverse-iterable [vector-value path]
-                          (:acc ;This is ugly but I don't know how to count iterations in a reduce which is necessary for the path
-                           (reduce (fn [acc v]
-                                     (cond
-                                       (map? v)
-                                       {:acc (into (:acc acc) (map-walk-and-get v desired-key (conj path (:count acc))))
-                                        :count (+ 1 (:count acc))}
-                                       (or (list? v) (vector? v))
-                                       {:acc (into (:acc acc) (traverse-iterable v (conj path (:count acc))))
-                                        :count (+ 1 (:count acc))}
-                                       :else
-                                       {:acc (:acc acc)
-                                        :count (+ 1 (:count acc))}))
-                                   {:acc [] :count 0} vector-value)))]
-                  (cond
-                    (= k desired-key)
-                    (conj acc {:name v :path path})
-                    (map? v)
-                    (into acc (map-walk-and-get v desired-key (conj path k)))
-                    (or (list? v) (vector? v))
-                    (into acc (traverse-iterable v (conj path k)))
-                    :else acc))) [] m))
-  ([m desired-key]
-   (map-walk-and-get m desired-key [])))
+                (cond
+                  (predicate k v)
+                  (conj acc {::value v ::path (conj path k)})
+                  (map? v)
+                  (into acc (map-df-filter v predicate (conj path k)))
+                  (or (list? v) (vector? v))
+                  (into acc (vector-df-filter v predicate (conj path k)))
+                  :else
+                  acc))
+              [] m))
+  ([m predicate]
+   (map-df-filter m predicate [])))
 
 (defn coerce-variable-values [schema operation variable-values]
   (let [ ;; 1. Let coercedValues be an empty map
         coerced-values {}
         ;; 2. Let variableDefinitions be the variables defined by operation. (TODO) note to self, the compiled example 184 is a good one to follow along with for defining coerce-variable-values
-        variable-definitions (vec (mapcat #(map-walk-and-get % ::g/variable) (::g/selection-set operation)))
+        variable-definitions (vec (mapcat #(map-df-filter % (fn [k v] (= k ::g/variable))) (::g/selection-set operation)))
         ;; 3. For each variableDefinition in variable-definitions
         ]
     variable-values))
