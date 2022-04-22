@@ -159,27 +159,34 @@
    ;; 3. For each selection in selectionSet:
    selection-set))
 
-(defn map-walk-and-get [m desired-key & path]
-    "Proof of concept of useful depth-first map traversal (with vectors and lists and normal variables). This will be useful later for coerce-variable-values but will need to change to a map and store other values that are necessary for continuing with the definition in spec"
-  (let [path (or path [])]
-    (reduce-kv (fn [acc k v]
-                 (letfn [(traverse-iterable [vector-value & path]
+(defn map-walk-and-get
+  "Proof of concept of useful depth-first map traversal (with vectors and lists and normal variables). This will be useful later for coerce-variable-values but will need to store other values that are necessary for continuing with the definition in spec"
+  ([m desired-key path]
+   (reduce-kv (fn [acc k v]
+                (letfn [(traverse-iterable [vector-value path]
+                          (:acc ;This is ugly but I don't know how to count iterations in a reduce which is necessary for the path
                            (reduce (fn [acc v]
                                      (cond
                                        (map? v)
-                                       (into acc (map-walk-and-get v desired-key path))
+                                       {:acc (into (:acc acc) (map-walk-and-get v desired-key (conj path (:count acc))))
+                                        :count (+ 1 (:count acc))}
                                        (or (list? v) (vector? v))
-                                       (into acc (traverse-iterable v path))
+                                       {:acc (into (:acc acc) (traverse-iterable v (conj path (:count acc))))
+                                        :count (+ 1 (:count acc))}
                                        :else
-                                       acc)) [] vector-value))]
-                   (cond
-                     (= k desired-key)
-                     (conj acc {::name v})
-                     (map? v)
-                     (into acc (map-walk-and-get v desired-key path))
-                     (or (list? v) (vector? v))
-                     (into acc (traverse-iterable v path))
-                     :else acc))) [] m)))
+                                       {:acc (:acc acc)
+                                        :count (+ 1 (:count acc))}))
+                                   {:acc [] :count 0} vector-value)))]
+                  (cond
+                    (= k desired-key)
+                    (conj acc {:name v :path path})
+                    (map? v)
+                    (into acc (map-walk-and-get v desired-key (conj path k)))
+                    (or (list? v) (vector? v))
+                    (into acc (traverse-iterable v (conj path k)))
+                    :else acc))) [] m))
+  ([m desired-key]
+   (map-walk-and-get m desired-key [])))
 
 (defn coerce-variable-values [schema operation variable-values]
   (let [ ;; 1. Let coercedValues be an empty map
