@@ -196,16 +196,17 @@
 (defn validate-selection-sets [{::keys [schema] :as acc}]
   (update
    acc ::errors into
-   (filter identity
-           (mapcat (fn [submap]
-                     (mapcat (fn [selection]
-                               (validate-selection selection
-                                                   schema
-                                                   [(::g/name submap)]))
-                             (::g/selection-set submap))) ;Maybe here would be a good place to introduce some logic for the skip/include directive? TODO
-                   (concat
-                    (::operations acc)
-                    (::fragments acc))))))
+   (reduce (fn [acc submap]
+             (into acc
+                   (mapcat (fn [selection]
+                             (validate-selection selection
+                                                 schema
+                                                 [(::g/name submap)]))
+                           (::g/selection-set submap)))) ;Maybe here would be a good place to introduce some logic for the skip/include directive? TODO
+           []
+           (concat
+            (::operations acc)
+            (::fragments acc)))))
 
 
 (defn visit-fields [selection schema]
