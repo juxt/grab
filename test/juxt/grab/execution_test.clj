@@ -618,3 +618,4 @@ type StackTraceElement { fileName: String className: String lineNumber: Int meth
 
     (is (some? (:data result)))
     (is (nil? (:errors result)))))
+

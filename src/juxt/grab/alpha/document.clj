@@ -20,8 +20,7 @@
       ;; i. Return the Operation contained in the document.
       (second (first (::operations-by-name doc)))
       ;; ii. Otherwise produce a query error requiring operationName.
-      (throw (ex-info "Operation name required" {}))
-      )
+      (throw (ex-info "Operation name required" {})))
     ;; 2. Otherwise:
     (let [operation (get (::operations-by-name doc) operation-name)]
       ;; a. Let operation be the Operation named operationName in document.
@@ -149,8 +148,6 @@
                 (scope-selection-set selection-set scoped-type-name schema)))))) %)))
 
 (defn validate-selection [{::g/keys [selection-type] :as selection}
-                          ;; TODO: Do we still need to pass down parent-scoped-type?
-                          parent-scoped-type
                           {::schema/keys [types-by-name] :as schema}
                           path]
   (case selection-type
@@ -160,7 +157,9 @@
           path (conj path field-name)
           field-def (some-> scoped-type-name types-by-name ::schema/fields-by-name (get field-name))
           selection-type (some-> field-def ::g/type-ref schema/unwrapped-type ::g/name types-by-name)
-          subselection-set (::g/selection-set selection)]
+          subselection-set (::g/selection-set selection)
+          ;; Again for skip include TODO
+          ]
 
       (cond
         (= field-name "__typename") []  ; allow for introspection
@@ -171,7 +170,6 @@
                     (::g/name selection)
                     scoped-type-name)
           :selection selection
-          :parent-scoped-type parent-scoped-type
           :field-name (::g/name selection)
           :path path
           :scoped-type-name scoped-type-name
@@ -181,7 +179,7 @@
         [{:message "The subselection set of a scalar or enum must be empty"}]
 
         subselection-set
-        (mapcat #(validate-selection % scoped-type-name schema path) subselection-set)
+        (mapcat #(validate-selection % schema path) subselection-set)
 
         :else []))
 
@@ -189,23 +187,26 @@
 
     :inline-fragment
     (let [path (conj path (::scoped-type-name selection))]
-      (mapcat #(validate-selection % parent-scoped-type schema path)
-              (::g/selection-set selection)))))
+      (mapcat #(validate-selection % schema path)
+              (::g/selection-set selection)
+              ;; Again here for skip/include TODO
+
+              ))))
 
 (defn validate-selection-sets [{::keys [schema] :as acc}]
-  (letfn [(aux
-            [kw]
-            (filter identity
-                    (mapcat (fn [submap]
-                              (mapcat (fn [selection]
-                                        (validate-selection selection (::scoped-type-name submap) schema [(::g/name submap)]))
-                                      (::g/selection-set submap)))
-                            (kw acc))))]
-    (update
-     acc ::errors into
-     (concat
-      (aux ::operations)
-      (aux ::fragments)))))
+  (update
+   acc ::errors into
+   (filter identity
+           (mapcat (fn [submap]
+                     (mapcat (fn [selection]
+                               (validate-selection selection
+                                                   schema
+                                                   [(::g/name submap)]))
+                             (::g/selection-set submap))) ;Maybe here would be a good place to introduce some logic for the skip/include directive? TODO
+                   (concat
+                    (::operations acc)
+                    (::fragments acc))))))
+
 
 (defn visit-fields [selection schema]
   (case (::g/selection-type selection)
@@ -244,7 +245,7 @@
 (defn fields-in-set-can-merge
   [selection-set {::schema/keys [types-by-name] :as schema}
    parent-scoped-type path]
-  (let [ ;; "1. Let fieldsForName be the set of selections with a given response
+  (let [;; "1. Let fieldsForName be the set of selections with a given response
         ;; name in set including visiting fragments and inline fragments."
         fields-for-name (fields-by-name selection-set schema)]
     (->>
@@ -253,8 +254,7 @@
       (fn [[response-name fields]]
         ;; "2. Given each pair of members fieldA and fieldB in fieldsForName:"
 
-        [
-         ;; "a. SameResponseShape(fieldA, fieldB) must be true." (TODO)
+        [;; "a. SameResponseShape(fieldA, fieldB) must be true." (TODO)
          (same-response-shape response-name fields schema path)
 
          ;; "b. If the parent types of fieldA and fieldB are equal or if
@@ -291,25 +291,21 @@
              ;; fieldA and the selection set of
              ;; fieldB. FieldsInSetCanMerge(mergedSet) must be true."
              ))]))
-     (filter some?)
-     )))
+     (filter some?))))
 
 (defn validate-fields-in-set-can-merge [acc]
-  (letfn [(aux
-            [kw]
-            (mapcat (fn [submap]
-                      (fields-in-set-can-merge (::g/selection-set submap)
-                                               (::schema acc)
-                                               (::scoped-type-name submap)
-                                               [(::g/name submap)]))
-                    (kw acc)))]
-    (update
-     acc ::errors into                       ;; TODO: Also visit fragments and inline fragments as per spec "including visiting
-                      ;; fragments and inline fragments."
+  (update
+   acc ::errors into ;; TODO: Also visit fragments and inline fragments as per spec "including visiting
+   ;; fragments and inline fragments."
 
-     (concat 
-      (aux ::operations)
-      (aux ::fragments)))))
+   (mapcat (fn [op-or-fragment]
+             (fields-in-set-can-merge (::g/selection-set op-or-fragment)
+                                      (::schema acc)
+                                      (::scoped-type-name op-or-fragment)
+                                      [(::g/name op-or-fragment)]))
+           (concat
+            (::operations acc)
+            (::fragments acc)))))
 
 (defn compile-document*
   "Compile a document with respect to the given schema, returning a structure that
@@ -318,8 +314,7 @@
    (compile-document*
     document schema
     {:compilers
-     [
-      add-operations
+     [add-operations
       add-default-operation-type
       add-fragments
       add-scoped-types-to-operations

@@ -50,6 +50,8 @@
       (compile-document* {})
       (expected-errors [#"A document containing a type system definition or extension is invalid for execution" nil])))
 
+;; Operations
+
 (deftest example-93-test
   ^{:juxt/see
     "https://spec.graphql.org/June2018/#sec-Operation-Name-Uniqueness"}
@@ -188,6 +190,19 @@
 ;; Arguments
 
 ;; Fragments
-#_(-> (example "126")
-    (compile-document* (example-schema))
-    )
+(deftest example-126-test
+  (-> (example "126")
+      (compile-document* (example-schema))
+      (expected-errors [])))
+
+(deftest example-127-test
+  (-> (example "127")
+      (compile-document* (example-schema))
+      (expected-errors [#"Fragment name 'fragmentOne' is not unique"])))
+
+;; TODO: Include and skip directives preventing scoping of field
+
+#_(deftest example-128-test
+    (-> (example "128")
+        (compile-document* (example-schema))
+        (expected-errors [#""])))

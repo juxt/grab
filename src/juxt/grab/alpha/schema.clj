@@ -933,6 +933,7 @@
                                  ])
 (defn extend-schema
   "Extend a schema"
+  ;; TODO: update fields-by-name field in objects and interfaces.
   [schema document]
   (assert (empty? (::errors schema)) "Cannot extend schema when there are pre-existing errors")
   (apply-to-schema document schema schema-extension-functions))
