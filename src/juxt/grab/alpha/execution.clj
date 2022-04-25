@@ -159,6 +159,61 @@
    ;; 3. For each selection in selectionSet:
    selection-set))
 
+(defn i-reduce
+  ([f acc coll]
+   (i-reduce f acc 0 coll))
+  ([f acc i coll]
+   (cond
+     (nil? (seq coll))
+     acc
+     :else
+     (i-reduce f (f acc i (first coll)) (+ i 1) (rest coll)))))
+
+(declare map-df-filter)
+
+(defn vector-df-filter
+  "depth first filtering, retrieving value and path"
+  ([v predicate path]
+   (i-reduce (fn [acc i x]
+               (cond
+                 (predicate i x)
+                 (conj acc {::value x ::path (conj path i)})
+                 (map? x)
+                 (into acc (map-df-filter x predicate (conj path i)))
+                 (vector? x)
+                 (into acc (vector-df-filter x predicate (conj path i)))
+                 :else
+                 acc))
+             [] v))
+  ([v predicate]
+   (vector-df-filter v predicate [])))
+
+(defn map-df-filter
+  "depth first filtering, retrieving value and path"
+  ([m predicate path]
+   (reduce-kv (fn [acc k v]
+                (cond
+                  (predicate k v)
+                  (conj acc {::value v ::path (conj path k)})
+                  (map? v)
+                  (into acc (map-df-filter v predicate (conj path k)))
+                  (or (list? v) (vector? v))
+                  (into acc (vector-df-filter v predicate (conj path k)))
+                  :else
+                  acc))
+              [] m))
+  ([m predicate]
+   (map-df-filter m predicate [])))
+
+(defn coerce-variable-values [schema operation variable-values]
+  (let [ ;; 1. Let coercedValues be an empty map
+        coerced-values {}
+        ;; 2. Let variableDefinitions be the variables defined by operation. (TODO) note to self, the compiled example 184 is a good one to follow along with for defining coerce-variable-values
+        variable-definitions (vec (mapcat #(map-df-filter % (fn [k v] (= k ::g/variable))) (::g/selection-set operation)))
+        ;; 3. For each variableDefinition in variable-definitions
+        ]
+    variable-values))
+
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.4.1"
@@ -176,8 +231,7 @@
         ;; for the field named fieldName.
         argument-definitions (get-in object-type [::schema/fields-by-name field-name ::g/arguments-definition])]
 
-
-
+    
     ;; 5. For each argumentDefinition in argumentDefinitions:
     (reduce
      (fn [acc argument-definition]
@@ -185,7 +239,7 @@
        (let [ ;; a. Let argumentName be the name of argumentDefinition.
              argument-name (::g/name argument-definition)
              ;; b. Let argumentType be the expected type of argumentDefinition.
-             argument-type (::g/type argument-definition)
+             argument-type (::g/type-ref argument-definition)
              ;; c. Let defaultValue be the default value for argumentDefinition.
              default-value (find argument-definition ::g/default-value)
              ;; d. Let hasValue be true if argumentValues provides
@@ -193,9 +247,15 @@
              has-value (find argument-values argument-name)
              ;; e. Let argumentValue be the value provided in argumentValues for the name argumentName.
              argument-value (second has-value)
-             ;; f. If argumentValue is a Variable: (TODO)
+             ;; f. If argumentValue is a Variable:
+             ;; (TODO)
+             value 
+             ;; i. Let variableName be the name of argumentValue.
+             ;; ii. Let hasValue be true if variableValues provides a value for the name variableName.
+             ;; iii.
              ;; g. Otherwise, let value be argumentValue.
-             value argument-value]
+
+             argument-value]
 
          (cond
            ;; h. If hasValue is not true and defaultValue exists (including null):
@@ -699,7 +759,7 @@
       ;; If any of the fields are invalid, this invalidates the field's
       ;; parent's selection set. We nil it and clear the flag, letting its
       ;; parent to set the flag based on whether this is acceptable or to
-      ;; proppagate in turn to it's parent.
+      ;; propagate in turn to it's parent.
       (::invalid? result)
       (-> (assoc :data nil)
           (dissoc ::invalid?)))))
@@ -780,6 +840,7 @@
 (defn execute-subscription [_]
   (throw (ex-info "Subscriptions are not currently supported" {})))
 
+
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
     :juxt.grab.alpha.spec-ref/section "6.1"
@@ -787,15 +848,18 @@
   execute-request
   "Execute a request. Provide schema, document, operation-name, variable-values,
   initial-value and field-resolver. Returns a map with :errors and :data."
-  [{:keys [document operation-name variable-values] :as args}]
-
+  [{:keys [schema document operation-name variable-values] :as args}]
   (assert document)
+  (def document document)
+  (def schema schema)
+  (def variable-values variable-values)
+  (def operation-name operation-name)
 
   ;; 1. Let operation be the result of GetOperation(document, operationName).
   (let [operation (document/get-operation document operation-name)
         ;; 2. Let coercedVariableValues be the result of
         ;; CoerceVariableValues(schema, operation, variableValues). (TODO)
-        coerced-variable-values variable-values
+        coerced-variable-values (coerce-variable-values schema operation variable-values)
         fragments-by-name (::document/fragments-by-name document)]
 
     (case (::g/operation-type operation)
