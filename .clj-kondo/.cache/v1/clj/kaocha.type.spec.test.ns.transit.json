@@ -1,0 +1,1 @@
+["^ ","~$->testable",["^ ","~:row",16,"~:col",1,"~:fixed-arities",["~#set",[2]],"~:name","^0","~:ns","~$kaocha.type.spec.test.ns","~:top-ns","^7"],"~$starts-with-namespace?",["^ ","^1",23,"^2",1,"^3",["^4",[2]],"^5","^9","^6","^7","^8","^7"],"~:filename","/home/jamie/.m2/repository/lambdaisland/kaocha/1.0.887/kaocha-1.0.887.jar:kaocha/type/spec/test/ns.clj"]
