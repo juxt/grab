@@ -159,60 +159,50 @@
    ;; 3. For each selection in selectionSet:
    selection-set))
 
-(defn i-reduce
-  ([f acc coll]
-   (i-reduce f acc 0 coll))
-  ([f acc i coll]
-   (cond
-     (nil? (seq coll))
-     acc
-     :else
-     (i-reduce f (f acc i (first coll)) (+ i 1) (rest coll)))))
 
-(declare map-df-filter)
-
-(defn vector-df-filter
-  "depth first filtering, retrieving value and path"
-  ([v predicate path]
-   (i-reduce (fn [acc i x]
-               (cond
-                 (predicate i x)
-                 (conj acc {::value x ::path (conj path i)})
-                 (map? x)
-                 (into acc (map-df-filter x predicate (conj path i)))
-                 (vector? x)
-                 (into acc (vector-df-filter x predicate (conj path i)))
-                 :else
-                 acc))
-             [] v))
-  ([v predicate]
-   (vector-df-filter v predicate [])))
-
-(defn map-df-filter
-  "depth first filtering, retrieving value and path"
-  ([m predicate path]
-   (reduce-kv (fn [acc k v]
-                (cond
-                  (predicate k v)
-                  (conj acc {::value v ::path (conj path k)})
-                  (map? v)
-                  (into acc (map-df-filter v predicate (conj path k)))
-                  (or (list? v) (vector? v))
-                  (into acc (vector-df-filter v predicate (conj path k)))
-                  :else
-                  acc))
-              [] m))
-  ([m predicate]
-   (map-df-filter m predicate [])))
 
 (defn coerce-variable-values [schema operation variable-values]
   (let [ ;; 1. Let coercedValues be an empty map
         coerced-values {}
-        ;; 2. Let variableDefinitions be the variables defined by operation. (TODO) note to self, the compiled example 184 is a good one to follow along with for defining coerce-variable-values
-        variable-definitions (vec (mapcat #(map-df-filter % (fn [k v] (= k ::g/variable))) (::g/selection-set operation)))
-        ;; 3. For each variableDefinition in variable-definitions
+        ;; 2. Let variableDefinitions be the variables defined by operation.
+        variable-definitions (::g/variable-definitions operation)
         ]
-    variable-values))
+    ;; 3. For each variableDefinition in variable-definitions
+    (reduce (fn [acc variable-definition]
+              (let [ ;; a. Let variableName be the name of variableDefinition.
+                    variable-name (::g/variable variable-definition)
+                    ;; b. Let variableType be the expected type of variableDefinition.
+                    variable-type (get-in schema [::schema/types-by-name (::g/name (::g/type-ref variable-definition))])
+                    ;; d. Let defaultValue be the default value for variableDefinition.
+                    default-value (::g/default-value variable-definition)
+                    ;; e. Let hasValue be true if variableValues provides a value for the name variableName.
+                    has-value ((set (keys variable-values)) variable-name)
+                    ;; f. Let value be the value provided in variableValues for the name variableName.
+                    value (get variable-values variable-name)
+                    ]
+                
+                ;; c. Assert: IsInputType(variableType) must be true.
+                (assert (schema/input-type? variable-type))
+                
+                (if has-value
+                  (if value
+                    ;; TODO 1. If value cannot be coerced according to the input coercion rules of variableType, throw a query error.
+                    ;; 2. Let coercedValue be the result of coercing value according to the input coercion rules of variableType.
+                    ;; 3. Add an entry to coercedValues named variableName with the value coercedValue.
+                    (into coerced-values {variable-name value})
+                    
+                    ;; i. if value is null
+                    ;; 1.     Add an entry to coercedValues named variableName with the value null.
+                    ;; Check if nullable TODO
+                    (into coerced-values {variable-name nil}))
+                  (if default-value
+                    ;; g If hasValue is not true and defaultValue exists (including null):
+                    ;; i. Add an entry to coercedValues named variableName with the value defaultValue.
+                    (into coerced-values {variable-name default-value})
+                    ;; Check if nullable TODO
+                    (throw (Exception. (str "Query error: Missing variable for non-nullable type" variable-name)))))
+                ))
+            coerced-values variable-definitions)))
 
 (defn
   ^{:juxt.grab.alpha.spec-ref/version "June2018"
@@ -714,44 +704,45 @@
         (collect-fields
          (into args {:lookup-type (::schema/types-by-name schema)}))
 
-        result
-        (reduce
-         (fn [acc [response-key fields]]
+        execution-fn
+        (fn [acc [response-key fields]]
 
-           ;; a. Let fieldName be the name of the first entry in fields. Note:
-           ;; This value is unaffected if an alias is used.
-           (let [field (first fields)
-                 field-name (::g/name field)
-                 ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
-                 field-type-ref
-                 (case field-name
-                   "__typename"
-                   {::g/non-null-type {::g/name "String"}}
-                   (get-in object-type [::schema/fields-by-name field-name ::g/type-ref]))]
-
-             ;; c. If fieldType is defined:
-             (if field-type-ref
-               ;; i. Let responseValue be ExecuteField(objectType, objectValue,
+          ;; a. Let fieldName be the name of the first entry in fields. Note:
+          ;; This value is unaffected if an alias is used.
+          (let [field (first fields)
+                field-name (::g/name field)
+                ;; b. Let fieldType be the return type defined for the field fieldName of objectType.
+                field-type-ref
+                (case field-name
+                  "__typename"
+                  {::g/non-null-type {::g/name "String"}}
+                  (get-in object-type [::schema/fields-by-name field-name ::g/type-ref]))]
+            
+            ;; c. If fieldType is defined:
+            (if field-type-ref
+              ;; i. Let responseValue be ExecuteField(objectType, objectValue,
                ;; fields, fieldType, variableValues).
-               (let [{:keys [data errors] ::keys [invalid?] :as field-result}
-                     (execute-field
-                      (into args
-                            {:field-type-ref field-type-ref
+              (let [{:keys [data errors] ::keys [invalid?] :as field-result}
+                    (execute-field
+                     (into args
+                           {:field-type-ref field-type-ref
                              :fields fields
-                             ;; "If the error happens in an aliased field, the path to
-                             ;; the error should use the aliased name, since it
-                             ;; represents a path in the response, not in the query."
-                             ;; -- GraphQL Spec. June 2018, 7.1.2
+                            ;; "If the error happens in an aliased field, the path to
+                            ;; the error should use the aliased name, since it
+                            ;; represents a path in the response, not in the query."
+                            ;; -- GraphQL Spec. June 2018, 7.1.2
                              :path (conj path (keyword response-key))}))]
-                 ;; ii. Set responseValue as the value for responseKey in resultMap.
-                 (cond-> acc
-                   (find field-result :data) (update :data conj [(keyword response-key) data])
+                ;; ii. Set responseValue as the value for responseKey in resultMap.
+                (cond-> acc
+                  (find field-result :data) (update :data conj [(keyword response-key) data])
                    (seq errors) (update :errors concat errors)
                    ;; Indicate in the accumulator that we have an invalid nil field.
                    invalid? (assoc ::invalid? true)))
                ;; Otherwise return the accumulator
                acc)))
-         ;; 2. Initialize resultMap to an empty ordered map.
+        result
+        (reduce
+         execution-fn         ;; 2. Initialize resultMap to an empty ordered map.
          {:data (ordered-map)}
          grouped-field-set)]
 
@@ -850,10 +841,6 @@
   initial-value and field-resolver. Returns a map with :errors and :data."
   [{:keys [schema document operation-name variable-values] :as args}]
   (assert document)
-  (def document document)
-  (def schema schema)
-  (def variable-values variable-values)
-  (def operation-name operation-name)
 
   ;; 1. Let operation be the result of GetOperation(document, operationName).
   (let [operation (document/get-operation document operation-name)
