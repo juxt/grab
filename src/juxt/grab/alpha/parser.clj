@@ -328,8 +328,17 @@
 (defmethod process :variable [[_ _ nm]]
   {::g/variable (::g/name (process-child nm))})
 
+(defmethod process :variableDefinitions [[_ _ & vals]]
+  {::g/variable-definitions (mapv process-child (butlast vals))})
+
+(defmethod process :variableDefinition [[_ varname _ vartype & default]]
+  (let [var-def (into (process-child varname) (process-child vartype))]
+    (if default
+      (into var-def (process-child (first default)))
+      var-def)))
+
 (defmethod process :objectValue [[_ & args]]
-  (into {} (map (comp process-child) (rest (butlast args)))))
+  (into {} (map process-child (rest (butlast args)))))
 
 (defmethod process :objectField [[_ name _ value]]
   [(keyword (::g/name (process-child name))) (process-child value)])

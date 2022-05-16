@@ -1,0 +1,13 @@
+type Query {
+  amo: Dog
+}
+
+type Trader {
+  firstname: String
+  employeeId: Int
+  dietaryInfo: Dietary
+}
+
+type Dietary {
+  allergies: [String]
+}
