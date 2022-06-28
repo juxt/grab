@@ -328,6 +328,15 @@
 (defmethod process :variable [[_ _ nm]]
   {::g/variable (::g/name (process-child nm))})
 
+(defmethod process :variableDefinitions [[_ _ & xs]]
+  {::g/variable-definitions (map process-child (butlast xs))})
+
+(defmethod process :variableDefinition
+  ([[_ v _ typ default]]
+   (->> (if default (process-child default) {})
+       (merge (process-child v))
+       (merge (process-child typ)))))
+
 (defmethod process :objectValue [[_ & args]]
   (into {} (map (comp process-child) (rest (butlast args)))))
 

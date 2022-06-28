@@ -256,7 +256,6 @@
              ;; g. Otherwise, let value be argumentValue.
 
              argument-value]
-
          (cond
            ;; h. If hasValue is not true and defaultValue exists (including null):
            (and (not has-value) default-value)
@@ -278,6 +277,7 @@
              ;; i. If value is null:
              (nil? argument-value)
              ;; 1. Add an entry to coercedValues named argumentName with the value null.
+               
              (conj acc [argument-name nil])
 
              ;; ii. Otherwise, if argumentValue is a Variable:
