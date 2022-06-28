@@ -1,0 +1,9 @@
+mutation CreateQuestionnaire (
+  $questionnaire: QuestionnaireInput!
+  $questions: [QuestionInput!]!
+  $answers: [AnswerInput!]!
+  ) {
+    addQuestionnaire(questionnaire: $questionnaire) { id }
+    addQuestions(questions: $questions) { id }
+    addAnswers(answers: $answers) { id }
+}

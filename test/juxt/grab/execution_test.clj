@@ -619,3 +619,80 @@ type StackTraceElement { fileName: String className: String lineNumber: Int meth
     (is (some? (:data result)))
     (is (nil? (:errors result)))))
 
+(deftest enum-with-variable-test
+  (let [schema
+        (schema/compile-schema
+         (parser/parse "
+type Query { choose(fruit: Fruit = ORANGE): Fruit }
+enum Fruit { APPLE ORANGE BANANA }"))
+        document (document/compile-document
+                  (parser/parse "{ choose(fruit: $fruit) }")
+                  schema)]
+    (is
+     (= {:data {:choose "APPLE"}}
+        (execute-request
+         {:schema schema
+          :document document
+          :variable-values {"fruit" "APPLE"}
+          :field-resolver
+          (fn [{:keys [field-name] :as args}]
+            (case field-name
+              "choose" (get-in args [:argument-values "fruit"])
+              (throw (ex-info "TODO" {:args args}))))})))))
+
+
+(let [schema (schema/compile-schema
+              (parser/parse (slurp (io/resource "juxt/grab/examples/credo-schema.graphql"))))
+      document (document/compile-document
+                (parser/parse (slurp (io/resource "juxt/grab/examples/credo-query.graphql")))
+                schema)
+      questionnaire (atom {})]
+  (execute-request
+   {:schema schema
+    :document document
+    :variable-values {"questionnaire" {"title" "Financial goals and reasons for investing"
+                                       "description" "Goal for investing can also include your personal values"
+                                       "id" "1"}
+                      "questions" [{"title" "Approach to sustaninable investing"
+                                    "questionType" "SINGLE_CHOICE"
+                                    "description" "Which of the following best describe your investiment preference?"}
+                                   {"title" "Allocation style"
+                                    "questionType" "SINGLE_CHOICE"
+                                    "description" "Preference of sustainable investiments"}]
+                      "answers" [{"title" "No preference"
+                                  "description" "I am indifferent"
+                                  "answerType" "BOOLEAN"
+                                  "valueBoolean" false}
+                                 {"title" "Returns with SI"
+                                  "description" "Part of investiment"
+                                  "answerType" "BOOLEAN"
+                                  "valueBoolean" true}
+                                 {"title" "Dedicated to change"
+                                  "description" "Higher priority"
+                                  "answerType" "BOOLEAN"
+                                  "valueBoolean" false}
+                                 {"title" "Preferred"
+                                  "description" "If available, but also other assets"
+                                  "answerType" "BOOLEAN"
+                                  "valueBoolean" false}
+                                 {"title" "Exclusive"
+                                  "description" "Only if sustainable",
+                                  "answerType" "BOOLEAN"
+                                  "valueBoolean" true}
+                                 {"title" "Opportunist"
+                                  "description" "Pick if available"
+                                  "answerType" "BOOLEAN"
+                                  "valueBoolean" false}]
+                      }
+    :field-resolver (fn [args]
+                      (println args)
+                      (case (get-in args [:field-name])
+                        "addQuestionnaire" (get (swap! questionnaire #(merge % {:questionnaire (get-in args [:variable-values "questionnaire"])})) :questionnaire)
+                        "addQuestions" (get (swap! questionnaire #(merge % {:questions (get-in args [:variable-values "questions"])})) :questions)
+                        "addAnswers" (get (swap! questionnaire #(merge % {:answers (get-in args [:variable-values "answers"])})) :answers)
+                        "id" "1"
+                        (throw (ex-info "TODO" {:args args}))
+                        ))
+    
+    })
+  questionnaire)
