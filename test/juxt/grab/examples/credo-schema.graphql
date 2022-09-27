@@ -1,0 +1,98 @@
+schema @site(type: "pro.juxt/questionnaire-v001") {
+  query: Query
+  mutation: Mutation
+}
+type Query {
+  questionnaires: [Questionnaire]!
+  questions: [Question]!
+  questionnaire(id: ID!): Questionnaire
+}
+type Mutation {
+  addQuestionnaire(questionnaire: QuestionnaireInput): Questionnaire
+  addQuestions(questions: [QuestionInput]): [Question]
+  addAnswers(answers: [AnswerInput]): [Answer]
+  updateQuestionnaire(id: ID questionnaire: QuestionnaireInput): Questionnaire
+    @site(mutation: "update")
+  deleteQuestionnaire(id: ID): Questionnaire
+    @site(mutation: "delete")
+  addQuestion(question: QuestionInput): Question
+  deleteQuestion(id: ID!): Question
+    @site(mutation: "delete")
+  updateQuestion(id: ID!, question: QuestionInput): Question
+    @site(mutation: "update")
+}
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+enum AnswerType {
+  STRING
+  BOOLEAN
+  INT
+  FLOAT
+}
+input AnswerInput {
+  title: String
+  description: String
+  answerType: AnswerType
+  valueString: String
+  valueInt: Int
+  valueBoolean: Boolean
+  valueFloat: Float
+}
+type Answer {
+  id: ID!
+  title: String
+  description: String
+  answerType: AnswerType
+  valueString: String
+  valueInt: Int
+  valueBoolean: Boolean
+  valueFloat: Float
+  question: Question!
+    @site(ref: "answerQuestionId")
+}
+input QuestionInput {
+  title: String
+  description: String
+  questionType: QuestionType
+}
+type Question {
+  id: ID!
+  title: String
+  description: String
+  questionType: QuestionType
+  questionnaire: Questionnaire!
+    @site(ref: "questionQuestionnaireId")
+  answers: [Answer]!
+    @site(
+      q: {
+        edn: """
+        {:find [e]
+         :where [[e :answerQuestionId "{{object-id}}"]
+                 [(get-attr e {{type}}) [t]]
+                 [(= t "Answer")]]}
+        """
+      }
+    )
+}
+input QuestionnaireInput {
+  title: String
+  description: String
+}
+type Questionnaire {
+  id: ID!
+  title: String
+  description: String
+  questions: [Question] # has many
+    @site(
+      q: {
+        edn: """
+        {:find [e]
+         :where [[e :questionQuestionnaireId "{{object-id}}"]
+                 [(get-attr e {{type}}) [t]]
+                 [(= t "Question")]]}
+        """
+      }
+    )
+}
