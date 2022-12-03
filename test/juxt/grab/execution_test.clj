@@ -8,9 +8,8 @@
    [clojure.java.io :as io]
    [juxt.grab.alpha.document :as document]
    [juxt.grab.alpha.schema :as schema]
-   [clojure.string :as str]))
-
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+   [clojure.string :as str]
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (deftest warmup-test
   (is
@@ -258,10 +257,9 @@
      (execute-request
       {:schema schema
        :document document
-       :abstract-type-resolver (fn [{:keys [object-value] :as args}] (get object-value :type))
+       :abstract-type-resolver (fn [{:keys [object-value]}] (get object-value :type))
        :field-resolver
-       (fn [{:keys [object-type object-value field-name] :as args}]
-         (def foo [(::g/name object-type) field-name])
+       (fn [{:keys [object-type object-value field-name]}]
          (condp = [(::g/name object-type) field-name]
            ["Query" "heros"]
            [{:name "Octoman"
@@ -441,7 +439,7 @@
          {:schema schema
           :document document
           :field-resolver
-          (fn [{:keys [object-type object-value field-name] :as args}]
+          (fn [{:keys [object-value] :as args}]
             (let [pair [(get-in args [:object-type ::g/name])
                         (get-in args [:field-name])]]
               (condp = pair
@@ -461,7 +459,7 @@
                                         :pair pair})))))
 
           :abstract-type-resolver
-          (fn [{:keys [object-value] :as args}]
+          (fn [{:keys [object-value]}]
             (::type object-value))}))))
 
     (let [document
@@ -488,7 +486,7 @@
             {:schema schema
              :document document
              :field-resolver
-             (fn [{:keys [object-type object-value field-name] :as args}]
+             (fn [{:keys [object-value] :as args}]
                (let [pair [(get-in args [:object-type ::g/name])
                            (get-in args [:field-name])]]
                  (condp = pair
@@ -511,7 +509,7 @@
                                            :pair pair})))))
 
              :abstract-type-resolver
-             (fn [{:keys [object-value] :as args}]
+             (fn [{:keys [object-value]}]
                (::type object-value))}))))))
 
 (deftest union-test
@@ -533,7 +531,7 @@
          {:schema schema
           :document document
           :field-resolver
-          (fn [{:keys [object-type object-value field-name] :as args}]
+          (fn [{:keys [object-value] :as args}]
             (let [pair [(get-in args [:object-type ::g/name])
                         (get-in args [:field-name])]]
               (condp = pair
@@ -550,7 +548,7 @@
                                         :pair pair})))))
 
           :abstract-type-resolver
-          (fn [{:keys [object-value] :as args}]
+          (fn [{:keys [object-value]}]
             (::type object-value))})))))
 
 (deftest simple-enum-test
@@ -590,7 +588,7 @@ type StackTraceElement { fileName: String className: String lineNumber: Int meth
                 {:schema schema
                  :document document
                  :field-resolver
-                 (fn [{:keys [field-name object-type object-value] :as args}]
+                 (fn [{:keys [field-name object-type object-value]}]
 
                    (let [pair [(::g/name object-type) field-name]]
                      (condp = pair
@@ -694,7 +692,7 @@ enum Fruit { APPLE ORANGE BANANA }"))
                           "id" "1"
                           (throw (ex-info "TODO" {:args args}))
                           ))
-      
+
       })
     (is (=
          {:questionnaire

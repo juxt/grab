@@ -3,13 +3,12 @@
 (ns juxt.grab.alpha.parser
   (:require
    [clj-antlr.core :as antlr]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   ;; TODO: Move entries produced by this ns from juxt.grab.alpha.graphql to
+   ;; juxt.grab.alpha.parser
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (defonce parser (antlr/parser (slurp (io/resource "GraphQL.g4"))))
-
-;; TODO: Move entries produced by this ns from juxt.grab.alpha.graphql to
-;; juxt.grab.alpha.parser
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
 
 (defmulti process
   (fn [x]
@@ -106,7 +105,7 @@
 (defmethod process :floatValue [[_ val]]
   (Double/parseDouble val))
 
-(defmethod process :type_ [[_ val bang? :as args]]
+(defmethod process :type_ [[_ val bang?]]
   (-> {::g/type-ref (if (= bang? "!") {::g/non-null-type (process-child val)} (process-child val))}))
 
 (defmethod process :namedType [[_ val]]

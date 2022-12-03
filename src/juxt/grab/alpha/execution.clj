@@ -5,9 +5,8 @@
    [juxt.grab.alpha.document :as document]
    [juxt.grab.alpha.schema :as schema]
    [flatland.ordered.map :refer [ordered-map]]
-   [clojure.string :as str]))
-
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+   [clojure.string :as str]
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (defn field-error [msg]
   (ex-info (str "Field error: " msg) {::field-error true}))
@@ -231,7 +230,7 @@
         ;; for the field named fieldName.
         argument-definitions (get-in object-type [::schema/fields-by-name field-name ::g/arguments-definition])]
 
-    
+
     ;; 5. For each argumentDefinition in argumentDefinitions:
     (reduce
      (fn [acc argument-definition]
@@ -249,7 +248,7 @@
              argument-value (second has-value)
              ;; f. If argumentValue is a Variable:
              ;; (TODO)
-             value 
+             value
              ;; i. Let variableName be the name of argumentValue.
              ;; ii. Let hasValue be true if variableValues provides a value for the name variableName.
              ;; iii.
@@ -277,7 +276,7 @@
              ;; i. If value is null:
              (nil? argument-value)
              ;; 1. Add an entry to coercedValues named argumentName with the value null.
-               
+
              (conj acc [argument-name nil])
 
              ;; ii. Otherwise, if argumentValue is a Variable:
@@ -523,7 +522,7 @@
   complete-value
   "Return a map of :data and :errors"
   [{:keys [field-type-ref fields result variable-values field-resolver abstract-type-resolver
-           schema fragments-by-name path] :as args}]
+           schema fragments-by-name path]}]
 
   (let [{::schema/keys [types-by-name]} schema
         field-type (some-> field-type-ref schema/unwrapped-type ::g/name types-by-name)
@@ -850,10 +849,6 @@
   initial-value and field-resolver. Returns a map with :errors and :data."
   [{:keys [schema document operation-name variable-values] :as args}]
   (assert document)
-  (def document document)
-  (def schema schema)
-  (def variable-values variable-values)
-  (def operation-name operation-name)
 
   ;; 1. Let operation be the result of GetOperation(document, operationName).
   (let [operation (document/get-operation document operation-name)

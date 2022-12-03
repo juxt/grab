@@ -2,17 +2,14 @@
 
 (ns juxt.grab.schema-validation-test
   (:require
-   [clojure.test :refer [deftest is are testing]]
+   [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.schema :refer [compile-schema*] :as s]
-   [juxt.grab.alpha.parser :refer [parse parse*]]
+   [juxt.grab.alpha.parser :refer [parse]]
    [juxt.grab.document-validation-test :refer [example example-schema]]
    [clojure.java.io :as io]
-   [juxt.grab.alpha.schema :as schema]))
-
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (set! clojure.core/*print-namespace-maps* false)
-
 
 (defn expected-errors [{::s/keys [errors]} regexes]
   (assert errors)
@@ -61,8 +58,7 @@
    (-> "type Query { foo: String @x }"
        parse
        compile-schema*
-       (get-in [::schema/types-by-name "Query" ::schema/fields-by-name "foo" ::schema/directives-by-name "x"])
-       )))
+       (get-in [::s/types-by-name "Query" ::s/fields-by-name "foo" ::s/directives-by-name "x"]))))
 
 ;; "All types and directives defined within a schema must not have a name which
 ;; begins with '__' (two underscores), as this is used exclusively by GraphQL’s
@@ -315,24 +311,24 @@
 ;; 3.6.3  Object Extensions
 (deftest object-extension-test
   (-> (example-schema)
-      (schema/extend-schema
+      (s/extend-schema
        (parse "extend type Goat { eats: String! }"))
       (expected-errors [#"The named type must already be defined and must be an Object type"]))
   (-> (example-schema)
-      (schema/extend-schema
+      (s/extend-schema
        (parse "extend type Dog { eats: String eats: Int }"))
       (expected-errors [#"The fields of an Object type extension must have unique names; no two fields may share the same name."]))
   (-> (example-schema)
-      (schema/extend-schema
+      (s/extend-schema
        (parse "extend type Dog { name: String }"))
       (expected-errors [#"Any fields of an Object type extension must not be already defined on the original Object type."]))
   (->
    (parse "type Query @foo { name: String }")
    (compile-schema*)
-   (schema/extend-schema (parse "extend type Query @foo"))
+   (s/extend-schema (parse "extend type Query @foo"))
    (expected-errors [#"Any directives provided must not already apply to the original Object type."]))
   (-> (example-schema)
-      (schema/extend-schema
+      (s/extend-schema
        (parse "extend type Cat implements Pet"))
       (expected-errors [#"Any interfaces provided must not be already implemented by the original Object type."]))
   ;; 6. The resulting extended object type must be a super‐set of all interfaces it implements. (TODO not sure how to make this give an error even since the other validation rules as well as the build covers these exceptions)
@@ -341,7 +337,7 @@
 (deftest object-extension-sanity-test
   (let [extension-example
         (-> (example-schema)
-            (schema/extend-schema
+            (s/extend-schema
              (parse "extend type Cat implements Sentient @foo {
                              exampleField: String }")))]
     (is (= ["Pet" "Sentient"]
@@ -424,7 +420,7 @@
   (-> (parse "type Query { name: String }
 interface Pet @foo")
    (compile-schema*)
-   (schema/extend-schema (parse "extend type Pet @foo"))
+   (s/extend-schema (parse "extend type Pet @foo"))
    (expected-errors [#"Any directives provided must not already apply to the original Object type."]))
   (-> (example-schema)
       (s/extend-schema
@@ -492,7 +488,7 @@ type Dog { name : String }
 type Human { name : String }
 union DogOrHuman @foo = Dog | Human @foo")
    (compile-schema*)
-   (schema/extend-schema (parse "extend union DogOrHuman @foo"))
+   (s/extend-schema (parse "extend union DogOrHuman @foo"))
    (expected-errors [#"Any directives provided must not already apply to the original Union type."])))
 
 ;; 3.9 Enums

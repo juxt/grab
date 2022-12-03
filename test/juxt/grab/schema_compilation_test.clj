@@ -3,12 +3,9 @@
 (ns juxt.grab.schema-compilation-test
   (:require
    [clojure.test :refer [deftest is]]
-   [juxt.grab.alpha.schema :refer [compile-schema compile-schema*] :as schema]
+   [juxt.grab.alpha.schema :refer [compile-schema] :as schema]
    [juxt.grab.alpha.parser :refer [parse]]
-   [clojure.java.io :as io]
-   [juxt.grab.alpha.parser :as parser]))
-
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (defmacro with-schema-compile [bindings & body]
   `((fn [~(first bindings)] ~@body)

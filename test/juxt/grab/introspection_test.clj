@@ -2,14 +2,13 @@
 
 (ns juxt.grab.introspection-test
   (:require
-   [clojure.test :refer [deftest is are testing]]
+   [clojure.test :refer [deftest is]]
    [juxt.grab.alpha.execution :refer [execute-request]]
    [juxt.grab.alpha.parser :as parser]
    [clojure.java.io :as io]
    [juxt.grab.alpha.document :as document]
-   [juxt.grab.alpha.schema :as schema]))
-
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+   [juxt.grab.alpha.schema :as schema]
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (set! clojure.core/*print-namespace-maps* false)
 

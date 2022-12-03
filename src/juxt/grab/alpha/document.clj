@@ -1,9 +1,9 @@
 ;; Copyright © 2021, JUXT LTD.
 
 (ns juxt.grab.alpha.document
-  (:require [juxt.grab.alpha.schema :as schema]))
-
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+  (:require
+   [juxt.grab.alpha.schema :as schema]
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (defn add-error [acc error]
   (update acc ::errors conj error))

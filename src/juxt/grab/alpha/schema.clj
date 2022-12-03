@@ -5,9 +5,8 @@
    [juxt.grab.alpha.parser :refer [parse]]
    [clojure.java.io :as io]
    [clojure.set :as set]
-   [clojure.string :as str]))
-
-(alias 'g (create-ns 'juxt.grab.alpha.graphql))
+   [clojure.string :as str]
+   [juxt.grab.alpha.graphql :as-alias g]))
 
 (def ^{:doc "Are there multiple items in the collection? (i.e. more than one)"}
   multiple? (comp pos? dec count))
@@ -118,7 +117,7 @@
 
 (defn resolve-named-type-ref
   "Return nil if no type found"
-  [{::keys [types-by-name] :as acc} type-ref]
+  [{::keys [types-by-name]} type-ref]
   (assert type-ref)
   (assert (::g/name type-ref) (pr-str type-ref))
   (get types-by-name (::g/name type-ref)))
@@ -167,7 +166,7 @@
     (reduce check-object-field-definition % field-definitions)))
 
 (defn check-object-interfaces-exist [{::keys [types-by-name] :as acc}
-                                     {::g/keys [interfaces] :as td}]
+                                     {::g/keys [interfaces]}]
   (reduce
    (fn [acc decl]
      (let [ifc (get types-by-name decl)]
@@ -193,8 +192,7 @@
          (::g/name interface-field-type-ref)
          (= (resolve-named-type-ref acc object-field-type-ref)
             (resolve-named-type-ref acc interface-field-type-ref)))
-      (and
-       (= object-field-type-ref interface-field-type-ref))
+      (= object-field-type-ref interface-field-type-ref)
       acc
 
       ;; 4.1.1.2. An object field type is a valid sub‐type if it is an Object
@@ -441,7 +439,6 @@
     ;; 2. The member types of a Union type must be all Object base types; Scalar, Interface, and Union types must not be member types of a Union. Similarly, wrapping types must not be member types of a Union.
     (::g/member-types td)
     ((fn [acc]
-       (def td td)
        (reduce (fn [acc member]
                  (let [member-defs (filter #(and
                                              (= (::g/definition-type %) :type-definition)
