@@ -648,13 +648,6 @@
         {:errors (::errors result)})))
     result))
 
-(defmacro flet [bindings & body]
-  "Common Lisp's flet"
-  `((fn [~@(map first (partition 2 bindings))] ~@body)
-    ~@(map (fn [expr]
-             `(fn [~@(first (second expr))]
-                ~@(rest (second expr)))) (partition 2 bindings))))
-
 (defn process-schema-extension [schema {::g/keys [directives operation-types]}]
   (letfn [(add-directives
             [schema directives]
